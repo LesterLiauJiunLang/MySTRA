@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agoda Homes Onboarding Console</title>
+    <link rel="stylesheet" href="agoda-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- AGODA PLATFORM BRAND HEADER -->
+    <header class="agoda-header">
+        <div class="agoda-logo">agoda<span>homes</span></div>
+        <div class="agoda-stepper">
+            <span class="step done">1. Details</span>
+            <span class="step done">2. Pricing</span>
+            <span class="step active">3. Municipal Compliance</span>
+            <span class="step">4. Photos</span>
+        </div>
+        <div class="agoda-profile">👤 Host Panel</div>
+    </header>
+
+    <!-- CONTENT ONBOARDING FORM BOX -->
+    <main class="agoda-main">
+        <div class="form-container">
+            <h2>Step 3: Short-Term Rental Licensing & Compliance</h2>
+            <p class="subtitle">To legally publish your short-term accommodation listing in Malaysia, your local council requires an active, verified government tracking token.</p>
+            
+            <div class="input-group">
+                <label>Property Listing Legal Name</label>
+                <input type="text" value="Luxury Apartment @ KLCC" readonly class="disabled-input">
+            </div>
+
+            <!-- THE INTERCEPTOR TEST INPUT -->
+            <div class="input-group">
+                <label class="highlight-label">Enter Unique MySTRA Registration Code</label>
+                <input type="text" id="agoda-code-input" placeholder="Paste your MYSTRA-KL-2026-XXXX token here..." class="code-field">
+            </div>
+
+            <div class="action-row">
+                <button id="btn-verify-launch" class="btn-agoda">Verify & Launch Live Listing</button>
+            </div>
+            
+            <div class="back-link-row">
+                <a href="mystra-code-control.html">⬅ Cancel and return to MySTRA Portal</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Form interceptor submission simulation
+        document.getElementById('btn-verify-launch').addEventListener('click', () => {
+            const codeValue = document.getElementById('agoda-code-input').value.trim();
+            
+            if(!codeValue || codeValue.toUpperCase() === "CLICK GENERATE TO CREATE") {
+                alert("❌ Validation Error:\nPlease paste a valid code from your MySTRA dashboard control center first.");
+                return;
+            }
+
+            alert(`⚡ API Handshake Sent to Gateway!\n\nVerifying registration code: ${codeValue}\nResponse Received: [200 OK] token is active.\n\nProperty has successfully launched live on the Agoda network!`);
+            // Redirect smoothly back to the central hub
+            window.location.href = 'mystra-code-control.html';
+        });
+    </script>
+</body>
+</html>

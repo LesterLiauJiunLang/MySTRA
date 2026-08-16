@@ -20,9 +20,11 @@
         <nav class="sidebar">
             <div class="sidebar-brand">MySTRA Portal</div>
             <ul class="nav-links">
-                <li class="nav-item"><span class="icon">🏠</span> Home</li>
-                <!-- Active page highlight matching Natalie's design style -->
-                <li class="nav-item active-nav"><span class="icon">🔑</span> MySTRA Code Manager</li>
+                <!-- Added id tags for navigation mapping -->
+                <li id="nav-home" class="nav-item"><span class="icon">🏠</span> Home</li>
+                <li id="nav-manager" class="nav-item active-nav"><span class="icon">🔑</span> MySTRA Code Manager</li>
+                <li id="nav-docs" class="nav-item"><span class="icon">📄</span> Documents</li>
+                <li id="nav-settings" class="nav-item"><span class="icon">⚙️</span> Settings</li>
             </ul>
         </nav>
 
@@ -32,15 +34,15 @@
             <!-- PAGE HEADER & ACTION CONTROLS -->
             <header class="content-header">
                 <div class="header-title-wrapper">
-                    <h1>MySTRA Code Control Centre</h1>
+                    <h1 id="page-main-title">MySTRA Code Control Centre</h1>
                     <span class="status-badge">🟢 SYSTEM LIVE</span>
                 </div>
                 <!-- ⚡ TEST ACTIVE CODE UTILITY BUTTON -->
                 <button id="btn-test-code" class="btn-primary">⚡ Test Active Code</button>
             </header>
 
-            <!-- 🗂️ 3-TAB SEGMENTED CONTROLLER -->
-            <div class="segmented-control">
+            <!-- 🗂️ 3-TAB SEGMENTED CONTROLLER (Only visible when inside Code Manager View) -->
+            <div id="manager-tabs" class="segmented-control">
                 <button id="tab-dashboard" class="tab-btn active">Dashboard</button>
                 <button id="tab-listings" class="tab-btn">Full Listings Directory</button>
                 <button id="tab-logs" class="tab-btn">System Audit Logs</button>
@@ -49,7 +51,25 @@
             <!-- 📥 VIEWPORT SWITCH BOX -->
             <div class="workspace-viewport">
 
-                <!-- 🏠 TAB 1 VIEW: DASHBOARD PANEL -->
+                <!-- 🏠 SIDEBAR VIEW 1: HOME PAGE WORKSPACE PANEL -->
+                <div id="view-home" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <h2>Welcome Back, Operator</h2>
+                        <p style="color: #6B7280; margin-bottom: 20px;">This is your short-term rental management command system baseline hub profile.</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="inventory-item" style="cursor: pointer;" onclick="document.getElementById('nav-manager').click();">
+                                <h3>🔑 Manage Registration Codes</h3>
+                                <p style="font-size: 14px; color: #6B7280; margin-top: 4px;">Deploy tokens, check compliance caps, and view background API telemetry.</p>
+                            </div>
+                            <div class="inventory-item">
+                                <h3>📊 Portfolio Overview</h3>
+                                <p style="font-size: 14px; color: #6B7280; margin-top: 4px;">Active properties: 2 | Suspended properties: 1</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🔑 SIDEBAR VIEW 2: CODE MANAGER (Dashboard Panel View sub-tab) -->
                 <div id="view-dashboard" class="tab-panel">
                     <!-- Split-Panel Token Generator Card -->
                     <div class="token-card">
@@ -101,12 +121,11 @@
                     </div>
                 </div>
 
-                <!-- 🏢 TAB 2 VIEW: FULL LISTINGS DIRECTORY -->
+                <!-- 🔑 SIDEBAR VIEW 2: CODE MANAGER (Full Listings View sub-tab) -->
                 <div id="view-listings" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2>Verified Short-Term Rental Accommodation Inventory</h2>
                         
-                        <!-- Property Listing Entry Card 1 -->
                         <div class="inventory-item">
                             <div class="inventory-header">
                                 <h3>Luxury Apartment @ KLCC</h3>
@@ -119,7 +138,6 @@
                             </div>
                         </div>
 
-                        <!-- Property Listing Entry Card 2 -->
                         <div class="inventory-item">
                             <div class="inventory-header">
                                 <h3>Urban Duplex @ Penang Island</h3>
@@ -134,7 +152,7 @@
                     </div>
                 </div>
 
-                <!-- 📜 TAB 3 VIEW: SYSTEM AUDIT LOGS -->
+                <!-- 🔑 SIDEBAR VIEW 2: CODE MANAGER (System Audit Logs sub-tab) -->
                 <div id="view-logs" class="tab-panel hidden">
                     <div class="widget-card">
                         <div class="widget-header-row">
@@ -162,14 +180,48 @@
                                     <td>Agoda-PROD-West</td>
                                     <td><span class="text-green">[🟢 200 OK] Token Validated</span></td>
                                 </tr>
-                                <tr>
-                                    <td>2026-08-15 11:02:00</td>
-                                    <td class="mono-text">MYSTRA-KL-2026-FakeX</td>
-                                    <td>BookingApp-Core</td>
-                                    <td><span class="text-red">[🔴 404 ERR] Token Not Found</span></td>
-                                </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- 📄 SIDEBAR VIEW 3: DOCUMENTS WORKSPACE PANEL -->
+                <div id="view-docs" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <h2>Regulatory Documents & Frameworks</h2>
+                        <p style="color: #6B7280; margin-bottom: 16px;">Download structural compliance letters and verification guidelines.</p>
+                        <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                            <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>📄 Municipal STRA Guidelines 2026.pdf</span>
+                                <button class="btn-secondary" onclick="alert('Downloading Document Guideline...')">📥 Download</button>
+                            </li>
+                            <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>📄 Operator Identity Certification Packet.pdf</span>
+                                <button class="btn-secondary" onclick="alert('Downloading Verification Packet...')">📥 Download</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- ⚙️ SIDEBAR VIEW 4: SETTINGS WORKSPACE PANEL -->
+                <div id="view-settings" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <h2>System Control Settings</h2>
+                        <p style="color: #6B7280; margin-bottom: 20px;">Configure portal profile preferences and API connection parameters.</p>
+                        <div style="display:flex; flex-direction:column; gap:16px; max-width: 400px;">
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Operator Username</label>
+                                <input type="text" value="Natalie Koa" readonly style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; background:#F9FAFB;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Webhook Enforcement Alerts</label>
+                                <select style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                                    <option>Immediate Browser Push Notifications</option>
+                                    <option>Email Summary Only</option>
+                                </select>
+                            </div>
+                            <button class="btn-primary" style="margin-top:10px;" onclick="alert('Settings configured successfully!')">Save Preferences</button>
+                        </div>
                     </div>
                 </div>
 

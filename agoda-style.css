@@ -1,0 +1,94 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: #F8F9FA;
+    color: #2A2A2A;
+}
+
+/* Agoda Corporate Brand Top Row */
+.agoda-header {
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #E4E4E4;
+    padding: 16px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.agoda-logo {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1877F2;
+    letter-spacing: -1px;
+}
+.agoda-logo span { color: #878787; font-weight: 400; }
+
+.agoda-stepper { display: flex; gap: 20px; font-size: 14px; }
+.step { color: #878787; font-weight: 500; }
+.step.done { color: #16A34A; text-decoration: line-through; }
+.step.active { color: #1877F2; font-weight: 700; border-bottom: 2px solid #1877F2; padding-bottom: 4px; }
+
+/* Setup Centered Form Workspace */
+.agoda-main {
+    max-width: 680px;
+    margin: 60px auto;
+    padding: 0 20px;
+}
+
+.form-container {
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid #E4E4E4;
+    padding: 40px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.form-container h2 { font-size: 22px; margin-bottom: 8px; font-weight: 700; }
+.subtitle { font-size: 14px; color: #666666; line-height: 1.5; margin-bottom: 32px; }
+
+.input-group { margin-bottom: 24px; }
+.input-group label { display: block; font-size: 13px; font-weight: 600; color: #444444; margin-bottom: 8px; }
+.input-group label.highlight-label { color: #1877F2; }
+
+.disabled-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #E4E4E4;
+    border-radius: 8px;
+    background-color: #F5F5F5;
+    color: #888888;
+}
+
+.code-field {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid #1877F2;
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    outline: none;
+}
+
+/* Agoda Blue Interactive Buttons */
+.btn-agoda {
+    width: 100%;
+    background-color: #1877F2;
+    color: #FFFFFF;
+    border: none;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-agoda:hover { background-color: #1565C0; }
+
+.back-link-row { text-align: center; margin-top: 20px; }
+.back-link-row a { font-size: 14px; color: #666666; text-decoration: none; }
+.back-link-row a:hover { text-decoration: underline; }
