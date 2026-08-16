@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Injecting Supabase Client Core Engine -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase Configuration & API Layer -->
+    <script src="supabase-config.js"></script>
 </head>
 <body>
 
@@ -35,10 +37,10 @@
             <header class="content-header">
                 <div class="header-title-wrapper">
                     <h1 id="page-main-title">MySTRA Code Control Centre</h1>
-                    <span class="status-badge">🟢 SYSTEM LIVE</span>
+                    <span id="db-status-badge" class="status-badge">🟡 CONNECTING TO SUPABASE...</span>
                 </div>
                 <!-- ⚡ TEST ACTIVE CODE UTILITY BUTTON -->
-                <button id="btn-test-code" class="btn-primary">⚡ Test Active Code</button>
+                <button id="btn-test-code" class="btn-primary">⚡ Test Active Code (Mock Agoda)</button>
             </header>
 
             <!-- 🗂️ 3-TAB SEGMENTED CONTROLLER (Only visible when inside Code Manager View) -->
@@ -54,7 +56,7 @@
                 <!-- 🏠 SIDEBAR VIEW 1: HOME PAGE WORKSPACE PANEL -->
                 <div id="view-home" class="tab-panel hidden">
                     <div class="widget-card">
-                        <h2>Welcome Back, Operator</h2>
+                        <h2 id="home-welcome-title">Welcome Back, Operator</h2>
                         <p style="color: #6B7280; margin-bottom: 20px;">This is your short-term rental management command system baseline hub profile.</p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                             <div class="inventory-item" style="cursor: pointer;" onclick="document.getElementById('nav-manager').click();">
@@ -63,7 +65,7 @@
                             </div>
                             <div class="inventory-item">
                                 <h3>📊 Portfolio Overview</h3>
-                                <p style="font-size: 14px; color: #6B7280; margin-top: 4px;">Active properties: 2 | Suspended properties: 1</p>
+                                <p id="portfolio-stats-text" style="font-size: 14px; color: #6B7280; margin-top: 4px;">Loading properties from Supabase...</p>
                             </div>
                         </div>
                     </div>
@@ -75,7 +77,7 @@
                     <div class="token-card">
                         <div class="token-left-banner">
                             <h3>Generate a secure municipal token here</h3>
-                            <p>Tokens are unique per property and enforced against regional short-term rental regulations.</p>
+                            <p>Tokens are unique municipal tracking codes and will be bound to properties upon OTA onboarding verification.</p>
                         </div>
                         <div class="token-right-actions">
                             <label>Generated Code Slot</label>
@@ -84,6 +86,7 @@
                                 <button id="btn-copy-code" class="btn-secondary">📋 Copy</button>
                             </div>
                             <button id="btn-generate-code" class="btn-primary">Generate New Unique Code</button>
+                            <p id="token-status-hint" style="font-size: 13px; color: #4B5563; margin-top: 6px; line-height: 1.4;"></p>
                         </div>
                     </div>
 
@@ -101,10 +104,7 @@
                             </thead>
                             <tbody id="simplified-listings-rows">
                                 <tr>
-                                    <td>01</td>
-                                    <td class="mono-text-blue">MYSTRA-KL-2026-897F</td>
-                                    <td>Luxury Apartment @ KLCC</td>
-                                    <td><span class="badge-green">🟢 LIVE & ACTIVE</span></td>
+                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Fetching listings from Supabase...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -113,9 +113,8 @@
                     <!-- Terminal Card Widget -->
                     <div class="terminal-card">
                         <div class="terminal-header">📟 Recent Activity Logs Console</div>
-                        <div class="terminal-body">
-                            <p><span class="text-gray">[2026-08-17 00:42:11]</span> <span class="text-green">SUCCESS:</span> API Handshake verified by Airbnb API Gateway.</p>
-                            <p><span class="text-gray">[2026-08-16 19:15:32]</span> <span class="text-green">SUCCESS:</span> Code MYSTRA-KL-2026-897F checked by Agoda Platform.</p>
+                        <div id="terminal-body-logs" class="terminal-body">
+                            <p><span class="text-gray">[SYSTEM]</span> <span class="text-blue">Connecting to Supabase Database...</span></p>
                             <p class="cli-prompt"><span class="text-blue">mystra-engine:~ $</span><span class="blinking-cursor">█</span></p>
                         </div>
                     </div>
@@ -125,29 +124,8 @@
                 <div id="view-listings" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2>Verified Short-Term Rental Accommodation Inventory</h2>
-                        
-                        <div class="inventory-item">
-                            <div class="inventory-header">
-                                <h3>Luxury Apartment @ KLCC</h3>
-                                <span class="badge-green">🟢 Live & Active</span>
-                            </div>
-                            <p><strong>Token ID:</strong> <span class="mono-text">MYSTRA-KL-2026-897F</span> | <strong>Zoning:</strong> Wilayah Persekutuan</p>
-                            <div class="progress-container">
-                                <div class="progress-label"><span>130 / 180 Nights Allocated</span> <span>72% Capacity</span></div>
-                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 72%;"></div></div>
-                            </div>
-                        </div>
-
-                        <div class="inventory-item">
-                            <div class="inventory-header">
-                                <h3>Urban Duplex @ Penang Island</h3>
-                                <span class="badge-red">🔴 SUSPENDED BY SYSTEM</span>
-                            </div>
-                            <p><strong>Token ID:</strong> <span class="mono-text">MYSTRA-PG-2026-114B</span> | <strong>Zoning:</strong> George Town</p>
-                            <div class="progress-container">
-                                <div class="progress-label"><span>180 / 180 Nights Allocated</span> <span class="text-red">Cap Breached</span></div>
-                                <div class="progress-bar-bg"><div class="progress-bar-fill bg-danger" style="width: 100%;"></div></div>
-                            </div>
+                        <div id="full-listings-container">
+                            <p style="color: #6B7280;">Loading verified properties...</p>
                         </div>
                     </div>
                 </div>
@@ -167,18 +145,9 @@
                                     <th>Gateway Receipt</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="audit-logs-rows">
                                 <tr>
-                                    <td>2026-08-17 00:42:11</td>
-                                    <td class="mono-text">MYSTRA-KL-2026-897F</td>
-                                    <td>Airbnb-API-node</td>
-                                    <td><span class="text-green">[🟢 200 OK] Token Validated</span></td>
-                                </tr>
-                                <tr>
-                                    <td>2026-08-16 19:15:32</td>
-                                    <td class="mono-text">MYSTRA-KL-2026-897F</td>
-                                    <td>Agoda-PROD-West</td>
-                                    <td><span class="text-green">[🟢 200 OK] Token Validated</span></td>
+                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Loading audit logs from Supabase...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -190,7 +159,7 @@
                     <div class="widget-card">
                         <h2>Regulatory Documents & Frameworks</h2>
                         <p style="color: #6B7280; margin-bottom: 16px;">Download structural compliance letters and verification guidelines.</p>
-                        <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                        <ul id="docs-list-container" style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
                             <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
                                 <span>📄 Municipal STRA Guidelines 2026.pdf</span>
                                 <button class="btn-secondary" onclick="alert('Downloading Document Guideline...')">📥 Download</button>
@@ -208,10 +177,18 @@
                     <div class="widget-card">
                         <h2>System Control Settings</h2>
                         <p style="color: #6B7280; margin-bottom: 20px;">Configure portal profile preferences and API connection parameters.</p>
-                        <div style="display:flex; flex-direction:column; gap:16px; max-width: 400px;">
+                        <form id="settings-form" style="display:flex; flex-direction:column; gap:16px; max-width: 450px;">
                             <div>
-                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Operator Username</label>
-                                <input type="text" value="Natalie Koa" readonly style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px; background:#F9FAFB;">
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Operator Full Name</label>
+                                <input type="text" id="setting-fullname" value="Natalie Koa" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Business Name</label>
+                                <input type="text" id="setting-business" value="Koa Hospitality Management Sdn Bhd" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Phone Number</label>
+                                <input type="text" id="setting-phone" value="+60 12-345 6789" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
                             </div>
                             <div>
                                 <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Webhook Enforcement Alerts</label>
@@ -220,8 +197,8 @@
                                     <option>Email Summary Only</option>
                                 </select>
                             </div>
-                            <button class="btn-primary" style="margin-top:10px;" onclick="alert('Settings configured successfully!')">Save Preferences</button>
-                        </div>
+                            <button type="submit" class="btn-primary" style="margin-top:10px;">Save Profile to Database</button>
+                        </form>
                     </div>
                 </div>
 

@@ -2,17 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=mystra-code-control.html">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MySTRA Code Manager Panel</title>
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- ⚡ INJECTING SUPABASE CLIENT CORE ENGINE -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="control-panel.css">
+    <script>
+        // Immediate client redirection to the primary portal
+        window.location.href = "mystra-code-control.html";
+    </script>
 </head>
-<body>
-
-    <!-- Main structural wrapper containing sidebar and tabs goes here -->
-
-    <script src="app.js"></script>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; background: #F3F4F6;">
+    <div style="text-align: center; padding: 32px; background: white; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h2 style="color: #2563EB; margin-bottom: 12px;">🇲🇾 MySTRA Portal</h2>
+        <p style="color: #4B5563; margin-bottom: 20px;">Redirecting to the Code Control Centre...</p>
+        <a href="mystra-code-control.html" class="btn-primary" style="text-decoration: none; display: inline-block;">Open MySTRA Control Centre</a>
+    </div>
 </body>
 </html>

@@ -6,6 +6,10 @@
     <title>Agoda Homes Onboarding Console</title>
     <link rel="stylesheet" href="agoda-style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
+    <!-- Injecting Supabase Client Core Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase Configuration & API Layer -->
+    <script src="supabase-config.js"></script>
 </head>
 <body>
 
@@ -28,8 +32,10 @@
             <p class="subtitle">To legally publish your short-term accommodation listing in Malaysia, your local council requires an active, verified government tracking token.</p>
             
             <div class="input-group">
-                <label>Property Listing Legal Name</label>
-                <input type="text" value="Luxury Apartment @ KLCC" readonly class="disabled-input">
+                <label for="agoda-property-select">Select Accommodation Listing to Register</label>
+                <select id="agoda-property-select" class="code-field" style="background: white; cursor: pointer;">
+                    <option value="">Loading registered properties from Supabase...</option>
+                </select>
             </div>
 
             <!-- THE INTERCEPTOR TEST INPUT -->
@@ -49,18 +55,130 @@
     </main>
 
     <script>
-        // Form interceptor submission simulation
-        document.getElementById('btn-verify-launch').addEventListener('click', () => {
-            const codeValue = document.getElementById('agoda-code-input').value.trim();
+        let availableProperties = [];
+
+        // Load properties from Supabase on start
+        async function initAgodaPage() {
+            const selectEl = document.getElementById('agoda-property-select');
+            try {
+                if (window.MySTRA_API) {
+                    const { data: properties, error } = await MySTRA_API.getProperties();
+                    if (!error && properties && properties.length > 0) {
+                        availableProperties = properties;
+                        selectEl.innerHTML = properties.map(p => 
+                            `<option value="${p.id}">${p.title} (${p.city || p.state})</option>`
+                        ).join('');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not fetch properties from Supabase:", e);
+            }
+
+            // Fallback default options if database is not seeded yet
+            selectEl.innerHTML = `
+                <option value="b2222222-2222-2222-2222-222222222222">Luxury Apartment @ KLCC</option>
+                <option value="c3333333-3333-3333-3333-333333333333">Urban Duplex @ Penang Island</option>
+            `;
+        }
+
+        document.addEventListener('DOMContentLoaded', initAgodaPage);
+
+        // Form interceptor submission simulation with live Supabase validation
+        document.getElementById('btn-verify-launch').addEventListener('click', async () => {
+            const codeInput = document.getElementById('agoda-code-input');
+            const propSelect = document.getElementById('agoda-property-select');
+            const btn = document.getElementById('btn-verify-launch');
+            const codeValue = codeInput.value.trim().toUpperCase();
+            const propertyId = propSelect.value;
+            const propertyTitle = propSelect.options[propSelect.selectedIndex]?.text || "Selected Accommodation";
             
-            if(!codeValue || codeValue.toUpperCase() === "CLICK GENERATE TO CREATE") {
+            if(!codeValue || codeValue === "CLICK GENERATE TO CREATE") {
                 alert("❌ Validation Error:\nPlease paste a valid code from your MySTRA dashboard control center first.");
                 return;
             }
 
-            alert(`⚡ API Handshake Sent to Gateway!\n\nVerifying registration code: ${codeValue}\nResponse Received: [200 OK] token is active.\n\nProperty has successfully launched live on the Agoda network!`);
-            // Redirect smoothly back to the central hub
-            window.location.href = 'mystra-code-control.html';
+            btn.disabled = true;
+            btn.textContent = "Verifying with MySTRA Gateway in Supabase...";
+
+            try {
+                // 1. Query Supabase Database
+                let { data: codeRecord, error } = await MySTRA_API.verifyRegistrationCode(codeValue);
+
+                if (error && error.code === '42501') {
+                    alert(`⚠️ Supabase Permission Error (RLS Policy Active):\n\nSupabase blocked the query/insert with code 42501:\n"${error.message}"\n\n👉 Solution: Open Supabase Dashboard > SQL Editor, run 'fix-supabase.sql' to enable public access policies!`);
+                    return;
+                }
+
+                // If code is in database (e.g. status was PENDING_REGISTRATION), bind and activate it
+                if (codeRecord) {
+                    const { data: updatedData, error: bindErr } = await MySTRA_API.bindRegistrationCodeToProperty(codeValue, propertyId);
+                    if (bindErr) {
+                        if (bindErr.code === '23505') {
+                            alert(`⚠️ Database Unique Constraint Notice:\n\nProperty '${propertyTitle}' already has a token assigned. To allow binding new/renewed tokens to existing properties, run this 1-line SQL in your Supabase SQL Editor:\n\nALTER TABLE mystra_codes DROP CONSTRAINT IF EXISTS mystra_codes_property_id_key;`);
+                            return;
+                        }
+                    }
+                    if (updatedData) {
+                        codeRecord = Array.isArray(updatedData) ? updatedData[0] : updatedData;
+                    }
+                } else if (!codeRecord && codeValue.startsWith('MYSTRA-')) {
+                    // Fallback: create & bind on the fly if user manually entered a new token
+                    const { data: createdData } = await MySTRA_API.createRegistrationCode(codeValue, 180, propertyId);
+                    if (createdData) {
+                        codeRecord = Array.isArray(createdData) ? createdData[0] : createdData;
+                    }
+                }
+
+                if (!codeRecord) {
+                    // Record failed verification log in Supabase
+                    await MySTRA_API.logInterceptorCheck({
+                        registrationCode: codeValue,
+                        requestingOta: 'Agoda-PROD-West',
+                        isValidPass: false,
+                        checkedNightsSnapshot: 0
+                    });
+
+                    alert(`❌ Verification Failed [404 Not Found]:\n\nRegistration Code '${codeValue}' does not exist in the Malaysian MySTRA Database Registry.\n\nAudit log saved to Supabase.`);
+                } else {
+                    const booked = codeRecord.booked_nights || 0;
+                    const maxCap = codeRecord.max_limit_cap || 180;
+                    const isActive = (codeRecord.code_status === 'ACTIVE' || codeRecord.code_status === 'Active' || !codeRecord.code_status) && booked < maxCap;
+
+                    // Log audit check
+                    await MySTRA_API.logInterceptorCheck({
+                        registrationCode: codeValue,
+                        requestingOta: 'Agoda-PROD-West',
+                        isValidPass: isActive,
+                        checkedNightsSnapshot: booked
+                    });
+
+                    if (isActive) {
+                        localStorage.removeItem('mystra_pending_code');
+                        alert(`⚡ API Handshake Verified with Supabase Gateway!\n\n` +
+                              `Token ID: ${codeValue}\n` +
+                              `Matched Property: ${propertyTitle}\n` +
+                              `Quota: ${booked} / ${maxCap} nights used\n` +
+                              `Response Received: [200 OK] Token is active.\n\n` +
+                              `🎉 Property has successfully launched live on the Agoda network!`);
+                        window.location.href = 'mystra-code-control.html';
+                    } else {
+                        alert(`⚠️ Listing Suspended / Cap Exceeded [403 Forbidden]:\n\n` +
+                              `Token ID: ${codeValue}\n` +
+                              `Status: ${codeRecord.code_status}\n` +
+                              `Quota: ${booked} / ${maxCap} nights\n\n` +
+                              `The property cannot be launched because the 180-day municipal cap has been reached or code is suspended.`);
+                    }
+                }
+            } catch (err) {
+                console.error("Verification error:", err);
+                localStorage.removeItem('mystra_pending_code');
+                alert(`⚡ API Verification Note:\nSimulated response [200 OK] for token: ${codeValue}\nMatched to: ${propertyTitle}\n(Supabase note: ${err.message})`);
+                window.location.href = 'mystra-code-control.html';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Verify & Launch Live Listing";
+            }
         });
     </script>
 </body>
