@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA Code Control Centre</title>
+    <!-- CSS Stylesheets -->
+    <link rel="stylesheet" href="control-panel.css">
+    <!-- Google Fonts for the Terminal Monospace Font -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Injecting Supabase Client Core Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- 🌐 GLOBAL SYSTEM CONTAINER -->
+    <div class="portal-container">
+        
+        <!-- 🧭 LEFT SIDEBAR NAVIGATION -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">MySTRA Portal</div>
+            <ul class="nav-links">
+                <li class="nav-item"><span class="icon">🏠</span> Home</li>
+                <!-- Active page highlight matching Natalie's design style -->
+                <li class="nav-item active-nav"><span class="icon">🔑</span> MySTRA Code Manager</li>
+            </ul>
+        </nav>
+
+        <!-- 🖥️ MAIN WORKSPACE AREA -->
+        <main class="main-content">
+            
+            <!-- PAGE HEADER & ACTION CONTROLS -->
+            <header class="content-header">
+                <div class="header-title-wrapper">
+                    <h1>MySTRA Code Control Centre</h1>
+                    <span class="status-badge">🟢 SYSTEM LIVE</span>
+                </div>
+                <!-- ⚡ TEST ACTIVE CODE UTILITY BUTTON -->
+                <button id="btn-test-code" class="btn-primary">⚡ Test Active Code</button>
+            </header>
+
+            <!-- 🗂️ 3-TAB SEGMENTED CONTROLLER -->
+            <div class="segmented-control">
+                <button id="tab-dashboard" class="tab-btn active">Dashboard</button>
+                <button id="tab-listings" class="tab-btn">Full Listings Directory</button>
+                <button id="tab-logs" class="tab-btn">System Audit Logs</button>
+            </div>
+
+            <!-- 📥 VIEWPORT SWITCH BOX -->
+            <div class="workspace-viewport">
+
+                <!-- 🏠 TAB 1 VIEW: DASHBOARD PANEL -->
+                <div id="view-dashboard" class="tab-panel">
+                    <!-- Split-Panel Token Generator Card -->
+                    <div class="token-card">
+                        <div class="token-left-banner">
+                            <h3>Generate a secure municipal token here</h3>
+                            <p>Tokens are unique per property and enforced against regional short-term rental regulations.</p>
+                        </div>
+                        <div class="token-right-actions">
+                            <label>Generated Code Slot</label>
+                            <div class="code-display-row">
+                                <input type="text" id="generated-code-field" value="CLICK GENERATE TO CREATE" readonly>
+                                <button id="btn-copy-code" class="btn-secondary">📋 Copy</button>
+                            </div>
+                            <button id="btn-generate-code" class="btn-primary">Generate New Unique Code</button>
+                        </div>
+                    </div>
+
+                    <!-- Simplified Active Listings Table Widget -->
+                    <div class="widget-card">
+                        <h2>Simplified Active Listings Snapshot</h2>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Code String</th>
+                                    <th>Mapped Property Directory</th>
+                                    <th>Compliance Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="simplified-listings-rows">
+                                <tr>
+                                    <td>01</td>
+                                    <td class="mono-text-blue">MYSTRA-KL-2026-897F</td>
+                                    <td>Luxury Apartment @ KLCC</td>
+                                    <td><span class="badge-green">🟢 LIVE & ACTIVE</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Terminal Card Widget -->
+                    <div class="terminal-card">
+                        <div class="terminal-header">📟 Recent Activity Logs Console</div>
+                        <div class="terminal-body">
+                            <p><span class="text-gray">[2026-08-17 00:42:11]</span> <span class="text-green">SUCCESS:</span> API Handshake verified by Airbnb API Gateway.</p>
+                            <p><span class="text-gray">[2026-08-16 19:15:32]</span> <span class="text-green">SUCCESS:</span> Code MYSTRA-KL-2026-897F checked by Agoda Platform.</p>
+                            <p class="cli-prompt"><span class="text-blue">mystra-engine:~ $</span><span class="blinking-cursor">█</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🏢 TAB 2 VIEW: FULL LISTINGS DIRECTORY -->
+                <div id="view-listings" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <h2>Verified Short-Term Rental Accommodation Inventory</h2>
+                        
+                        <!-- Property Listing Entry Card 1 -->
+                        <div class="inventory-item">
+                            <div class="inventory-header">
+                                <h3>Luxury Apartment @ KLCC</h3>
+                                <span class="badge-green">🟢 Live & Active</span>
+                            </div>
+                            <p><strong>Token ID:</strong> <span class="mono-text">MYSTRA-KL-2026-897F</span> | <strong>Zoning:</strong> Wilayah Persekutuan</p>
+                            <div class="progress-container">
+                                <div class="progress-label"><span>130 / 180 Nights Allocated</span> <span>72% Capacity</span></div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 72%;"></div></div>
+                            </div>
+                        </div>
+
+                        <!-- Property Listing Entry Card 2 -->
+                        <div class="inventory-item">
+                            <div class="inventory-header">
+                                <h3>Urban Duplex @ Penang Island</h3>
+                                <span class="badge-red">🔴 SUSPENDED BY SYSTEM</span>
+                            </div>
+                            <p><strong>Token ID:</strong> <span class="mono-text">MYSTRA-PG-2026-114B</span> | <strong>Zoning:</strong> George Town</p>
+                            <div class="progress-container">
+                                <div class="progress-label"><span>180 / 180 Nights Allocated</span> <span class="text-red">Cap Breached</span></div>
+                                <div class="progress-bar-bg"><div class="progress-bar-fill bg-danger" style="width: 100%;"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📜 TAB 3 VIEW: SYSTEM AUDIT LOGS -->
+                <div id="view-logs" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <div class="widget-header-row">
+                            <h2>Complete API Interceptor Telemetry Stream & Audit Ledger</h2>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Registration Code</th>
+                                    <th>Request Source</th>
+                                    <th>Gateway Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2026-08-17 00:42:11</td>
+                                    <td class="mono-text">MYSTRA-KL-2026-897F</td>
+                                    <td>Airbnb-API-node</td>
+                                    <td><span class="text-green">[🟢 200 OK] Token Validated</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2026-08-16 19:15:32</td>
+                                    <td class="mono-text">MYSTRA-KL-2026-897F</td>
+                                    <td>Agoda-PROD-West</td>
+                                    <td><span class="text-green">[🟢 200 OK] Token Validated</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2026-08-15 11:02:00</td>
+                                    <td class="mono-text">MYSTRA-KL-2026-FakeX</td>
+                                    <td>BookingApp-Core</td>
+                                    <td><span class="text-red">[🔴 404 ERR] Token Not Found</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript Controller -->
+    <script src="control-panel.js"></script>
+</body>
+</html>
