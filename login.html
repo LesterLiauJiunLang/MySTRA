@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MySTRA - Operator Login</title>
+  <link rel="stylesheet" href="auth.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="auth.js" defer></script>
+</head>
+<body class="auth-body">
+
+  <div class="split-card">
+    <!-- LEFT SIDE BLUE PANEL -->
+    <div class="side-panel">
+      <h2>Hello!</h2>
+      <p>Don't Have An Account Yet?</p>
+      <a href="register.html" class="btn-outline">Register</a>
+
+      <div class="legacy-link-box">
+        <p>Migrating From The Legacy Platform?</p>
+        <a href="legacy-migrate.html">[Click Here To Migrate]</a>
+      </div>
+    </div>
+
+    <!-- RIGHT FORM PANEL -->
+    <div class="form-panel">
+      <h2>Log In</h2>
+
+      <form id="login-form">
+        <div class="form-group-inline">
+          <label for="email">Email:</label>
+          <input type="email" id="email" required placeholder="Enter your email" />
+        </div>
+
+        <div class="form-group-inline">
+          <label for="password">Password:</label>
+          <div class="password-wrapper">
+            <div class="input-with-eye">
+              <input type="password" id="password" required placeholder="Enter password" />
+              <button type="button" class="toggle-eye" id="toggle-login-password">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-inline" style="justify-content: space-between; margin-top: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="remember-me" style="flex: none; width: auto;" />
+            <label for="remember-me" style="width: auto; font-weight: normal; cursor: pointer;">Remember Me</label>
+          </div>
+          <a href="forgot-password.html" style="font-size: 0.8rem; color: #2563eb; text-decoration: underline;">[Forgot Password?]</a>
+        </div>
+
+        <div class="button-row" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn-blue">Log In</button>
+          <button type="button" class="btn-blue btn-cancel" onclick="window.location.href='index.html'">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

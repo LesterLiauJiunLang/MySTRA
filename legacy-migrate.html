@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MySTRA - Legacy Account Migration</title>
+  <link rel="stylesheet" href="auth.css" />
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js" defer></script>
+</head>
+<body class="auth-body">
+
+  <div class="split-card" style="max-width: 550px; margin: 2rem auto; padding: 2rem; border-radius: 16px; justify-content: center;">
+
+    <!-- STEP 1: CREDENTIALS FORM -->
+    <div id="step-migrate-credentials" class="form-panel" style="width: 100%; text-align: center;">
+      <h2 style="margin-bottom: 0.5rem;">Legacy Account Migration</h2>
+      <p style="font-size: 0.9rem; margin-bottom: 1.5rem; color: #555;">Transfer your existing operator data and listings into the new MySTRA system.</p>
+
+      <form id="legacy-migrate-form">
+        <h4 style="text-align: left; margin-bottom: 0.75rem;">1. Legacy Account Credentials</h4>
+        
+        <div class="form-group-inline" style="margin-bottom: 1rem;">
+          <label for="legacy-email" style="width: 120px; text-align: right;">Email:</label>
+          <input type="email" id="legacy-email" required placeholder="Enter legacy email" style="flex: 1;" />
+        </div>
+
+        <div class="form-group-inline" style="margin-bottom: 1.5rem;">
+          <label for="legacy-license" style="width: 120px; text-align: right;">License No:</label>
+          <input type="text" id="legacy-license" required placeholder="Enter license number" style="flex: 1;" />
+        </div>
+
+        <h4 style="text-align: left; margin-bottom: 0.75rem;">2. Verification Credentials</h4>
+
+        <div class="form-group-inline" style="margin-bottom: 1.5rem;">
+          <label for="legacy-ssm" style="width: 120px; text-align: right;">Business SSM:</label>
+          <input type="text" id="legacy-ssm" required placeholder="Enter Business SSM Number" style="flex: 1;" />
+        </div>
+
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">
+          Note: A verification code will be sent to the email associated with your legacy account.
+        </p>
+
+        <p style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Already Migrated? <a href="login.html" style="font-weight: bold; text-decoration: underline;">[Log In Here]</a>
+        </p>
+
+        <div class="button-row" style="display: flex; gap: 12px; justify-content: center;">
+          <button type="submit" class="btn-blue">Migrate</button>
+          <button type="button" class="btn-blue btn-cancel" onclick="window.location.href='login.html'">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- STEP 2: VERIFY OTP -->
+    <div id="step-migrate-otp" class="form-panel hidden" style="width: 100%; text-align: center;">
+      <h2>Verify Legacy Code</h2>
+      <p style="font-size: 0.9rem; margin-bottom: 1rem; color: #555;">Enter the 6-digit code sent to your legacy email.</p>
+
+      <form id="legacy-otp-form">
+        <div class="otp-container" id="legacy-otp-container" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 1rem;">
+          <input type="text" maxlength="1" class="otp-digit" required />
+          <input type="text" maxlength="1" class="otp-digit" required />
+          <input type="text" maxlength="1" class="otp-digit" required />
+          <input type="text" maxlength="1" class="otp-digit" required />
+          <input type="text" maxlength="1" class="otp-digit" required />
+          <input type="text" maxlength="1" class="otp-digit" required />
+        </div>
+
+        <p style="font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Didn't receive code? <a href="#" id="link-resend-legacy-otp" style="font-weight: bold; text-decoration: underline;">Resend OTP</a>
+        </p>
+
+        <div class="button-row" style="display: flex; gap: 12px; justify-content: center;">
+          <button type="submit" class="btn-blue">Verify Code</button>
+          <button type="button" class="btn-blue btn-cancel" onclick="window.location.reload()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- STEP 3: CREATE NEW PASSWORD -->
+    <div id="step-migrate-password" class="form-panel hidden" style="width: 100%; text-align: center;">
+      <h2 style="margin-bottom: 0.5rem;">Create Password</h2>
+      <p style="font-size: 0.9rem; margin-bottom: 1.5rem; color: #555;">Set a secure password to complete your MySTRA account setup.</p>
+
+      <form id="legacy-password-form">
+        <div class="form-group-inline" style="margin-bottom: 1rem;">
+          <label for="mig-password" style="width: 130px; text-align: right;">New Password:</label>
+          <div class="password-wrapper" style="flex: 1;">
+            <div class="input-with-eye">
+              <input type="password" id="mig-password" required placeholder="Enter new password" />
+              <button type="button" class="toggle-eye" id="toggle-mig-password">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-inline" style="margin-bottom: 1rem;">
+          <label for="mig-confirm-password" style="width: 130px; text-align: right;">Confirm:</label>
+          <div class="password-wrapper" style="flex: 1;">
+            <div class="input-with-eye">
+              <input type="password" id="mig-confirm-password" required placeholder="Confirm new password" />
+              <button type="button" class="toggle-eye" id="toggle-mig-confirm-password">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="mig-criteria-box" style="border: 1px solid #ccc; border-radius: 8px; padding: 1rem; text-align: left; margin: 1.5rem 0; background: #fff;">
+          <p style="font-weight: bold; margin-bottom: 0.5rem; font-size: 0.9rem;">Your Password MUST Contain:</p>
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.85rem; line-height: 1.5;">
+            <li id="mig-rule-length" style="color: red;">❌ Minimum 8 characters long</li>
+            <li id="mig-rule-uppercase" style="color: red;">❌ Includes at least one uppercase letter (A–Z)</li>
+            <li id="mig-rule-number" style="color: red;">❌ Includes at least one number (0–9)</li>
+            <li id="mig-rule-special" style="color: red;">❌ Includes at least one special character (@, #, $, etc.)</li>
+            <li id="mig-rule-match" style="color: red;">❌ Passwords match</li>
+          </ul>
+        </div>
+
+        <div class="button-row" style="display: flex; gap: 12px; justify-content: center;">
+          <button type="submit" class="btn-blue">Complete Migration</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</body>
+</html>
