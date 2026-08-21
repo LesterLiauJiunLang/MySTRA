@@ -1,0 +1,325 @@
+/* Page Background */
+.auth-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #eef2f5;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Split Card Container (Register / Login) */
+.split-card {
+  display: flex;
+  width: 750px;
+  max-width: 90%;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  border: 1px solid #2563eb;
+}
+
+/* Side Blue Panel */
+.side-panel {
+  flex: 1;
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.side-panel h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+
+.side-panel p {
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  color: #ffffff;
+}
+
+.btn-outline {
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: bold;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-outline:hover {
+  background-color: #ffffff;
+  color: #2563eb;
+}
+
+.legacy-link-box {
+  margin-top: 3rem;
+}
+
+.legacy-link-box a {
+  color: #ffffff;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+/* Form Panel */
+.form-panel {
+  flex: 1.2;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
+  background-color: #ffffff;
+}
+
+.form-panel h2 {
+  text-align: center;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+/* Single Standalone Outer Card (Legacy Migration) */
+.single-card {
+  width: 520px;
+  max-width: 90%;
+  background-color: #ffffff !important;
+  border-radius: 20px;
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem 3rem;
+  box-sizing: border-box;
+}
+
+.single-card h2 {
+  text-align: center;
+  color: #0f172a;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.single-card .subtitle {
+  text-align: center;
+  font-size: 0.82rem;
+  color: #334155;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.single-card .section-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.6rem;
+}
+
+/* Inline Form Rows */
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.form-group-inline label {
+  width: 130px;
+  font-size: 0.82rem;
+  font-weight: bold;
+  color: #334155;
+}
+
+/* Inputs with Blue Stroke */
+.form-group-inline input {
+  flex: 1;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #3b82f6;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  background-color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group-inline input:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.form-group-inline input::placeholder {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+/* Password Eye Toggle & Criteria */
+.password-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+
+.input-with-eye {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-with-eye input {
+  padding-right: 2.5rem;
+}
+
+.toggle-eye {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.6;
+}
+
+.password-criteria {
+  background: #ffffff;
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 6px;
+}
+
+.password-criteria p {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #334155;
+  margin: 0 0 0.3rem 0;
+}
+
+.password-criteria ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.password-criteria li {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: bold;
+}
+
+.rule-invalid { color: #ef4444; }
+.rule-valid { color: #10b981; }
+
+.error-msg {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+/* 6-Digit OTP Box Styling */
+.otp-box-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 1.5rem 0;
+}
+
+.otp-digit {
+  width: 45px !important;
+  height: 50px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  border: 1px solid #3b82f6 !important;
+  border-radius: 10px !important;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.otp-digit:focus {
+  border: 2px solid #1d4ed8 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+/* Instructions & Text Links */
+.otp-instruction {
+  font-size: 0.85rem;
+  color: #475569;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.already-migrated {
+  font-size: 0.8rem;
+  text-align: center;
+  color: #334155;
+  margin: 0.4rem 0 1rem 0;
+}
+
+.resend-text {
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #64748b;
+}
+
+.already-migrated a, .resend-text a {
+  color: #2563eb;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Buttons */
+.button-row {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.btn-blue {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 0.65rem 2rem;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-blue:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-cancel {
+  background-color: #2563eb;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.auth-card-single {
+  max-width: 450px;
+  margin: 80px auto;
+  padding: 30px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}

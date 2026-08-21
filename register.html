@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MySTRA - Operator Registration</title>
+  <link rel="stylesheet" href="auth.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="auth.js" defer></script>
+</head>
+<body class="auth-body">
+
+  <!-- STEP 1: SPLIT CARD FOR INITIAL REGISTRATION -->
+  <div id="step-register" class="split-card">
+    <!-- LEFT FORM PANEL -->
+    <div class="form-panel">
+      <h2>Operator Registration</h2>
+
+      <form id="register-form">
+        <div class="form-group-inline">
+          <label for="reg-email">Email:</label>
+          <input type="email" id="reg-email" required placeholder="Enter your email" />
+        </div>
+
+        <div class="form-group-inline">
+          <label for="reg-password">Password:</label>
+          <div class="password-wrapper">
+            <div class="input-with-eye">
+              <input type="password" id="reg-password" required placeholder="Create password" />
+              <button type="button" class="toggle-eye" id="toggle-reg-password">👁️</button>
+            </div>
+            
+            <!-- Password Criteria Popup -->
+            <div id="password-criteria-box" class="password-criteria hidden">
+              <p>Password must contain:</p>
+              <ul>
+                <li id="rule-length" class="rule-invalid">❌ At least 8 characters</li>
+                <li id="rule-uppercase" class="rule-invalid">❌ An uppercase letter (A–Z)</li>
+                <li id="rule-number" class="rule-invalid">❌ A number (0–9)</li>
+                <li id="rule-special" class="rule-invalid">❌ A special character (@ # $ % ^ & * etc.)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group-inline">
+          <label for="reg-confirm-password">Confirm Password:</label>
+          <div class="password-wrapper">
+            <div class="input-with-eye">
+              <input type="password" id="reg-confirm-password" required placeholder="Confirm password" />
+              <button type="button" class="toggle-eye" id="toggle-reg-confirm-password">👁️</button>
+            </div>
+            <p id="confirm-password-error" class="error-msg hidden">❌ Passwords do not match.</p>
+          </div>
+        </div>
+
+        <div class="form-group-inline">
+          <label for="reg-fullname">Full Name:</label>
+          <input type="text" id="reg-fullname" required placeholder="As per MyKad / Passport" />
+        </div>
+
+        <div class="form-group-inline">
+          <label for="reg-phone">Phone Number:</label>
+          <input type="tel" id="reg-phone" required placeholder="e.g. +60123456789" />
+        </div>
+
+        <div class="button-row" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn-blue">Register</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- RIGHT SIDE BLUE PANEL -->
+    <div class="side-panel">
+      <h2>Welcome Back!</h2>
+      <p>Already Have An Account?</p>
+      <a href="login.html" class="btn-outline">Log In</a>
+
+      <div class="legacy-link-box">
+        <p>Migrating From The Legacy Platform?</p>
+        <a href="legacy-migrate.html">[Click Here To Migrate]</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: STANDALONE OTP VERIFICATION CARD (PURE CENTERING LIKE MIGRATION) -->
+  <div id="step-otp" class="single-card hidden">
+    <h2>Verify Email</h2>
+    <p class="subtitle">
+      An OTP code has been sent to your email address.<br />
+      Please enter the 6-digit verification code below:
+    </p>
+
+    <form id="otp-form">
+      <div class="otp-box-container" id="otp-container">
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+        <input type="text" maxlength="1" class="otp-digit" pattern="[0-9]" inputmode="numeric" required />
+      </div>
+
+      <div class="button-row" style="margin-top: 1.5rem;">
+        <button type="submit" class="btn-blue">Verify Code</button>
+      </div>
+
+      <p class="resend-text">
+        Didn't receive the email? <a href="#" id="link-resend-otp">Resend Code</a>
+      </p>
+    </form>
+  </div>
+
+</body>
+</html>
