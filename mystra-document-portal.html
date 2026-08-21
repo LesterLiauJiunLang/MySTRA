@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Document Intake Portal</title>
+    
+    <!-- CSS Stylesheets -->
+    <link rel="stylesheet" href="control-panel.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase Configuration & API Layer -->
+    <script src="supabase-config.js"></script>
+
+    <style>
+        /* ==============================================================================
+           MODULE 3 - DOCUMENT INTAKE PORTAL ADDITIONAL STYLES
+           ============================================================================== */
+
+        /* Status Badges */
+        .badge-pending {
+            background-color: #FEF3C7;
+            color: #92400E;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-approved {
+            background-color: #DCFCE7;
+            color: #15803D;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-rejected {
+            background-color: #FEE2E2;
+            color: #991B1B;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-revision {
+            background-color: #FED7AA;
+            color: #9A3412;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-replaced {
+            background-color: #E5E7EB;
+            color: #4B5563;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* GPS Status Styles */
+        #gps-status {
+            transition: all 0.3s ease;
+            border: 1px solid #E5E7EB;
+        }
+        #gps-status.within-zone {
+            border-color: #22C55E;
+            background-color: #F0FDF4;
+        }
+        #gps-status.outside-zone {
+            border-color: #EF4444;
+            background-color: #FEF2F2;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 560px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* File input styling */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+        .file-input-wrapper input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #D1D5DB;
+            border-radius: 8px;
+            background: #F9FAFB;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .file-input-wrapper input[type="file"]:hover {
+            border-color: #2563EB;
+        }
+
+        /* Location Map Visual */
+        .map-visual {
+            background: #F1F5F9;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .geofence-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin: 0 auto;
+        }
+        .geofence-container .outer-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 2px dashed #2563EB;
+            opacity: 0.3;
+        }
+        .geofence-container .inner-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #2563EB;
+            opacity: 0.15;
+            border: 2px solid #2563EB;
+        }
+        .geofence-container .property-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2563EB;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .geofence-container .user-marker {
+            position: absolute;
+            top: 30%;
+            left: 70%;
+            background: #22C55E;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+            z-index: 3;
+        }
+        .geofence-container .user-marker.outside {
+            background: #EF4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6B7280;
+        }
+        .empty-state .icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+        .empty-state h3 {
+            font-weight: 600;
+            color: #1E293B;
+            margin-bottom: 4px;
+        }
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        /* Settings form */
+        .settings-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 450px;
+        }
+        .settings-form label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .settings-form input,
+        .settings-form select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+        }
+
+        /* Document table action buttons */
+        .action-btn {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: #E5E7EB;
+            color: #374151;
+            transition: background 0.2s;
+        }
+        .action-btn:hover {
+            background: #D1D5DB;
+        }
+        .action-btn.revise {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        .action-btn.revise:hover {
+            background: #FDE68A;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 80px;
+                padding: 16px;
+            }
+            .sidebar-brand {
+                font-size: 14px;
+            }
+            .nav-item span:not(.icon) {
+                display: none;
+            }
+            .main-content {
+                padding: 16px;
+            }
+            .token-card {
+                grid-template-columns: 1fr;
+            }
+            .content-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================================================
+    🌐 GLOBAL SYSTEM CONTAINER
+    ========================================================================== -->
+    <div class="portal-container">
+
+        <!-- ==========================================================================
+        🧭 LEFT SIDEBAR NAVIGATION
+        ========================================================================== -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">MySTRA Portal</div>
+            <ul class="nav-links">
+                <!-- Link back to Code Control Centre (Ryan's Module 4) -->
+                <li id="nav-home" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🏠</span> Home
+                </li>
+                <!-- Link to Code Manager (Ryan's Module 4) -->
+                <li id="nav-manager" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🔑</span> Code Manager
+                </li>
+                <!-- YOUR MODULE 3 - Active -->
+                <li id="nav-docs" class="nav-item active-nav">
+                    <span class="icon">📂</span> Documents
+                </li>
+                <!-- Link back to Settings (Natalie's Module 1) -->
+                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">⚙️</span> Settings
+                </li>
+            </ul>
+            <!-- User Footer -->
+            <div class="sidebar-footer" style="margin-top: auto; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <span style="font-size: 13px; font-weight: 500; display: block;">John Doe</span>
+                <span style="font-size: 12px; color: #6B7280;">Property Owner ✅</span>
+            </div>
+        </nav>
+
+        <!-- ==========================================================================
+        🖥️ MAIN WORKSPACE AREA
+        ========================================================================== -->
+        <main class="main-content">
+
+            <!-- ===== PAGE HEADER ===== -->
+            <header class="content-header">
+                <div class="header-title-wrapper">
+                    <h1 id="page-main-title">📂 Document Intake Portal</h1>
+                    <span id="db-status-badge" class="status-badge">🟡 CONNECTING TO SUPABASE...</span>
+                </div>
+                <!-- Breadcrumb / Quick Action -->
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span style="font-size: 13px; color: #6B7280;">Home / Documents</span>
+                    <button class="btn-primary" onclick="switchDocTab('upload')" style="padding: 8px 16px; font-size: 13px;">
+                        📤 Upload
+                    </button>
+                </div>
+            </header>
+
+            <!-- ===== DOCUMENT MANAGEMENT TABS ===== -->
+            <div class="segmented-control">
+                <button id="tab-doc-upload" class="tab-btn active" onclick="switchDocTab('upload')">📤 Upload</button>
+                <button id="tab-doc-status" class="tab-btn" onclick="switchDocTab('status')">📋 My Documents</button>
+                <button id="tab-doc-location" class="tab-btn" onclick="switchDocTab('location')">📍 Location</button>
+            </div>
+
+            <!-- ==========================================================================
+            📄 TAB 1: UPLOAD DOCUMENT (UC-M3-01)
+            ========================================================================== -->
+            <div id="doc-upload-panel" class="tab-panel">
+                <div class="widget-card">
+                    <h2>📄 Upload Compliance Document</h2>
+                    <p style="color: #6B7280; margin-bottom: 20px;">
+                        Upload your business license, safety certificate, or tax information file.
+                        All documents will be reviewed by government administrators.
+                    </p>
+
+                    <!-- Property Information Card -->
+                    <div style="background: #F8FAFC; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E5E7EB;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
+                            <span style="color: #6B7280;">Property ID:</span>
+                            <span style="font-weight: 600; font-family: monospace;" id="upload-property-id">MYSTRA-KL-2026-897F</span>
+                            <span style="color: #6B7280;">Address:</span>
+                            <span style="font-weight: 500;" id="upload-property-address">123, Jalan Bukit Bintang, KL</span>
+                            <span style="color: #6B7280;">Status:</span>
+                            <span class="badge-green">✅ Active</span>
+                        </div>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form id="document-upload-form" style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- Document Type -->
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
+                                Document Type <span style="color: #EF4444;">*</span>
+                            </label>
+                            <select id="doc-type-select" style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 8px; background: white; font-size: 14px;">
+                                <option value="SSM Certificate">📜 SSM Certificate</option>
+                                <option value="Tax Information File">💲 Tax Information File</option>
+                                <option value="Safety Certificate">🛡️ Safety Certificate</option>
+                                <option value="Municipal Permit">🏛️ Municipal Permit</option>
+                                <option value="Business License">📋 Business License</option>
+                                <option value="Other">📎 Other</option>
+                            </select>
+                        </div>
+
+                        <!-- File Input -->
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
+                                File <span style="color: #EF4444;">*</span>
+                            </label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="doc-file-input" accept=".pdf,.jpg,.jpeg,.png" required>
+                            </div>
+                            <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+                                Supported: PDF, JPEG, PNG • Max size: 10MB
+                            </p>
+                        </div>
+
+                        <!-- GPS Status -->
+                        <div id="gps-status" style="padding: 16px; border-radius: 8px; background: #F8FAFC; border: 1px solid #E5E7EB;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span style="font-weight: 500;">📍 Location Registry</span>
+                                <span id="gps-status-badge" class="badge-pending">⏳ Detecting...</span>
+                            </div>
+                            <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #6B7280; flex-wrap: wrap;">
+                                <span id="gps-coords">Lat: --, Lng: --</span>
+                                <span id="gps-distance">Distance: --</span>
+                            </div>
+                            <div id="gps-message" style="font-size: 13px; margin-top: 4px; color: #6B7280;"></div>
+                        </div>
+
+                        <!-- Upload Button -->
+                        <button type="submit" class="btn-primary" style="padding: 14px; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            📤 Upload Document
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ==========================================================================
+            📋 TAB 2: MY DOCUMENTS STATUS (UC-M3-03)
+            ========================================================================== -->
+            <div id="doc-status-panel" class="tab-panel hidden">
+                <div class="widget-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                        <h2>📋 My Documents</h2>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-secondary" onclick="switchDocTab('upload')">+ Upload New</button>
+                            <button class="btn-secondary" onclick="loadDocumentData()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div id="documents-status-container">
+                        <p style="color: #6B7280; text-align: center; padding: 20px;">Loading your documents...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==========================================================================
+            📍 TAB 3: LOCATION REGISTRY (UC-M3-05)
+            ========================================================================== -->
+            <div id="doc-location-panel" class="tab-panel hidden">
+                <div id="location-registry-container">
+                    <p style="color: #6B7280; text-align: center; padding: 20px;">Loading location data...</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ==========================================================================
+    🗂️ REVISION MODAL (UC-M3-04)
+    ========================================================================== -->
+    <div id="revision-modal" class="modal-overlay">
+        <div class="modal-content">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 20px;">✏️ Revise Document</h2>
+                <button onclick="closeRevisionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6B7280;">✕</button>
+            </div>
+
+            <!-- Document Info -->
+            <div style="margin-bottom: 20px;">
+                <p><strong>Document:</strong> <span id="revision-doc-type">--</span></p>
+                <p><strong>Previous File:</strong> <span id="revision-previous-file">--</span></p>
+                <div style="background: #FEE2E2; padding: 12px; border-radius: 8px; margin-top: 12px;">
+                    <p style="font-size: 13px; color: #991B1B;"><strong>🔴 Rejection Reason:</strong></p>
+                    <p id="revision-rejection-reason" style="font-size: 13px; color: #991B1B; margin: 0;">No specific reason provided.</p>
+                </div>
+            </div>
+
+            <!-- New File Upload -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
+                    New File <span style="color: #EF4444;">*</span>
+                </label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="revision-file-input" accept=".pdf,.jpg,.jpeg,.png">
+                </div>
+                <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+                    Supported: PDF, JPEG, PNG • Max size: 10MB<br>
+                    Please ensure the document is clear and legible.
+                </p>
+            </div>
+
+            <!-- Revision GPS Check -->
+            <div id="revision-gps-status" style="padding: 12px; border-radius: 8px; background: #F8FAFC; margin-bottom: 20px; border: 1px solid #E5E7EB;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>📍 Location Check</span>
+                    <span id="revision-gps-badge" class="badge-pending">⏳ Detecting...</span>
+                </div>
+                <div id="revision-gps-details" style="font-size: 13px; color: #6B7280; margin-top: 4px;">
+                    Distance: --
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 12px;">
+                <button onclick="submitRevision()" class="btn-primary" style="flex: 1; padding: 12px;">📤 Submit Revision</button>
+                <button onclick="closeRevisionModal()" class="btn-secondary" style="padding: 12px 24px;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+    📜 JAVASCRIPT - DOCUMENT INTAKE PORTAL LOGIC (MODULE 3)
+    ========================================================================== -->
+    <script>
+        // ==============================================================================
+        // 📄 DOCUMENT STATE & HELPERS
+        // ==============================================================================
+
+        const DOC_STATE = {
+            documents: [],
+            selectedDocument: null,
+            isRevisionMode: false,
+            userId: null,
+            propertyId: null,
+            propertyGPS: null
+        };
+
+        let currentGPS = null;
+
+        // ==============================================================================
+        // 🧭 TAB SWITCHER
+        // ==============================================================================
+
+        function switchDocTab(tab) {
+            const panels = ['doc-upload-panel', 'doc-status-panel', 'doc-location-panel'];
+            const tabs = ['tab-doc-upload', 'tab-doc-status', 'tab-doc-location'];
+            const panelMap = { upload: 'doc-upload-panel', status: 'doc-status-panel', location: 'doc-location-panel' };
+            const tabMap = { upload: 'tab-doc-upload', status: 'tab-doc-status', location: 'tab-doc-location' };
+
+            panels.forEach(p => {
+                const el = document.getElementById(p);
+                if (el) el.classList.add('hidden');
+            });
+            tabs.forEach(t => {
+                const el = document.getElementById(t);
+                if (el) el.classList.remove('active');
+            });
+
+            const panel = document.getElementById(panelMap[tab]);
+            if (panel) panel.classList.remove('hidden');
+
+            const tabBtn = document.getElementById(tabMap[tab]);
+            if (tabBtn) tabBtn.classList.add('active');
+
+            if (tab === 'status') loadDocumentData();
+            if (tab === 'location') loadLocationData();
+            if (tab === 'upload') initGPSDetection();
+        }
+
+        // ==============================================================================
+        // 📍 GPS & GEOFENCE LOGIC
+        // ==============================================================================
+
+        function getCurrentGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve(null);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        });
+                    },
+                    () => resolve(null), {
+                        enableHighAccuracy: true,
+                        timeout: 10000
+                    }
+                );
+            });
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        async function initGPSDetection() {
+            const gpsBadge = document.getElementById('gps-status-badge');
+            const gpsCoords = document.getElementById('gps-coords');
+            const gpsDistance = document.getElementById('gps-distance');
+            const gpsMessage = document.getElementById('gps-message');
+            const gpsContainer = document.getElementById('gps-status');
+
+            if (!gpsBadge || !gpsCoords || !gpsDistance) return;
+
+            gpsBadge.textContent = '⏳ Detecting...';
+            gpsBadge.className = 'badge-pending';
+
+            const gps = await getCurrentGPS();
+            if (!gps) {
+                gpsBadge.textContent = '❌ GPS Unavailable';
+                gpsBadge.className = 'badge-rejected';
+                gpsCoords.textContent = 'Please enable location services';
+                gpsMessage.textContent = 'GPS location is required to verify you are at the property.';
+                return;
+            }
+
+            currentGPS = gps;
+            gpsCoords.textContent = `Lat: ${gps.lat.toFixed(4)}°, Lng: ${gps.lng.toFixed(4)}°`;
+
+            try {
+                // Get property GPS from Supabase
+                const { data: properties, error } = await MySTRA_API.getProperties();
+                if (error || !properties || properties.length === 0) {
+                    gpsDistance.textContent = 'No property found';
+                    gpsMessage.textContent = 'Please register a property first.';
+                    return;
+                }
+
+                const property = properties[0];
+                DOC_STATE.propertyId = property.id;
+                DOC_STATE.propertyGPS = { lat: property.latitude, lng: property.longitude };
+
+                const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+                gpsDistance.textContent = `Distance: ${Math.round(dist)}m`;
+                gpsMessage.textContent = '';
+
+                if (dist <= 500) {
+                    gpsBadge.textContent = '✅ Within 500m Zone';
+                    gpsBadge.className = 'badge-approved';
+                    gpsContainer.className = 'within-zone';
+                } else {
+                    gpsBadge.textContent = '❌ Outside 500m Zone';
+                    gpsBadge.className = 'badge-rejected';
+                    gpsContainer.className = 'outside-zone';
+                    gpsMessage.textContent = 'You must be within 500m of the property to upload documents.';
+                }
+            } catch (err) {
+                console.warn('Error fetching property:', err);
+                gpsDistance.textContent = 'Error loading property';
+            }
+        }
+
+        // ==============================================================================
+        // 📄 DOCUMENT CRUD OPERATIONS (UC-M3-01)
+        // ==============================================================================
+
+        async function uploadDocument(file, documentType, userId, propertyId, gpsLat, gpsLng) {
+            if (!window.MySTRA_API) {
+                console.error('MySTRA_API not available');
+                return { data: null, error: new Error('API not initialized') };
+            }
+
+            // Use the API from supabase-config.js
+            const { data, error } = await MySTRA_API.uploadDocument(
+                file,
+                documentType,
+                userId,
+                propertyId,
+                gpsLat,
+                gpsLng
+            );
+
+            return { data, error };
+        }
+
+        async function getDocumentsByUser(userId) {
+            if (!window.MySTRA_API) return { data: null, error: new Error('API not initialized') };
+            return await MySTRA_API.getDocumentsByUser(userId);
+        }
+
+        async function getDocumentById(documentId) {
+            if (!window.MySTRA_API) return { data: null, error: new Error('API not initialized') };
+            return await MySTRA_API.getDocumentById(documentId);
+        }
+
+        async function updateDocument(documentId, updates) {
+            if (!window.MySTRA_API) return { data: null, error: new Error('API not initialized') };
+            return await MySTRA_API.updateDocument(documentId, updates);
+        }
+
+        // ==============================================================================
+        // 📋 RENDER DOCUMENT STATUS DASHBOARD (UC-M3-03)
+        // ==============================================================================
+
+        function getStatusBadge(status) {
+            const map = {
+                'Pending': { class: 'badge-pending', label: '🟡 Pending' },
+                'Approved': { class: 'badge-approved', label: '🟢 Approved' },
+                'Rejected': { class: 'badge-rejected', label: '🔴 Rejected' },
+                'Needs Revision': { class: 'badge-revision', label: '🟠 Needs Revision' },
+                'Replaced': { class: 'badge-replaced', label: '⚪ Replaced' }
+            };
+            const s = map[status] || map['Pending'];
+            return `<span class="${s.class}">${s.label}</span>`;
+        }
+
+        function renderDocumentStatus(documents) {
+            const container = document.getElementById('documents-status-container');
+            if (!container) return;
+
+            if (!documents || documents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📄</div>
+                        <h3>No Documents Uploaded</h3>
+                        <p>Upload your compliance documents to get verified.</p>
+                        <button class="btn-primary" onclick="switchDocTab('upload')">📤 Upload Documents</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Document Type</th>
+                                <th>File Name</th>
+                                <th>Uploaded</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${documents.map(doc => {
+                                const isRejected = doc.review_status === 'Rejected' || doc.review_status === 'Needs Revision';
+                                const isPending = doc.review_status === 'Pending';
+                                const actionBtn = isRejected
+                                    ? `<button class="action-btn revise" onclick="openRevisionModal('${doc.id}')">✏️ Revise</button>`
+                                    : isPending
+                                    ? `<span style="font-size: 12px; color: #6B7280;">⏳ Awaiting review</span>`
+                                    : `<button class="action-btn" onclick="alert('📄 Viewing: ${doc.file_name}')">👁️ View</button>`;
+                                
+                                return `
+                                    <tr>
+                                        <td><strong>${doc.document_type}</strong></td>
+                                        <td style="font-size: 13px;">${doc.file_name}</td>
+                                        <td style="font-size: 13px;">${new Date(doc.uploaded_at).toLocaleDateString()}</td>
+                                        <td>${getStatusBadge(doc.review_status)}</td>
+                                        <td>${actionBtn}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function loadDocumentData() {
+            const container = document.getElementById('documents-status-container');
+            if (container) {
+                container.innerHTML = '<p style="color: #6B7280; text-align: center; padding: 20px;">Loading your documents...</p>';
+            }
+
+            try {
+                // For demo, using a placeholder userId
+                // In production, get from Supabase auth session
+                const userId = DOC_STATE.userId || '550e8400-e29b-41d4-a716-446655440000';
+                const { data, error } = await getDocumentsByUser(userId);
+                if (error) {
+                    console.warn('Error loading documents:', error);
+                    renderDocumentStatus(null);
+                    return;
+                }
+                DOC_STATE.documents = data || [];
+                renderDocumentStatus(DOC_STATE.documents);
+            } catch (err) {
+                console.warn('Error in loadDocumentData:', err);
+                renderDocumentStatus(null);
+            }
+        }
+
+        // ==============================================================================
+        // 📍 RENDER LOCATION REGISTRY MAP (UC-M3-05)
+        // ==============================================================================
+
+        async function loadLocationData() {
+            const container = document.getElementById('location-registry-container');
+            if (!container) return;
+
+            container.innerHTML = '<p style="color: #6B7280; text-align: center; padding: 20px;">Loading location data...</p>';
+
+            try {
+                const gps = await getCurrentGPS();
+                if (!gps) {
+                    container.innerHTML = `
+                        <div class="widget-card" style="text-align: center; color: #6B7280;">
+                            <p style="font-size: 40px;">📍</p>
+                            <h3>GPS Location Unavailable</h3>
+                            <p style="font-size: 14px;">Please enable location services to check your proximity.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const { data: properties, error } = await MySTRA_API.getProperties();
+                if (error || !properties || properties.length === 0) {
+                    container.innerHTML = `
+                        <div class="widget-card" style="text-align: center; color: #6B7280;">
+                            <p style="font-size: 40px;">🏠</p>
+                            <h3>No Property Registered</h3>
+                            <p style="font-size: 14px;">Please register a property first.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const property = properties[0];
+                const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+                const isWithin = dist <= 500;
+
+                container.innerHTML = `
+                    <div class="widget-card">
+                        <h2>📍 Location Registry</h2>
+                        <p style="color: #6B7280; margin-bottom: 20px;">Verify you are at the property location before uploading documents.</p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                            <!-- Map Visualization -->
+                            <div class="map-visual">
+                                <div class="geofence-container">
+                                    <div class="outer-circle"></div>
+                                    <div class="inner-circle"></div>
+                                    <div class="property-marker"></div>
+                                    <div class="user-marker ${isWithin ? '' : 'outside'}"></div>
+                                    <span style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 11px; color: #6B7280; white-space: nowrap;">
+                                        ⭕ 500m Geofence
+                                    </span>
+                                </div>
+                                <p style="font-size: 12px; color: #6B7280; margin-top: 8px;">
+                                    📍 Your Location &nbsp;&nbsp; 🏠 Property
+                                </p>
+                            </div>
+
+                            <!-- GPS Details -->
+                            <div>
+                                <div style="display: grid; gap: 8px; font-size: 14px;">
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+                                        <span style="color: #6B7280;">Property Address</span>
+                                        <span style="font-weight: 500;">${property.address || 'N/A'}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+                                        <span style="color: #6B7280;">Property GPS</span>
+                                        <span style="font-family: monospace;">${property.latitude.toFixed(4)}°, ${property.longitude.toFixed(4)}°</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+                                        <span style="color: #6B7280;">Your GPS</span>
+                                        <span style="font-family: monospace;">${gps.lat.toFixed(4)}°, ${gps.lng.toFixed(4)}°</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+                                        <span style="color: #6B7280;">Distance</span>
+                                        <span style="font-weight: 600;">${Math.round(dist)} meters</span>
+                                    </div>
+                                    <div style="padding: 16px; border-radius: 8px; text-align: center; margin-top: 8px; background: ${isWithin ? '#DCFCE7' : '#FEE2E2'}; color: ${isWithin ? '#15803D' : '#991B1B'};">
+                                        ${isWithin ? '✅ Within 500m Zone — You can upload documents' : '❌ Outside 500m Zone — Please move closer to the property'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button class="btn-secondary" onclick="switchDocTab('upload')">📤 Back to Upload</button>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                console.warn('Error loading location:', err);
+                container.innerHTML = `
+                    <div class="widget-card" style="text-align: center; color: #6B7280;">
+                        <p>⚠️ Error loading location data. Please try again later.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ==============================================================================
+        // ✏️ REVISION MODAL (UC-M3-04)
+        // ==============================================================================
+
+        function openRevisionModal(documentId) {
+            const modal = document.getElementById('revision-modal');
+            if (!modal) return;
+
+            const doc = DOC_STATE.documents.find(d => d.id === documentId);
+            if (!doc) {
+                alert('Document not found.');
+                return;
+            }
+
+            DOC_STATE.selectedDocument = doc;
+            DOC_STATE.isRevisionMode = true;
+
+            document.getElementById('revision-doc-type').textContent = doc.document_type;
+            document.getElementById('revision-previous-file').textContent = doc.file_name;
+            document.getElementById('revision-rejection-reason').textContent = doc.admin_feedback || 'No specific reason provided.';
+            document.getElementById('revision-file-input').value = '';
+
+            modal.classList.add('show');
+
+            // Check GPS for revision
+            checkRevisionGPS();
+        }
+
+        function closeRevisionModal() {
+            const modal = document.getElementById('revision-modal');
+            if (modal) modal.classList.remove('show');
+            DOC_STATE.isRevisionMode = false;
+            DOC_STATE.selectedDocument = null;
+        }
+
+        async function checkRevisionGPS() {
+            const badge = document.getElementById('revision-gps-badge');
+            const details = document.getElementById('revision-gps-details');
+            if (!badge || !details) return;
+
+            badge.textContent = '⏳ Detecting...';
+            badge.className = 'badge-pending';
+
+            const gps = await getCurrentGPS();
+            if (!gps) {
+                badge.textContent = '❌ GPS Unavailable';
+                badge.className = 'badge-rejected';
+                details.textContent = 'Please enable location services.';
+                return;
+            }
+
+            try {
+                const { data: properties } = await MySTRA_API.getProperties();
+                if (properties && properties.length > 0) {
+                    const property = properties[0];
+                    const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+                    details.textContent = `Distance: ${Math.round(dist)}m`;
+
+                    if (dist <= 500) {
+                        badge.textContent = '✅ Within 500m Zone';
+                        badge.className = 'badge-approved';
+                    } else {
+                        badge.textContent = '❌ Outside 500m Zone';
+                        badge.className = 'badge-rejected';
+                    }
+                }
+            } catch (err) {
+                details.textContent = 'Error checking location';
+            }
+        }
+
+        async function submitRevision() {
+            const fileInput = document.getElementById('revision-file-input');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a new file to upload.');
+                return;
+            }
+
+            if (!DOC_STATE.selectedDocument) {
+                alert('No document selected for revision.');
+                return;
+            }
+
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file format. Please upload PDF, JPEG, or PNG.');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size exceeds 10MB limit.');
+                return;
+            }
+
+            const gps = await getCurrentGPS();
+            if (!gps) {
+                alert('GPS location required. Please enable location services.');
+                return;
+            }
+
+            // Check geofence
+            try {
+                const { data: properties } = await MySTRA_API.getProperties();
+                if (properties && properties.length > 0) {
+                    const property = properties[0];
+                    const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+                    if (dist > 500) {
+                        alert('You must be within 500m of the property to re-upload documents.');
+                        return;
+                    }
+                }
+            } catch (err) {
+                alert('Error checking location: ' + err.message);
+                return;
+            }
+
+            // Upload the new file
+            const doc = DOC_STATE.selectedDocument;
+            const { data, error } = await uploadDocument(
+                file,
+                doc.document_type,
+                doc.user_id,
+                doc.property_id,
+                gps.lat,
+                gps.lng
+            );
+
+            if (error) {
+                alert('Upload failed: ' + error.message);
+                return;
+            }
+
+            // Mark old document as replaced
+            if (data && data[0]) {
+                await updateDocument(doc.id, {
+                    review_status: 'Replaced',
+                    replaced_by: data[0].id,
+                    admin_feedback: `Replaced by new document ${data[0].id}`
+                });
+            }
+
+            alert('✅ Document revised successfully! Awaiting admin review.');
+            closeRevisionModal();
+            await loadDocumentData();
+            switchDocTab('status');
+        }
+
+        // ==============================================================================
+        // 📤 HANDLE DOCUMENT UPLOAD FORM (UC-M3-01)
+        // ==============================================================================
+
+        async function handleDocumentUpload(e) {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('doc-file-input');
+            const docType = document.getElementById('doc-type-select').value;
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file to upload.');
+                return;
+            }
+
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file format. Please upload PDF, JPEG, or PNG.');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size exceeds 10MB limit.');
+                return;
+            }
+
+            const gps = await getCurrentGPS();
+            if (!gps) {
+                alert('GPS location required. Please enable location services.');
+                return;
+            }
+
+            // Check if within geofence
+            try {
+                const { data: properties } = await MySTRA_API.getProperties();
+                if (properties && properties.length > 0) {
+                    const property = properties[0];
+                    const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+                    if (dist > 500) {
+                        alert('You must be within 500m of the property to upload documents.');
+                        return;
+                    }
+                    DOC_STATE.propertyId = property.id;
+                } else {
+                    alert('No property found. Please register a property first.');
+                    return;
+                }
+            } catch (err) {
+                alert('Error checking location: ' + err.message);
+                return;
+            }
+
+            // For demo, using a placeholder userId
+            // In production, get from Supabase auth session
+            const userId = DOC_STATE.userId || '550e8400-e29b-41d4-a716-446655440000';
+            const propertyId = DOC_STATE.propertyId;
+
+            const { data, error } = await uploadDocument(
+                file,
+                docType,
+                userId,
+                propertyId,
+                gps.lat,
+                gps.lng
+            );
+
+            if (error) {
+                alert('Upload failed: ' + error.message);
+                return;
+            }
+
+            alert('✅ Document uploaded successfully! Awaiting admin verification.');
+            fileInput.value = '';
+            await loadDocumentData();
+            switchDocTab('status');
+        }
+
+        // ==============================================================================
+        // 🚀 INITIALIZATION
+        // ==============================================================================
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set DB status badge
+            const badge = document.getElementById('db-status-badge');
+            if (window.MySTRA_API) {
+                try {
+                    const { data } = await MySTRA_API.getProperties();
+                    if (data) {
+                        badge.textContent = '🟢 SUPABASE LIVE';
+                        badge.className = 'status-badge';
+                        badge.style.backgroundColor = '#DCFCE7';
+                        badge.style.color = '#15803D';
+                    }
+                } catch (e) {
+                    badge.textContent = '🟡 SUPABASE CONNECTED';
+                }
+            }
+
+            // Load initial data
+            await loadDocumentData();
+            initGPSDetection();
+
+            // Setup upload form
+            const form = document.getElementById('document-upload-form');
+            if (form) {
+                form.addEventListener('submit', handleDocumentUpload);
+            }
+
+            // Close modal on overlay click
+            document.getElementById('revision-modal').addEventListener('click', function(e) {
+                if (e.target === this) closeRevisionModal();
+            });
+        });
+    </script>
+
+</body>
+</html>

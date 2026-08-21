@@ -233,8 +233,117 @@ const MySTRA_API = {
             .update(updates)
             .eq('id', profileId)
             .select();
-    }
+    },
+
+    // ==============================================================================
+    // 📄 COMPLIANCE DOCUMENTS (MODULE 3 - LESTER)
+    // ==============================================================================
+
+    async uploadDocument(file, documentType, userId, propertyId, gpsLatitude, gpsLongitude) {
+     if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    
+     // 1. Upload file to Supabase Storage
+     const fileExt = file.name.split('.').pop();
+     const fileName = `${userId}/${Date.now()}.${fileExt}`;
+     const filePath = `documents/${fileName}`;
+    
+     const { data: uploadData, error: uploadError } = await supabaseClient.storage
+         .from('compliance-documents')
+         .upload(filePath, file);
+    
+     if (uploadError) return { data: null, error: uploadError };
+    
+     // 2. Get public URL
+      const { data: urlData } = supabaseClient.storage
+        .from('compliance-documents')
+        .getPublicUrl(filePath);
+    
+    // 3. Create record in compliance_documents table
+    const payload = {
+        user_id: userId,
+        property_id: propertyId,
+        document_type: documentType,
+        file_name: file.name,
+        file_path: urlData.publicUrl,
+        file_size: file.size,
+        file_type: file.type,
+        gps_latitude: gpsLatitude,
+        gps_longitude: gpsLongitude,
+        review_status: 'Pending',
+        uploaded_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabaseClient
+        .from('compliance_documents')
+        .insert([payload])
+        .select();
+    
+    return { data, error };
+},
+
+    async getDocumentsByUser(userId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+        .from('compliance_documents')
+        .select('*')
+        .eq('user_id', userId)
+        .order('uploaded_at', { ascending: false });
+    },
+    
+    async getDocumentById(documentId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+        .from('compliance_documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+    },
+    
+    async updateDocument(documentId, updates) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+        .from('compliance_documents')
+        .update(updates)
+        .eq('id', documentId)
+        .select();
+    },
+
+    async deleteDocument(documentId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+        .from('compliance_documents')
+        .delete()
+        .eq('id', documentId);
+    },
+    
+    // 📍 LOCATION / GPS HELPERS
+
+    async getPropertyCoordinates(propertyId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+        .from('properties')
+        .select('latitude, longitude, address')
+        .eq('id', propertyId)
+        .single();
+    },
+    
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; // Earth's radius in meters
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              return R * c; // Distance in meters
+              }
 };
+
+
+
 
 window.MySTRA_API = MySTRA_API;
 console.log("⚡ MySTRA Supabase Client Layer configured for:", SUPABASE_URL);
+
+
+
