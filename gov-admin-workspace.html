@@ -10,6 +10,85 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+
+    <style>
+        /* Floating Popup Overlay Backdrop */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        /* Hide modal when inactive */
+        .modal-overlay.hidden {
+            display: none !important;
+        }
+
+        /* Floating Center Window Container */
+        .modal-content {
+            background: #ffffff;
+            width: 90%;
+            max-width: 850px;
+            max-height: 85vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalPopIn 0.2s ease-out;
+        }
+
+        @keyframes modalPopIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Modal Top Header Bar */
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #F8FAFC;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #0F172A;
+        }
+
+        .modal-close-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            color: #64748B;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .modal-close-btn:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+        }
+
+        /* Modal Inner Body */
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
 
@@ -44,6 +123,12 @@
                     <li class="nav-item">
                         <span class="nav-icon">🏢</span>
                         <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="gov-admin-audit.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Audit Log</span>
                     </li>
                 </a>
                 <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
@@ -130,18 +215,15 @@
         </main>
     </div>
 
-    <!-- DOCUMENT PREVIEW MODAL -->
-    <div id="document-preview-modal" class="modal-overlay hidden">
-        <div class="modal-card">
+    <!-- Floating Document Preview Popup -->
+    <div id="document-preview-modal" class="modal-overlay hidden" onclick="if(event.target === this) govModule.closeDocumentModal()">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3>Document File Preview</h3>
                 <button class="modal-close-btn" onclick="govModule.closeDocumentModal()">✕</button>
             </div>
             <div class="modal-body" id="modal-file-container">
-                <p>Loading file preview stream...</p>
-            </div>
-            <div class="modal-footer">
-                <button class="gov-btn btn-secondary" onclick="govModule.closeDocumentModal()">Close</button>
+                <!-- Dynamic PDF/Image content loads here -->
             </div>
         </div>
     </div>

@@ -28,6 +28,7 @@ class GovAdminModule {
         document.getElementById('btn-action-approve')?.addEventListener('click', () => this.processDecision('APPROVED'));
         document.getElementById('btn-action-reject')?.addEventListener('click', () => this.processDecision('REJECTED'));
         document.getElementById('btn-action-reupload')?.addEventListener('click', () => this.processDecision('REUPLOAD_REQUESTED'));
+        document.getElementById('btn-open-preview')?.addEventListener('click', () => this.openDocumentModal());
     }
 
     async fetchQueueDocuments() {
@@ -53,17 +54,25 @@ class GovAdminModule {
             return;
         }
 
-        queueContainer.innerHTML = filteredDocs.map(doc => `
-            <div class="gov-queue-item" onclick='govModule.selectDocument(${JSON.stringify(doc)})'>
-                <div style="display:flex; justify-content:space-between; font-weight:600; font-size:13px;">
-                    <span>📄 ${doc.document_type || 'Regulatory Document'}</span>
-                    <span style="color:#2563EB;">#${doc.id.toString().substring(0, 8)}</span>
+        queueContainer.innerHTML = filteredDocs.map(doc => {
+            const operator = doc.operator_name || 'Unassigned Operator';
+            const location = doc.state ? ` (${doc.state})` : '';
+
+            return `
+                <div class="gov-queue-item" onclick='govModule.selectDocument(${JSON.stringify(doc)})'>
+                    <div style="display:flex; justify-content:space-between; font-weight:600; font-size:13px;">
+                        <span>📄 ${doc.document_type || 'Regulatory Document'}</span>
+                        <span style="color:#2563EB;">#${doc.id.toString().substring(0, 8)}</span>
+                    </div>
+                    <div style="font-size:12px; color:#1F2937; font-weight:600; margin-top:4px;">
+                        👤 ${operator}${location}
+                    </div>
+                    <div style="font-size:11px; color:#6B7280; margin-top:2px;">
+                        Uploaded: ${new Date(doc.uploaded_at).toLocaleDateString()} | Status: <strong>${doc.status || 'PENDING'}</strong>
+                    </div>
                 </div>
-                <div style="font-size:12px; color:#6B7280; margin-top:4px;">
-                    Uploaded: ${new Date(doc.uploaded_at).toLocaleDateString()} | Status: <strong>${doc.status || 'PENDING'}</strong>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     selectDocument(doc) {
@@ -72,31 +81,64 @@ class GovAdminModule {
         document.getElementById('gov-doc-ref-display').value = doc.id;
         document.getElementById('gov-doc-category-display').value = doc.document_type || 'N/A';
         document.getElementById('gov-official-remarks').value = doc.admin_feedback || '';
-        document.getElementById('btn-open-preview').disabled = false;
+        
+        const previewBtn = document.getElementById('btn-open-preview');
+        if (previewBtn) previewBtn.disabled = false;
 
         document.querySelectorAll('.gov-queue-item').forEach(el => el.classList.remove('selected'));
-        if (event && event.currentTarget) {
-            event.currentTarget.classList.add('selected');
+        if (window.event && window.event.currentTarget) {
+            window.event.currentTarget.classList.add('selected');
         }
     }
 
     openDocumentModal() {
-        if (!this.selectedDocData) return;
-        const modal = document.getElementById('document-preview-modal');
-        const container = document.getElementById('modal-file-container');
-        modal.classList.remove('hidden');
+    if (!this.selectedDocData) return;
+    const modal = document.getElementById('document-preview-modal');
+    const container = document.getElementById('modal-file-container');
+    if (!modal || !container) return;
 
-        const fileUrl = this.selectedDocData.file_url || this.selectedDocData.document_url;
-        if (!fileUrl) {
-            container.innerHTML = `<p style="color:red; font-size:13px;">Document preview unavailable.</p>`;
-            return;
-        }
+    modal.classList.remove('hidden');
 
-        container.innerHTML = `<p style="font-size:13px;">📄 <a href="${fileUrl}" target="_blank" style="color:#2563EB;">Open Document File</a></p>`;
+    const fileUrl = this.selectedDocData.file_path || this.selectedDocData.file_url || this.selectedDocData.document_url;
+
+    if (!fileUrl || fileUrl.trim() === '') {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px 20px; border:2px dashed #CBD5E1; border-radius:8px; background:#F8FAFC;">
+                <div style="font-size:32px; margin-bottom:8px;">📄</div>
+                <h4 style="margin:0 0 4px 0; color:#334155; font-size:14px; font-weight:600;">No Document File Attached</h4>
+                <p style="margin:0; color:#64748B; font-size:12px;">The host submitted this entry without attaching a file link.</p>
+            </div>
+        `;
+        return;
     }
 
+    const isPdf = fileUrl.toLowerCase().includes('.pdf');
+
+    if (isPdf) {
+        // Embeds PDF using Google Docs Viewer to bypass browser iframe blocking
+        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+        
+        container.innerHTML = `
+            <iframe src="${viewerUrl}" style="width:100%; height:480px; border:1px solid #E2E8F0; border-radius:8px;" frameborder="0"></iframe>
+            <div style="margin-top:10px; text-align:right;">
+                <a href="${fileUrl}" target="_blank" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ Open direct PDF file</a>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <img src="${fileUrl}" alt="Document Preview" 
+                 style="max-width:100%; max-height:480px; border-radius:8px; display:block; margin:0 auto;" 
+                 onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:30px; color:#EF4444; font-size:13px;\\'>⚠️ File link broken or inaccessible.</div>';" />
+            <div style="margin-top:10px; text-align:right;">
+                <a href="${fileUrl}" target="_blank" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ View full image</a>
+            </div>
+        `;
+    }
+}   
+
     closeDocumentModal() {
-        document.getElementById('document-preview-modal').classList.add('hidden');
+        const modal = document.getElementById('document-preview-modal');
+        if (modal) modal.classList.add('hidden');
     }
 
     async processDecision(decisionType) {
@@ -141,6 +183,7 @@ class GovAdminModule {
         document.getElementById('gov-doc-ref-display').value = '';
         document.getElementById('gov-doc-category-display').value = '';
         document.getElementById('gov-official-remarks').value = '';
-        document.getElementById('btn-open-preview').disabled = true;
+        const previewBtn = document.getElementById('btn-open-preview');
+        if (previewBtn) previewBtn.disabled = true;
     }
 }

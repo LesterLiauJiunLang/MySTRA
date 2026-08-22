@@ -46,6 +46,12 @@
                         <span class="nav-label">Verified Operators</span>
                     </li>
                 </a>
+                <a href="gov-admin-audit.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Audit Log</span>
+                    </li>
+                </a>
                 <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
                     <li class="nav-item">
                         <span class="nav-icon">⚙️</span>
@@ -64,77 +70,40 @@
                 </div>
             </header>
 
-            <div id="report-alert-banner" class="alert-banner hidden"></div>
-
             <div class="gov-workspace-container">
                 <div class="gov-header">
                     <div>
-                        <h1 class="gov-title">Compliance & Verification Reports</h1>
-                        <p class="gov-subtitle">Compile system compliance, verification metrics, and operator stats into exportable formats.</p>
+                        <h1 class="gov-title">Executive Compliance Reports</h1>
+                        <p class="gov-subtitle">Export official regulatory metrics and state density summaries.</p>
                     </div>
                 </div>
 
-                <!-- REPORT CONFIGURATION FORM -->
-                <div class="gov-card">
-                    <h3>Report Export Parameters</h3>
-                    <form id="report-form" style="margin-top: 20px;">
-                        
-                        <div class="gov-grid">
-                            <div class="gov-form-group">
-                                <label for="report-start-date">Start Date <span class="required-star">*</span></label>
-                                <input type="date" id="report-start-date" class="gov-textarea" style="height:42px;" required>
-                            </div>
+                <div class="gov-card" style="max-width: 600px;">
+                    <h3>Report Generator Options</h3>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Report Type:</label>
+                        <select id="report-type" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="COMPLIANCE_SUMMARY">Nationwide Compliance Summary (PDF)</option>
+                            <option value="OPERATOR_DIRECTORY">Verified Operator Registry (CSV)</option>
+                            <option value="AUDIT_TRAIL">Officer Decision Log (CSV)</option>
+                        </select>
+                    </div>
 
-                            <div class="gov-form-group">
-                                <label for="report-end-date">End Date <span class="required-star">*</span></label>
-                                <input type="date" id="report-end-date" class="gov-textarea" style="height:42px;" required>
-                            </div>
-                        </div>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Target Region:</label>
+                        <select id="report-region" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="ALL">All Malaysia States</option>
+                            <option value="Penang">Penang</option>
+                            <option value="Selangor">Selangor</option>
+                            <option value="Sabah">Sabah</option>
+                        </select>
+                    </div>
 
-                        <div class="gov-grid">
-                            <div class="gov-form-group">
-                                <label for="report-state">Target Region / State</label>
-                                <select id="report-state" class="gov-dropdown" style="width:100%; height:42px;">
-                                    <option value="ALL">All States (Nationwide)</option>
-                                    <option value="Penang">Penang</option>
-                                    <option value="Sabah">Sabah</option>
-                                    <option value="Selangor">Selangor</option>
-                                    <option value="Johor">Johor</option>
-                                    <option value="Kuala Lumpur">Kuala Lumpur (DBKL)</option>
-                                </select>
-                            </div>
-
-                            <div class="gov-form-group">
-                                <label for="report-status">Verification Status</label>
-                                <select id="report-status" class="gov-dropdown" style="width:100%; height:42px;">
-                                    <option value="ALL">All Statuses</option>
-                                    <option value="APPROVED">Verified Only</option>
-                                    <option value="PENDING">Pending Review</option>
-                                    <option value="REJECTED">Rejected / Revision Requested</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="gov-form-group">
-                            <label for="report-format">Output Export Format</label>
-                            <select id="report-format" class="gov-dropdown" style="width:100%; height:42px;">
-                                <option value="CSV">CSV (Spreadsheet Data)</option>
-                                <option value="PDF">PDF (Formatted Audit Summary)</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-top:20px; text-align:right;">
-                            <button type="button" id="btn-generate-report" class="gov-btn btn-approve" style="padding:12px 24px; font-size:14px;" onclick="reportsApp.generateReport()">
-                                📥 Generate & Export Report
-                            </button>
-                        </div>
-
-                    </form>
+                    <button class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;" onclick="alert('Generating report...')">📥 Download Report</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <script src="gov-admin-reports.js"></script>
 </body>
 </html>
