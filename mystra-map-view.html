@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Public Verified Directory & Map View</title>
+
+    <!-- ===== CSS ===== -->
+    <link rel="stylesheet" href="control-panel.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS (For Map) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- ===== Supabase ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <style>
+        /* ============================================
+           MODULE 2 - PUBLIC VERIFIED DIRECTORY
+           ============================================ */
+
+        /* Map Container */
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Property Cards in Sidebar */
+        .property-card {
+            background: white;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border-left: 4px solid #22c55e;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-bottom: 10px;
+        }
+        .property-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        .property-card .name {
+            font-weight: 700;
+            color: #1e3a8a;
+            font-size: 15px;
+        }
+        .property-card .address {
+            font-size: 13px;
+            color: #4b5563;
+            margin-top: 2px;
+        }
+        .property-card .location {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .badge-verified {
+            background: #22c55e;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        /* Map Marker */
+        .custom-marker {
+            background: #22c55e;
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+        }
+        .custom-marker:hover {
+            transform: scale(1.3);
+        }
+
+        /* Map Popup */
+        .leaflet-popup-content {
+            min-width: 200px;
+            max-width: 280px;
+        }
+        .leaflet-popup-content h3 {
+            color: #1e3a8a;
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .leaflet-popup-content .popup-address {
+            font-size: 13px;
+            color: #4b5563;
+            margin-bottom: 2px;
+        }
+        .leaflet-popup-content .popup-desc {
+            font-size: 13px;
+            color: #374151;
+            margin: 6px 0;
+        }
+        .leaflet-popup-content .popup-contact {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        /* Scrollbar for property list */
+        #propertyList::-webkit-scrollbar {
+            width: 6px;
+        }
+        #propertyList::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        #propertyList::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        /* Filter and Search Section */
+        .filter-section {
+            background: #F8FAFC;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #E5E7EB;
+            margin-bottom: 20px;
+        }
+        .filter-section select,
+        .filter-section input {
+            padding: 10px 14px;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 140px;
+        }
+        .filter-section .btn-primary {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .result-count {
+            font-size: 13px;
+            color: #6B7280;
+            margin-left: auto;
+        }
+
+        /* Main content padding adjustment */
+        .main-content {
+            padding: 24px 32px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 80px;
+                padding: 16px;
+            }
+            .sidebar-brand {
+                font-size: 14px;
+            }
+            .nav-item span:not(.icon) {
+                display: none;
+            }
+            .main-content {
+                padding: 16px;
+            }
+            #map {
+                height: 350px;
+            }
+            .filter-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-section select,
+            .filter-section input,
+            .filter-section .btn-primary {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================================================
+    🌐 GLOBAL SYSTEM CONTAINER
+    ========================================================================== -->
+    <div class="portal-container">
+
+        <!-- ==========================================================================
+        🧭 LEFT SIDEBAR NAVIGATION
+        ========================================================================== -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">🏠 MySTRA</div>
+            <ul class="nav-links">
+                <li id="nav-home" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🏠</span> Home
+                </li>
+                <li id="nav-manager" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🔑</span> Code Manager
+                </li>
+                <li id="nav-docs" class="nav-item" onclick="window.location.href='mystra-document-portal.html';">
+                    <span class="icon">📄</span> Documents
+                </li>
+                <li id="nav-map" class="nav-item active-nav">
+                    <span class="icon">🗺️</span> Map View
+                </li>
+                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">⚙️</span> Settings
+                </li>
+            </ul>
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <span style="font-size: 13px; font-weight: 500; display: block;">Public User</span>
+                <span style="font-size: 12px; color: #6B7280;">Viewing Verified Properties</span>
+            </div>
+        </nav>
+
+        <!-- ==========================================================================
+        🖥️ MAIN WORKSPACE AREA
+        ========================================================================== -->
+        <main class="main-content">
+
+            <!-- ===== PAGE HEADER ===== -->
+            <header class="content-header">
+                <div class="header-title-wrapper">
+                    <h1 id="page-main-title">🗺️ Public Verified Directory</h1>
+                    <span id="db-status-badge" class="status-badge">🟡 CONNECTING TO SUPABASE...</span>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span style="font-size: 13px; color: #6B7280;">Home / Map View</span>
+                    <button class="btn-secondary" onclick="refreshMap()">🔄 Refresh</button>
+                </div>
+            </header>
+
+            <!-- ===== CONTENT ===== -->
+            <div class="widget-card" style="padding: 0; overflow: hidden;">
+
+                <!-- Search and Filter Section -->
+                <div class="filter-section" style="border-radius: 0; border: none; border-bottom: 1px solid #E5E7EB; margin-bottom: 0;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                        <!-- Search Input -->
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="🔍 Search by name or license number..."
+                            style="flex: 1; min-width: 200px;"
+                        />
+                        <button onclick="searchProperties()" class="btn-primary" style="padding: 10px 20px;">
+                            Search
+                        </button>
+
+                        <!-- Filter Dropdowns -->
+                        <select id="stateFilter" style="min-width: 120px;">
+                            <option value="">All States</option>
+                        </select>
+                        <select id="cityFilter" style="min-width: 120px;">
+                            <option value="">All Cities</option>
+                        </select>
+                        <select id="sortFilter" style="min-width: 140px;">
+                            <option value="name">Sort by Name (A-Z)</option>
+                            <option value="name_desc">Sort by Name (Z-A)</option>
+                            <option value="date">Sort by Date (Newest)</option>
+                            <option value="date_old">Sort by Date (Oldest)</option>
+                        </select>
+
+                        <button onclick="applyFilters()" class="btn-primary" style="background: #16A34A; padding: 10px 16px;">
+                            Apply Filters
+                        </button>
+                        <button onclick="resetFilters()" class="btn-secondary" style="padding: 10px 16px;">
+                            Reset
+                        </button>
+
+                        <span id="resultCount" class="result-count"></span>
+                    </div>
+                </div>
+
+                <!-- Map + Property List Grid -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0;">
+
+                    <!-- Map Container -->
+                    <div style="padding: 16px;">
+                        <div id="map"></div>
+                    </div>
+
+                    <!-- Property List -->
+                    <div style="padding: 16px; border-left: 1px solid #E5E7EB; background: #FAFBFC;">
+                        <h2 style="font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>🏨 Verified Properties</span>
+                            <span id="listCount" style="font-size: 13px; font-weight: normal; color: #6B7280;"></span>
+                        </h2>
+                        <div id="propertyList" style="max-height: 500px; overflow-y: auto; padding-right: 4px;">
+                            <p style="color: #6B7280; text-align: center; padding: 20px;">Loading properties...</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ===== FOOTER ===== -->
+            <footer style="margin-top: 24px; padding: 16px 0; border-top: 1px solid #E5E7EB; text-align: center; font-size: 13px; color: #6B7280;">
+                &copy; 2026 MySTRA - Malaysia Short-Term Rental Accommodation System
+                <span style="margin: 0 12px;">|</span> Visit Malaysia 2026 🇲🇾
+            </footer>
+
+        </main>
+    </div>
+
+    <!-- ==========================================================================
+    SCRIPTS
+    ========================================================================== -->
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Module 2 Logic -->
+    <script>
+        // ==============================================================================
+        // 🗺️ MODULE 2 - PUBLIC VERIFIED DIRECTORY & INTERACTIVE MAP VIEW
+        // ==============================================================================
+
+        console.log('🗺️ Module 2 - Public Verified Directory starting...');
+
+        let map = null;
+        let markers = [];
+        let allProperties = [];
+        let currentProperties = [];
+
+        // ==============================================================================
+        // 🔄 REFRESH MAP FUNCTION
+        // ==============================================================================
+
+        function refreshMap() {
+            loadProperties();
+        }
+
+        // ==============================================================================
+        // 🗺️ MAP INITIALIZATION
+        // ==============================================================================
+
+        function initMap() {
+            map = L.map('map').setView([4.2105, 101.9758], 6);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            console.log('🗺️ Map initialized');
+        }
+
+        // ==============================================================================
+        // 📊 LOAD PROPERTIES FROM SUPABASE
+        // ==============================================================================
+
+        async function loadProperties() {
+            const listContainer = document.getElementById('propertyList');
+            if (listContainer) {
+                listContainer.innerHTML = '<p style="color: #6B7280; text-align: center; padding: 20px;">Loading properties...</p>';
+            }
+
+            try {
+                // Update DB status badge
+                const badge = document.getElementById('db-status-badge');
+                if (badge) {
+                    badge.textContent = '🟡 FETCHING DATA...';
+                    badge.style.backgroundColor = '#FEF3C7';
+                    badge.style.color = '#92400E';
+                }
+
+                const { data, error } = await MySTRA_API.getProperties();
+
+                if (error) {
+                    console.error('❌ Supabase error:', error);
+                    if (listContainer) {
+                        listContainer.innerHTML = `
+                            <div style="background: #FEE2E2; padding: 16px; border-radius: 8px; color: #991B1B; text-align: center;">
+                                <p><strong>⚠️ Error loading properties</strong></p>
+                                <p style="font-size: 13px;">${error.message}</p>
+                                <button onclick="loadProperties()" class="btn-secondary" style="margin-top: 8px;">🔄 Retry</button>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                allProperties = data || [];
+                currentProperties = [...allProperties];
+                console.log('✅ Loaded', allProperties.length, 'properties');
+
+                // Update badge
+                if (badge) {
+                    badge.textContent = '🟢 SUPABASE LIVE';
+                    badge.style.backgroundColor = '#DCFCE7';
+                    badge.style.color = '#15803D';
+                }
+
+                displayProperties(currentProperties);
+                addMarkers(currentProperties);
+                loadFilters();
+
+            } catch (err) {
+                console.error('❌ Error loading properties:', err);
+                if (listContainer) {
+                    listContainer.innerHTML = `
+                        <div style="background: #FEE2E2; padding: 16px; border-radius: 8px; color: #991B1B; text-align: center;">
+                            <p><strong>⚠️ Unexpected error</strong></p>
+                            <p style="font-size: 13px;">${err.message}</p>
+                            <button onclick="loadProperties()" class="btn-secondary" style="margin-top: 8px;">🔄 Retry</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // ==============================================================================
+        // 🏷️ DISPLAY PROPERTIES IN LIST
+        // ==============================================================================
+
+        function displayProperties(properties) {
+            const list = document.getElementById('propertyList');
+
+            if (!properties || properties.length === 0) {
+                list.innerHTML = `
+                    <div style="background: #F8FAFC; padding: 24px; border-radius: 8px; text-align: center; color: #6B7280;">
+                        <p style="font-size: 40px;">🏠</p>
+                        <p>No properties found</p>
+                        <button onclick="resetFilters()" class="btn-secondary" style="margin-top: 8px; font-size: 13px;">
+                            Reset filters
+                        </button>
+                    </div>
+                `;
+                document.getElementById('listCount').textContent = '(0)';
+                document.getElementById('resultCount').textContent = '0 properties';
+                return;
+            }
+
+            list.innerHTML = properties.map(p => `
+                <div class="property-card" onclick="zoomToProperty('${p.id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <span class="name">${p.title || p.name || 'Unnamed Property'}</span>
+                        <span class="badge-verified">✓ Verified</span>
+                    </div>
+                    <p class="address">${p.address || 'Address not provided'}</p>
+                    <p class="location">${p.city || ''}${p.city && p.state ? ', ' : ''}${p.state || ''}</p>
+                    ${p.license_number ? `<p style="font-size: 11px; color: #9CA3AF; margin-top: 4px;">License: ${p.license_number}</p>` : ''}
+                </div>
+            `).join('');
+
+            document.getElementById('listCount').textContent = `(${properties.length})`;
+            document.getElementById('resultCount').textContent = `Showing ${properties.length} of ${allProperties.length} properties`;
+        }
+
+        // ==============================================================================
+        // 📍 ADD MARKERS TO MAP
+        // ==============================================================================
+
+        function addMarkers(properties) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            properties.forEach(p => {
+                const lat = p.latitude || p.lat;
+                const lng = p.longitude || p.lng;
+
+                if (lat && lng) {
+                    const marker = L.marker([lat, lng], {
+                        icon: L.divIcon({ className: 'custom-marker', iconSize: [14, 14] })
+                    });
+
+                    const propertyName = p.title || p.name || 'Unnamed Property';
+
+                    marker.bindPopup(`
+                        <h3>${propertyName}</h3>
+                        <p class="popup-address">${p.address || 'Address not provided'}</p>
+                        <p class="popup-address">${p.city || ''}${p.city && p.state ? ', ' : ''}${p.state || ''}</p>
+                        <p><span class="badge-verified">✓ Verified</span></p>
+                        ${p.description ? `<p class="popup-desc">${p.description}</p>` : ''}
+                        ${p.contact_info ? `<p class="popup-contact">📞 ${p.contact_info}</p>` : ''}
+                        ${p.license_number ? `<p class="popup-contact"><small>License: ${p.license_number}</small></p>` : ''}
+                    `);
+
+                    marker.addTo(map);
+                    markers.push(marker);
+                }
+            });
+
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // ==============================================================================
+        // 🔍 LOAD FILTERS
+        // ==============================================================================
+
+        function loadFilters() {
+            // Get unique states and cities from all properties
+            const states = [...new Set(allProperties.map(p => p.state || p.state).filter(Boolean))].sort();
+            const cities = [...new Set(allProperties.map(p => p.city || p.city).filter(Boolean))].sort();
+
+            const stateSelect = document.getElementById('stateFilter');
+            const citySelect = document.getElementById('cityFilter');
+
+            // Clear existing options (keep the "All" option)
+            stateSelect.innerHTML = '<option value="">All States</option>';
+            citySelect.innerHTML = '<option value="">All Cities</option>';
+
+            states.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                stateSelect.appendChild(opt);
+            });
+
+            cities.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                citySelect.appendChild(opt);
+            });
+        }
+
+        // ==============================================================================
+        // 🔄 APPLY FILTERS
+        // ==============================================================================
+
+        function applyFilters() {
+            const state = document.getElementById('stateFilter').value;
+            const city = document.getElementById('cityFilter').value;
+            const sort = document.getElementById('sortFilter').value;
+
+            let filtered = [...allProperties];
+
+            if (state) filtered = filtered.filter(p => (p.state || p.state) === state);
+            if (city) filtered = filtered.filter(p => (p.city || p.city) === city);
+
+            // Sort
+            if (sort === 'name') {
+                filtered = filtered.sort((a, b) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
+            } else if (sort === 'name_desc') {
+                filtered = filtered.sort((a, b) => (b.title || b.name || '').localeCompare(a.title || a.name || ''));
+            } else if (sort === 'date') {
+                filtered = filtered.sort((a, b) => new Date(b.created_at || b.created_at) - new Date(a.created_at || a.created_at));
+            } else if (sort === 'date_old') {
+                filtered = filtered.sort((a, b) => new Date(a.created_at || a.created_at) - new Date(b.created_at || b.created_at));
+            }
+
+            currentProperties = filtered;
+            displayProperties(currentProperties);
+            addMarkers(currentProperties);
+        }
+
+        // ==============================================================================
+        // 🔄 RESET FILTERS
+        // ==============================================================================
+
+        function resetFilters() {
+            document.getElementById('stateFilter').value = '';
+            document.getElementById('cityFilter').value = '';
+            document.getElementById('sortFilter').value = 'name';
+            document.getElementById('searchInput').value = '';
+
+            currentProperties = [...allProperties];
+            displayProperties(currentProperties);
+            addMarkers(currentProperties);
+        }
+
+        // ==============================================================================
+        // 🔍 SEARCH PROPERTIES
+        // ==============================================================================
+
+        function searchProperties() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+
+            if (!query) {
+                currentProperties = [...allProperties];
+            } else {
+                currentProperties = allProperties.filter(p => {
+                    const name = (p.title || p.name || '').toLowerCase();
+                    const license = (p.license_number || '').toLowerCase();
+                    return name.includes(query) || license.includes(query);
+                });
+            }
+
+            displayProperties(currentProperties);
+            addMarkers(currentProperties);
+        }
+
+        // ==============================================================================
+        // 🎯 ZOOM TO PROPERTY
+        // ==============================================================================
+
+        function zoomToProperty(id) {
+            console.log('🔍 Zooming to property:', id);
+
+            const p = allProperties.find(p => p.id == id);
+
+            if (!p) {
+                console.warn('⚠️ Property not found:', id);
+                return;
+            }
+
+            const lat = p.latitude || p.lat;
+            const lng = p.longitude || p.lng;
+
+            if (lat && lng) {
+                map.setView([lat, lng], 15);
+                markers.forEach(m => {
+                    const mlat = m.getLatLng().lat;
+                    const mlng = m.getLatLng().lng;
+                    if (mlat === lat && mlng === lng) {
+                        m.openPopup();
+                    }
+                });
+            } else {
+                console.warn('⚠️ No coordinates for property:', id);
+            }
+        }
+
+        // ==============================================================================
+        // 🚀 GLOBAL EXPOSURE
+        // ==============================================================================
+
+        window.searchProperties = searchProperties;
+        window.applyFilters = applyFilters;
+        window.resetFilters = resetFilters;
+        window.zoomToProperty = zoomToProperty;
+        window.refreshMap = refreshMap;
+
+        // ==============================================================================
+        // 🚀 INITIALIZATION
+        // ==============================================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize map
+            initMap();
+
+            // Load properties from Supabase
+            loadProperties();
+
+            console.log('✅ Module 2 - Public Verified Directory ready!');
+        });
+    </script>
+
+</body>
+</html>
