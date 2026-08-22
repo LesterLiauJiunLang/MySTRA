@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Admin Dashboard</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="portal-layout">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏛️</span>
+                <span class="brand-name">MySTRA Admin</span>
+            </div>
+
+            <ul class="nav-menu">
+                <a href="gov-admin-dashboard.html" class="nav-link">
+                    <li class="nav-item active">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                </a>
+                <a href="gov-admin-workspace.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-label">Documents</span>
+                    </li>
+                </a>
+                <a href="gov-admin-reports.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Generate Reports</span>
+                    </li>
+                </a>
+                <a href="gov-admin-verified.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
+                    <li class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                </a>
+            </ul>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
+                <div class="officer-badge">
+                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                </div>
+            </header>
+
+            <div id="gov-alert-banner" class="alert-banner hidden"></div>
+
+            <div class="gov-workspace-container">
+                <div class="gov-header">
+                    <div>
+                        <h1 class="gov-title">Executive Compliance Dashboard</h1>
+                        <p class="gov-subtitle">Nationwide accommodation registration metrics & state density analysis.</p>
+                    </div>
+                </div>
+
+                <!-- REGIONAL FILTERS -->
+                <div class="filter-panel-card">
+                    <div class="filter-group">
+                        <label for="filter-state">State:</label>
+                        <select id="filter-state" class="gov-dropdown" onchange="dashboardApp.loadDashboardData()">
+                            <option value="ALL">All States (Nationwide)</option>
+                            <option value="Penang">Penang</option>
+                            <option value="Sabah">Sabah</option>
+                            <option value="Selangor">Selangor</option>
+                            <option value="Johor">Johor</option>
+                            <option value="Kuala Lumpur">Kuala Lumpur (DBKL)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="filter-district">District:</label>
+                        <select id="filter-district" class="gov-dropdown" onchange="dashboardApp.loadDashboardData()">
+                            <option value="ALL">All Districts</option>
+                            <option value="George Town">George Town</option>
+                            <option value="Kota Kinabalu">Kota Kinabalu</option>
+                            <option value="Petaling">Petaling</option>
+                        </select>
+                    </div>
+
+                    <button class="gov-btn btn-secondary" onclick="dashboardApp.resetFilters()">🔄 Reset Filters</button>
+                </div>
+
+                <!-- METRIC CARDS -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-title">Total Registered Operators</span>
+                        <div class="metric-value" id="metric-total-operators">0</div>
+                    </div>
+                    <div class="metric-card success">
+                        <span class="metric-title">Verified Status</span>
+                        <div class="metric-value" id="metric-verified-count">0</div>
+                    </div>
+                    <div class="metric-card warning">
+                        <span class="metric-title">Pending Review</span>
+                        <div class="metric-value" id="metric-pending-count">0</div>
+                    </div>
+                    <div class="metric-card danger">
+                        <span class="metric-title">Rejected / Revision</span>
+                        <div class="metric-value" id="metric-rejected-count">0</div>
+                    </div>
+                </div>
+
+                <!-- CHART -->
+                <div class="gov-card">
+                    <h3>State Accommodation Distribution</h3>
+                    <div id="chart-empty-state" class="empty-state-placeholder hidden">
+                        <span>📊 No registered properties found for the selected region.</span>
+                    </div>
+                    <div class="chart-wrapper" id="chart-wrapper">
+                        <canvas id="stateDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="gov-admin-dashboard.js"></script>
+</body>
+</html>

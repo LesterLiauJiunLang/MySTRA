@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Verified Operators Directory</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+
+    <div class="portal-layout">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏛️</span>
+                <span class="brand-name">MySTRA Admin</span>
+            </div>
+
+            <ul class="nav-menu">
+                <a href="gov-admin-dashboard.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                </a>
+                <a href="gov-admin-workspace.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-label">Documents</span>
+                    </li>
+                </a>
+                <a href="gov-admin-reports.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Generate Reports</span>
+                    </li>
+                </a>
+                <a href="gov-admin-verified.html" class="nav-link">
+                    <li class="nav-item active">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
+                    <li class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                </a>
+            </ul>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
+                <div class="officer-badge">
+                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                </div>
+            </header>
+
+            <div class="gov-workspace-container">
+                <div class="gov-header">
+                    <div>
+                        <h1 class="gov-title">Verified Operators Directory</h1>
+                        <p class="gov-subtitle">Official registry of compliant short-term rental accommodations and host credentials.</p>
+                    </div>
+                </div>
+
+                <!-- SEARCH & AUDIT TABLE -->
+                <div class="gov-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <input type="text" id="input-verified-search" class="gov-textarea" style="width:320px;" placeholder="🔍 Search operator, SSM #, or region..." oninput="verifiedApp.filterTable()">
+                        <span style="font-size:13px; color:#6B7280;">Total Verified: <strong id="lbl-verified-count" style="color:#10B981;">0</strong></span>
+                    </div>
+
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:13px;">
+                            <thead>
+                                <tr style="background-color:#F8FAFC; border-bottom:2px solid #E2E8F0; color:#475569;">
+                                    <th style="padding:12px;">Operator / Business Name</th>
+                                    <th style="padding:12px;">Registration (SSM) #</th>
+                                    <th style="padding:12px;">State / District</th>
+                                    <th style="padding:12px;">Verification Date</th>
+                                    <th style="padding:12px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl-verified-body">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding:30px; color:#6B7280;">Loading verified operators directory...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- UC-M5-07 A1: EMPTY STATE -->
+                    <div id="verified-empty-state" class="empty-state-placeholder hidden" style="margin-top:20px;">
+                        <span>🏢 No verified operators found in the database.</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="gov-admin-verified.js"></script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    background-color: #F3F4F6;
+    color: #1F2937;
+}
+
+/* PORTAL LAYOUT */
+.portal-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 240px;
+    background-color: #1E293B;
+    color: #FFFFFF;
+    padding: 20px 15px;
+    flex-shrink: 0;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #334155;
+}
+
+.nav-menu {
+    list-style: none;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    color: #94A3B8;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover, .nav-item.active {
+    background-color: #2563EB;
+    color: #FFFFFF;
+}
+
+/* MAIN WORKSPACE */
+.main-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-bar {
+    background-color: #FFFFFF;
+    padding: 15px 30px;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-sidebar-toggle {
+    background: none;
+    border: 1px solid #D1D5DB;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.officer-badge {
+    font-size: 13px;
+    color: #374151;
+}
+
+.gov-workspace-container {
+    padding: 30px;
+    max-width: 1200px;
+}
+
+.gov-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.gov-subtitle {
+    font-size: 14px;
+    color: #6B7280;
+    margin-top: 4px;
+    margin-bottom: 20px;
+}
+
+/* FILTER BAR */
+.gov-filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.gov-filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #D1D5DB;
+    background-color: #FFFFFF;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gov-filter-btn.active {
+    background-color: #2563EB;
+    color: #FFFFFF;
+    border-color: #2563EB;
+}
+
+/* GRID LAYOUT */
+.gov-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.gov-card {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.gov-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #111827;
+}
+
+/* QUEUE & ITEMS */
+.gov-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gov-queue-item {
+    border: 1px solid #E5E7EB;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: #F9FAFB;
+    transition: border 0.2s ease;
+}
+
+.gov-queue-item:hover, .gov-queue-item.selected {
+    border-color: #2563EB;
+    background-color: #EFF6FF;
+}
+
+/* FORM STYLING */
+.gov-form-group {
+    margin-bottom: 15px;
+}
+
+.gov-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #374151;
+}
+
+.required-star { color: #DC2626; font-weight: bold; }
+
+.gov-input-disabled, .gov-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.gov-input-disabled { background-color: #F3F4F6; }
+
+.gov-action-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.gov-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-approve { background-color: #10B981; color: #FFFFFF; }
+.btn-reject { background-color: #EF4444; color: #FFFFFF; }
+.btn-reupload { background-color: #F59E0B; color: #FFFFFF; }
+
+.nav-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
