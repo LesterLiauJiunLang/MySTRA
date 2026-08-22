@@ -6,7 +6,6 @@ const sidebarItems = {
     'nav-home': { panel: document.getElementById('view-home'), title: "Home Command Hub" },
     'nav-manager': { panel: document.getElementById('view-dashboard'), title: "MySTRA Code Control Centre" },
     'nav-docs': { panel: document.getElementById('view-docs'), title: "System Documentation" },
-    'nav-map': { panel: document.getElementById('view-map'), title: "Public Verified Directory & Map View" },
     'nav-settings': { panel: document.getElementById('view-settings'), title: "Account Settings Control" }
 };
 
