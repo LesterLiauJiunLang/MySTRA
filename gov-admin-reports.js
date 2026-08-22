@@ -24,18 +24,18 @@ class GovReportsModule {
         const format = document.getElementById('report-format').value;
         const alertBanner = document.getElementById('report-alert-banner');
         
-        alertBanner.classList.add('hidden');
+        alertBanner.style.display = 'none';
 
         if (!startDate || !endDate) {
-            alert('⚠️ Please specify both Start Date and End Date.');
+            alertBanner.innerText = '⚠️ Please specify both Start Date and End Date.';
+            alertBanner.style.display = 'block';
             return;
         }
 
-        // UC-M5-06 A1: Timeout / Range Validation Check
         const diffInDays = (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24);
         if (diffInDays > 365) {
-            alertBanner.innerText = "⚠️ Report generation timed out. Please narrow down your filter date range.";
-            alertBanner.classList.remove('hidden');
+            alertBanner.innerText = "⚠️ Report generation timed out. Please narrow down your filter date range (maximum 365 days).";
+            alertBanner.style.display = 'block';
             return;
         }
 
@@ -53,9 +53,8 @@ class GovReportsModule {
 
             if (error) throw error;
 
-            // Filter by date range locally
             const filtered = (records || []).filter(r => {
-                const uploadedDate = new Date(r.uploaded_at).toISOString().split('T')[0];
+                const uploadedDate = r.uploaded_at ? new Date(r.uploaded_at).toISOString().split('T')[0] : '';
                 return uploadedDate >= startDate && uploadedDate <= endDate;
             });
 
@@ -67,7 +66,7 @@ class GovReportsModule {
 
         } catch (err) {
             alertBanner.innerText = "❌ Error compiling report: " + err.message;
-            alertBanner.classList.remove('hidden');
+            alertBanner.style.display = 'block';
         } finally {
             btn.disabled = false;
             btn.innerText = "📥 Generate & Export Report";
@@ -76,7 +75,9 @@ class GovReportsModule {
 
     exportCSV(data) {
         if (!data || data.length === 0) {
-            alert("No records match the selected parameters.");
+            const alertBanner = document.getElementById('report-alert-banner');
+            alertBanner.innerText = "ℹ️ No records match the selected parameters.";
+            alertBanner.style.display = 'block';
             return;
         }
 
@@ -105,7 +106,7 @@ class GovReportsModule {
         const printWindow = window.open('', '_blank');
         const rows = data.map(r => `
             <tr>
-                <td style="padding:8px; border:1px solid #DDD;">#${r.id.toString().substring(0,8)}</td>
+                <td style="padding:8px; border:1px solid #DDD;">#${String(r.id).substring(0,8)}</td>
                 <td style="padding:8px; border:1px solid #DDD;">${r.document_type || 'N/A'}</td>
                 <td style="padding:8px; border:1px solid #DDD;">${r.state || 'N/A'} / ${r.district || 'N/A'}</td>
                 <td style="padding:8px; border:1px solid #DDD;">${r.status || 'PENDING'}</td>

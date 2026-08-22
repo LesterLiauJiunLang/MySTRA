@@ -1,110 +1,129 @@
 document.addEventListener('DOMContentLoaded', () => {
-    window.dashboardApp = new GovDashboard();
+    window.dashboardApp = new GovDashboardModule();
 });
 
-class GovDashboard {
+class GovDashboardModule {
     constructor() {
-        this.chartInstance = null;
-        this.init();
-    }
-
-    init() {
+        this.chart = null;
+        this.allRecords = [];
         this.loadDashboardData();
     }
 
     async loadDashboardData() {
-        const stateFilter = document.getElementById('filter-state')?.value || 'ALL';
-        const districtFilter = document.getElementById('filter-district')?.value || 'ALL';
-        const alertBanner = document.getElementById('gov-alert-banner');
-        
-        alertBanner?.classList.add('hidden');
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('compliance_documents')
+                .select('*');
 
-        if (!window.supabaseClient) {
-            this.showErrorBanner("Unable to retrieve dashboard statistics. Please try again later.");
-            return;
+            if (error) throw error;
+
+            this.allRecords = data || [];
+            this.applyFilters();
+
+        } catch (err) {
+            console.error('Failed to load dashboard data:', err);
+            const banner = document.getElementById('gov-alert-banner');
+            if (banner) {
+                banner.innerText = '❌ Failed to load dashboard data: ' + err.message;
+                banner.style.display = 'block';
+            }
+        }
+    }
+
+    applyFilters() {
+        const selectedState = document.getElementById('filter-state')?.value || 'ALL';
+        const selectedDistrict = document.getElementById('filter-district')?.value || 'ALL';
+
+        let filtered = this.allRecords;
+
+        if (selectedState !== 'ALL') {
+            filtered = filtered.filter(r => r.state === selectedState);
         }
 
-        let query = window.supabaseClient.from('compliance_documents').select('*');
-
-        if (stateFilter !== 'ALL') query = query.eq('state', stateFilter);
-        if (districtFilter !== 'ALL') query = query.eq('district', districtFilter);
-
-        const { data: records, error } = await query;
-
-        if (error) {
-            this.showErrorBanner("Unable to retrieve dashboard statistics. Please try again later.");
-            return;
+        if (selectedDistrict !== 'ALL') {
+            filtered = filtered.filter(r => r.district === selectedDistrict);
         }
 
-        if (!records || records.length === 0) {
-            this.updateMetricsUI(0, 0, 0, 0);
-            document.getElementById('chart-empty-state')?.classList.remove('hidden');
-            document.getElementById('chart-wrapper')?.classList.add('hidden');
-            return;
-        }
+        this.renderDashboard(filtered);
+    }
 
-        document.getElementById('chart-empty-state')?.classList.add('hidden');
-        document.getElementById('chart-wrapper')?.classList.remove('hidden');
-
+    renderDashboard(records) {
         const total = records.length;
-        const verified = records.filter(r => r.status === 'APPROVED').length;
-        const pending = records.filter(r => (r.status || 'PENDING') === 'PENDING').length;
-        const rejected = records.filter(r => r.status === 'REJECTED' || r.status === 'REUPLOAD_REQUESTED').length;
+        const verified = records.filter(r => r.status === 'APPROVED' || r.status === 'VERIFIED').length;
+        const pending = records.filter(r => r.status === 'PENDING').length;
+        const rejected = records.filter(r => r.status === 'REJECTED').length;
 
-        this.updateMetricsUI(total, verified, pending, rejected);
+        document.getElementById('metric-total-operators').innerText = total;
+        document.getElementById('metric-verified-count').innerText = verified;
+        document.getElementById('metric-pending-count').innerText = pending;
+        document.getElementById('metric-rejected-count').innerText = rejected;
 
+        const emptyStateEl = document.getElementById('chart-empty-state');
+        const chartWrapper = document.getElementById('chart-wrapper');
+
+        if (records.length === 0) {
+            if (emptyStateEl) emptyStateEl.style.display = 'block';
+            if (chartWrapper) chartWrapper.style.display = 'none';
+            if (this.chart) this.chart.destroy();
+            return;
+        }
+
+        if (emptyStateEl) emptyStateEl.style.display = 'none';
+        if (chartWrapper) chartWrapper.style.display = 'block';
+
+        this.renderChart(records);
+    }
+
+    renderChart(records) {
         const stateCounts = {};
         records.forEach(r => {
             const stateName = r.state || 'Unspecified Region';
             stateCounts[stateName] = (stateCounts[stateName] || 0) + 1;
         });
 
-        this.renderChart(Object.keys(stateCounts), Object.values(stateCounts));
-    }
+        const labels = Object.keys(stateCounts);
+        const counts = Object.values(stateCounts);
 
-    updateMetricsUI(total, verified, pending, rejected) {
-        document.getElementById('metric-total-operators').innerText = total;
-        document.getElementById('metric-verified-count').innerText = verified;
-        document.getElementById('metric-pending-count').innerText = pending;
-        document.getElementById('metric-rejected-count').innerText = rejected;
-    }
+        const canvas = document.getElementById('stateDistributionChart');
+        if (!canvas) return;
 
-    showErrorBanner(msg) {
-        const banner = document.getElementById('gov-alert-banner');
-        if (banner) {
-            banner.innerText = msg;
-            banner.classList.remove('hidden');
+        const ctx = canvas.getContext('2d');
+
+        if (this.chart) {
+            this.chart.destroy();
         }
-    }
 
-    resetFilters() {
-        document.getElementById('filter-state').value = 'ALL';
-        document.getElementById('filter-district').value = 'ALL';
-        this.loadDashboardData();
-    }
-
-    renderChart(labels, dataCounts) {
-        const ctx = document.getElementById('stateDistributionChart')?.getContext('2d');
-        if (!ctx) return;
-
-        if (this.chartInstance) this.chartInstance.destroy();
-
-        this.chartInstance = new Chart(ctx, {
+        this.chart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Registered Accommodations',
-                    data: dataCounts,
+                    data: counts,
                     backgroundColor: '#2563EB',
-                    borderRadius: 6
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
             }
         });
+    }
+
+    resetFilters() {
+        const stateSelect = document.getElementById('filter-state');
+        const districtSelect = document.getElementById('filter-district');
+
+        if (stateSelect) stateSelect.value = 'ALL';
+        if (districtSelect) districtSelect.value = 'ALL';
+
+        this.applyFilters();
     }
 }

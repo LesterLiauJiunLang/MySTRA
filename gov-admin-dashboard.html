@@ -71,7 +71,7 @@
                 </div>
             </header>
 
-            <div id="gov-alert-banner" class="alert-banner hidden"></div>
+            <div id="gov-alert-banner" class="alert-banner" style="display: none; padding: 12px; margin-bottom: 15px; border-radius: 6px; background-color: #FEE2E2; color: #991B1B; font-size: 13px;"></div>
 
             <div class="gov-workspace-container">
                 <div class="gov-header">
@@ -131,10 +131,10 @@
                 <!-- CHART -->
                 <div class="gov-card">
                     <h3>State Accommodation Distribution</h3>
-                    <div id="chart-empty-state" class="empty-state-placeholder hidden">
+                    <div id="chart-empty-state" style="display: none; padding: 15px; color: #6B7280; font-size: 13px;">
                         <span>📊 No registered properties found for the selected region.</span>
                     </div>
-                    <div class="chart-wrapper" id="chart-wrapper">
+                    <div class="chart-wrapper" id="chart-wrapper" style="position: relative; height: 320px; width: 100%;">
                         <canvas id="stateDistributionChart"></canvas>
                     </div>
                 </div>

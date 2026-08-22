@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySTRA - Generate Reports</title>
+    <title>MySTRA - Executive Reports</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gov-admin-styles.css">
@@ -78,32 +78,59 @@
                     </div>
                 </div>
 
+                <!-- ALERT BANNER (HIDDEN BY DEFAULT WITH display:none) -->
+                <div id="report-alert-banner" style="display: none; padding: 12px; margin-bottom: 20px; border-radius: 6px; background-color: #FEE2E2; color: #991B1B; font-size: 13px; font-weight: 500;"></div>
+
                 <div class="gov-card" style="max-width: 600px;">
                     <h3>Report Generator Options</h3>
-                    <div style="margin-top: 15px;">
-                        <label style="font-size: 13px; font-weight: 600;">Report Type:</label>
-                        <select id="report-type" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
-                            <option value="COMPLIANCE_SUMMARY">Nationwide Compliance Summary (PDF)</option>
-                            <option value="OPERATOR_DIRECTORY">Verified Operator Registry (CSV)</option>
-                            <option value="AUDIT_TRAIL">Officer Decision Log (CSV)</option>
-                        </select>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 600;">Start Date:</label>
+                            <input type="date" id="report-start-date" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 600;">End Date:</label>
+                            <input type="date" id="report-end-date" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                        </div>
                     </div>
 
                     <div style="margin-top: 15px;">
-                        <label style="font-size: 13px; font-weight: 600;">Target Region:</label>
-                        <select id="report-region" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
-                            <option value="ALL">All Malaysia States</option>
+                        <label style="font-size: 13px; font-weight: 600;">State Filter:</label>
+                        <select id="report-state" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="ALL">All States</option>
                             <option value="Penang">Penang</option>
                             <option value="Selangor">Selangor</option>
                             <option value="Sabah">Sabah</option>
+                            <option value="Johor">Johor</option>
+                            <option value="Kuala Lumpur">Kuala Lumpur</option>
                         </select>
                     </div>
 
-                    <button class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;" onclick="alert('Generating report...')">📥 Download Report</button>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Document Status Filter:</label>
+                        <select id="report-status" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Export Format:</label>
+                        <select id="report-format" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="CSV">CSV Spreadsheet (.csv)</option>
+                            <option value="PDF">Printable PDF Document (.pdf)</option>
+                        </select>
+                    </div>
+
+                    <button id="btn-generate-report" class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;" onclick="reportsApp.generateReport()">📥 Generate & Export Report</button>
                 </div>
             </div>
         </main>
     </div>
 
+    <script src="gov-admin-reports.js"></script>
 </body>
 </html>
