@@ -3,81 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySTRA - Public Verified Directory & Map View</title>
-
-    <!-- ===== CSS ===== -->
-    <link rel="stylesheet" href="control-panel.css">
+    <title>MySTRA - Public Verified Directory</title>
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Leaflet CSS (For Map) -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- ===== Supabase ===== -->
+    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
 
     <style>
         /* ============================================
-           MODULE 2 - PUBLIC VERIFIED DIRECTORY
+           GLOBAL RESET
            ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
 
-        /* Map Container */
+        body {
+            background: #F8FAFC;
+            color: #111827;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        .landing-header {
+            background: #FFFFFF;
+            border-bottom: 1px solid #E5E7EB;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-left .logo-icon {
+            font-size: 28px;
+        }
+
+        .header-left h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1E3A8A;
+        }
+
+        .header-left h1 span {
+            color: #2563EB;
+        }
+
+        .header-left .tagline {
+            font-size: 12px;
+            color: #6B7280;
+            font-weight: 500;
+            background: #F3F4F6;
+            padding: 2px 12px;
+            border-radius: 20px;
+            margin-left: 8px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-header {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-login {
+            background: #F3F4F6;
+            color: #1E3A8A;
+        }
+
+        .btn-login:hover {
+            background: #E5E7EB;
+        }
+
+        .btn-register {
+            background: #2563EB;
+            color: #FFFFFF;
+        }
+
+        .btn-register:hover {
+            background: #1D4ED8;
+        }
+
+        .btn-legacy {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .btn-legacy:hover {
+            background: #FDE68A;
+        }
+
+        /* ============================================
+           MAIN CONTENT
+           ============================================ */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        /* ===== PAGE TITLE ===== */
+        .page-title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-title-section h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1E293B;
+        }
+
+        .page-title-section .subtitle {
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .status-badge {
+            background: #DCFCE7;
+            color: #15803D;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* ===== SEARCH & FILTERS ===== */
+        .filter-section {
+            background: #FFFFFF;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid #E5E7EB;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .filter-section .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-section input[type="text"] {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            min-width: 150px;
+        }
+
+        .filter-section input[type="text"]:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .filter-section select {
+            padding: 10px 14px;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            min-width: 130px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .filter-section select:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-filter {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #2563EB;
+            color: #FFFFFF;
+        }
+
+        .btn-primary:hover {
+            background: #1D4ED8;
+        }
+
+        .btn-secondary {
+            background: #F3F4F6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #E5E7EB;
+        }
+
+        .btn-success {
+            background: #16A34A;
+            color: #FFFFFF;
+        }
+
+        .btn-success:hover {
+            background: #15803D;
+        }
+
+        .result-count {
+            font-size: 13px;
+            color: #6B7280;
+            margin-left: auto;
+        }
+
+        /* ===== MAP + LIST GRID ===== */
+        .map-list-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            overflow: hidden; /* Prevents spill-over */
+        }
+
+        /* ===== MAP CONTAINER – FIXED ===== */
         #map {
-            height: 500px;
+            height: 580px;
             width: 100%;
             border-radius: 12px;
             border: 1px solid #E5E7EB;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            overflow: hidden;      /* Keeps map inside its box */
+            position: relative;    /* Ensures proper positioning */
             z-index: 1;
         }
 
-        /* Property Cards in Sidebar */
-        .property-card {
-            background: white;
-            padding: 14px 16px;
+        /* ===== PROPERTY LIST ===== */
+        .property-list-container {
+            background: #FFFFFF;
             border-radius: 12px;
-            border-left: 4px solid #22c55e;
+            border: 1px solid #E5E7EB;
+            padding: 16px;
+            max-height: 580px;
+            overflow-y: auto;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .property-list-container h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1E293B;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .property-list-container h3 span {
+            font-size: 13px;
+            font-weight: normal;
+            color: #6B7280;
+        }
+
+        .property-card {
+            background: #F8FAFC;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border-left: 4px solid #22C55E;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             margin-bottom: 10px;
         }
+
         .property-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+            transform: translateX(4px);
+            background: #F1F5F9;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
+
         .property-card .name {
-            font-weight: 700;
-            color: #1e3a8a;
+            font-weight: 600;
+            color: #1E3A8A;
             font-size: 15px;
         }
+
         .property-card .address {
             font-size: 13px;
-            color: #4b5563;
+            color: #4B5563;
             margin-top: 2px;
         }
+
         .property-card .location {
             font-size: 12px;
-            color: #6b7280;
+            color: #6B7280;
             margin-top: 2px;
         }
 
-        .badge-verified {
-            background: #22c55e;
+        .property-card .badge-verified {
+            background: #22C55E;
             color: white;
-            padding: 2px 12px;
-            border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 20px;
             display: inline-block;
+            margin-top: 4px;
         }
 
-        /* Map Marker */
+        .property-card .license {
+            font-size: 11px;
+            color: #9CA3AF;
+            margin-top: 2px;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        .property-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .property-list-container::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 10px;
+        }
+        .property-list-container::-webkit-scrollbar-track {
+            background: #F3F4F6;
+            border-radius: 10px;
+        }
+
+        /* ===== MAP MARKER ===== */
         .custom-marker {
-            background: #22c55e;
+            background: #22C55E;
             border: 3px solid white;
             border-radius: 50%;
             width: 14px;
@@ -89,21 +380,20 @@
             transform: scale(1.3);
         }
 
-        /* Map Popup */
+        /* ===== MAP POPUP ===== */
         .leaflet-popup-content {
             min-width: 200px;
             max-width: 280px;
         }
         .leaflet-popup-content h3 {
-            color: #1e3a8a;
+            color: #1E3A8A;
             margin: 0 0 4px 0;
             font-size: 16px;
             font-weight: 700;
         }
         .leaflet-popup-content .popup-address {
             font-size: 13px;
-            color: #4b5563;
-            margin-bottom: 2px;
+            color: #4B5563;
         }
         .leaflet-popup-content .popup-desc {
             font-size: 13px;
@@ -112,241 +402,517 @@
         }
         .leaflet-popup-content .popup-contact {
             font-size: 12px;
-            color: #6b7280;
+            color: #6B7280;
+        }
+        .leaflet-popup-content .badge-verified {
+            background: #22C55E;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
-        /* Scrollbar for property list */
-        #propertyList::-webkit-scrollbar {
-            width: 6px;
-        }
-        #propertyList::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        #propertyList::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        /* Filter and Search Section */
-        .filter-section {
-            background: #F8FAFC;
-            padding: 16px;
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .footer-section {
+            margin-top: 32px;
+            padding: 20px 24px;
+            text-align: center;
+            border-top: 1px solid #E5E7EB;
+            background: #FFFFFF;
             border-radius: 12px;
-            border: 1px solid #E5E7EB;
+        }
+
+        .footer-section p {
+            color: #6B7280;
+            font-size: 14px;
+        }
+
+        .footer-section .contact-link {
+            color: #2563EB;
+            font-weight: 600;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .footer-section .contact-link:hover {
+            color: #1D4ED8;
+        }
+
+        .footer-section .copyright {
+            color: #9CA3AF;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        /* ============================================
+           CONTACT MODAL
+           ============================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 560px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
         }
-        .filter-section select,
-        .filter-section input {
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1E293B;
+        }
+
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6B7280;
+        }
+
+        .modal-close-btn:hover {
+            color: #1E293B;
+        }
+
+        .modal-subtitle {
+            color: #6B7280;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+        }
+
+        .form-group label .required {
+            color: #EF4444;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
             padding: 10px 14px;
             border: 1px solid #D1D5DB;
             border-radius: 8px;
             font-size: 14px;
-            background: white;
-            min-width: 140px;
-        }
-        .filter-section .btn-primary {
-            padding: 10px 20px;
-            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
         }
 
-        .result-count {
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Upload Dropzone */
+        .upload-dropzone {
+            border: 2px dashed #D1D5DB;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            background: #F9FAFB;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-dropzone:hover {
+            border-color: #2563EB;
+            background: #EFF6FF;
+        }
+
+        .upload-dropzone .icon {
+            font-size: 32px;
+            margin-bottom: 4px;
+        }
+
+        .upload-dropzone .text {
             font-size: 13px;
             color: #6B7280;
-            margin-left: auto;
         }
 
-        /* Main content padding adjustment */
-        .main-content {
-            padding: 24px 32px;
+        .upload-dropzone .hint {
+            font-size: 11px;
+            color: #9CA3AF;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 80px;
-                padding: 16px;
-            }
-            .sidebar-brand {
-                font-size: 14px;
-            }
-            .nav-item span:not(.icon) {
-                display: none;
-            }
-            .main-content {
-                padding: 16px;
+        .upload-dropzone .file-name {
+            font-size: 12px;
+            color: #2563EB;
+            font-weight: 500;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .upload-dropzone input[type="file"] {
+            display: none;
+        }
+
+        .btn-submit {
+            padding: 14px;
+            font-size: 16px;
+            width: 100%;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #2563EB;
+            color: #FFFFFF;
+            margin-top: 4px;
+        }
+
+        .btn-submit:hover {
+            background: #1D4ED8;
+        }
+
+        /* Success Message */
+        .success-message {
+            display: none;
+            background: #DCFCE7;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            color: #15803D;
+            margin-top: 16px;
+        }
+
+        .success-message .check {
+            font-size: 18px;
+        }
+
+        .success-message .title {
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .success-message .sub {
+            font-size: 13px;
+        }
+
+        .success-message .close-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            border-radius: 6px;
+            border: none;
+            background: #F3F4F6;
+            color: #374151;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .success-message .close-btn:hover {
+            background: #E5E7EB;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 1024px) {
+            .map-list-grid {
+                grid-template-columns: 1fr;
             }
             #map {
-                height: 350px;
+                height: 400px;
+            }
+            .property-list-container {
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .landing-header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+            .header-right {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .btn-header {
+                padding: 6px 14px;
+                font-size: 12px;
             }
             .filter-section {
                 flex-direction: column;
                 align-items: stretch;
             }
+            .filter-section .search-wrapper {
+                flex-direction: column;
+            }
+            .filter-section input[type="text"],
             .filter-section select,
-            .filter-section input,
-            .filter-section .btn-primary {
+            .filter-section .btn-filter {
                 width: 100%;
+            }
+            .result-count {
+                text-align: center;
+                margin-left: 0;
+            }
+            #map {
+                height: 300px !important;
+            }
+            .main-container {
+                padding: 12px;
+            }
+            .page-title-section h2 {
+                font-size: 18px;
+            }
+            .modal-content {
+                padding: 20px;
+            }
+            .modal-header h2 {
+                font-size: 18px;
             }
         }
     </style>
 </head>
 <body>
 
-    <!-- ==========================================================================
-    🌐 GLOBAL SYSTEM CONTAINER
-    ========================================================================== -->
-    <div class="portal-container">
+    <!-- =============================================
+    HEADER
+    ============================================= -->
+    <header class="landing-header">
+        <div class="header-left">
+            <span class="logo-icon">🏠</span>
+            <h1>MySTRA<span>.</span></h1>
+            <span class="tagline">Verified Directory</span>
+        </div>
+        <div class="header-right">
+            <a href="login.html" class="btn-header btn-login">🔑 Log In</a>
+            <a href="register.html" class="btn-header btn-register">📝 Register</a>
+            <a href="legacy-migrate.html" class="btn-header btn-legacy">🔄 Legacy Login</a>
+        </div>
+    </header>
 
-        <!-- ==========================================================================
-        🧭 LEFT SIDEBAR NAVIGATION
-        ========================================================================== -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">MySTRA Portal</div>
-            <ul class="nav-links">
-                <li id="nav-home" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
-                    <span class="icon">🏠</span> Home
-                </li>
-                <li id="nav-manager" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
-                    <span class="icon">🔑</span> Code Manager
-                </li>
-                <li id="nav-docs" class="nav-item" onclick="window.location.href='mystra-document-portal.html';">
-                    <span class="icon">📄</span> Documents
-                </li>
-                <li id="nav-map" class="nav-item active-nav">
-                    <span class="icon">🗺️</span> Map View
-                </li>
-                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
-                    <span class="icon">⚙️</span> Settings
-                </li>
-            </ul>
-            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-                <span style="font-size: 13px; font-weight: 500; display: block;">Public User</span>
-                <span style="font-size: 12px; color: #6B7280;">Viewing Verified Properties</span>
+    <!-- =============================================
+    MAIN CONTENT
+    ============================================= -->
+    <main class="main-container">
+
+        <!-- Page Title -->
+        <div class="page-title-section">
+            <div>
+                <h2>🗺️ Public Verified Directory</h2>
+                <p class="subtitle">Discover verified short-term rental accommodations across Malaysia</p>
             </div>
-        </nav>
+            <span class="status-badge" id="db-status-badge">🟡 CONNECTING...</span>
+        </div>
 
-        <!-- ==========================================================================
-        🖥️ MAIN WORKSPACE AREA
-        ========================================================================== -->
-        <main class="main-content">
+        <!-- Search & Filters -->
+        <div class="filter-section">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="🔍 Search by name or license number...">
+                <button onclick="searchProperties()" class="btn-filter btn-primary">Search</button>
+            </div>
 
-            <!-- ===== PAGE HEADER ===== -->
-            <header class="content-header">
-                <div class="header-title-wrapper">
-                    <h1 id="page-main-title">🗺️ Public Verified Directory</h1>
-                    <span id="db-status-badge" class="status-badge">🟡 CONNECTING TO SUPABASE...</span>
-                </div>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <span style="font-size: 13px; color: #6B7280;">Home / Map View</span>
-                    <button class="btn-secondary" onclick="refreshMap()">🔄 Refresh</button>
-                </div>
-            </header>
+            <select id="stateFilter">
+                <option value="">All States</option>
+            </select>
 
-            <!-- ===== CONTENT ===== -->
-            <div class="widget-card" style="padding: 0; overflow: hidden;">
+            <select id="cityFilter">
+                <option value="">All Cities</option>
+            </select>
 
-                <!-- Search and Filter Section -->
-                <div class="filter-section" style="border-radius: 0; border: none; border-bottom: 1px solid #E5E7EB; margin-bottom: 0;">
-                    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-                        <!-- Search Input -->
-                        <input
-                            type="text"
-                            id="searchInput"
-                            placeholder="🔍 Search by name or license number..."
-                            style="flex: 1; min-width: 200px;"
-                        />
-                        <button onclick="searchProperties()" class="btn-primary" style="padding: 10px 20px;">
-                            Search
-                        </button>
+            <select id="sortFilter">
+                <option value="name">Sort by Name (A-Z)</option>
+                <option value="name_desc">Sort by Name (Z-A)</option>
+                <option value="date">Sort by Date (Newest)</option>
+                <option value="date_old">Sort by Date (Oldest)</option>
+            </select>
 
-                        <!-- Filter Dropdowns -->
-                        <select id="stateFilter" style="min-width: 120px;">
-                            <option value="">All States</option>
-                        </select>
-                        <select id="cityFilter" style="min-width: 120px;">
-                            <option value="">All Cities</option>
-                        </select>
-                        <select id="sortFilter" style="min-width: 140px;">
-                            <option value="name">Sort by Name (A-Z)</option>
-                            <option value="name_desc">Sort by Name (Z-A)</option>
-                            <option value="date">Sort by Date (Newest)</option>
-                            <option value="date_old">Sort by Date (Oldest)</option>
-                        </select>
+            <button onclick="applyFilters()" class="btn-filter btn-success">Apply Filters</button>
+            <button onclick="resetFilters()" class="btn-filter btn-secondary">Reset</button>
 
-                        <button onclick="applyFilters()" class="btn-primary" style="background: #16A34A; padding: 10px 16px;">
-                            Apply Filters
-                        </button>
-                        <button onclick="resetFilters()" class="btn-secondary" style="padding: 10px 16px;">
-                            Reset
-                        </button>
+            <span id="resultCount" class="result-count"></span>
+        </div>
 
-                        <span id="resultCount" class="result-count"></span>
-                    </div>
-                </div>
+        <!-- Map + Property List -->
+        <div class="map-list-grid">
 
-                <!-- Map + Property List Grid -->
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0;">
+            <!-- Map -->
+            <div id="map"></div>
 
-                    <!-- Map Container -->
-                    <div style="padding: 16px;">
-                        <div id="map"></div>
-                    </div>
-
-                    <!-- Property List -->
-                    <div style="padding: 16px; border-left: 1px solid #E5E7EB; background: #FAFBFC;">
-                        <h2 style="font-size: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <span>🏨 Verified Properties</span>
-                            <span id="listCount" style="font-size: 13px; font-weight: normal; color: #6B7280;"></span>
-                        </h2>
-                        <div id="propertyList" style="max-height: 500px; overflow-y: auto; padding-right: 4px;">
-                            <p style="color: #6B7280; text-align: center; padding: 20px;">Loading properties...</p>
-                        </div>
-                    </div>
-
+            <!-- Property List -->
+            <div class="property-list-container">
+                <h3>
+                    🏨 Verified Properties
+                    <span id="listCount"></span>
+                </h3>
+                <div id="propertyList">
+                    <p style="color: #6B7280; text-align: center; padding: 20px;">Loading properties...</p>
                 </div>
             </div>
 
-            <!-- ===== FOOTER ===== -->
-            <footer style="margin-top: 24px; padding: 16px 0; border-top: 1px solid #E5E7EB; text-align: center; font-size: 13px; color: #6B7280;">
-                &copy; 2026 MySTRA - Malaysia Short-Term Rental Accommodation System
-                <span style="margin: 0 12px;">|</span> Visit Malaysia 2026 🇲🇾
-            </footer>
+        </div>
 
-        </main>
+        <!-- =============================================
+        FOOTER WITH CONTACT US
+        ============================================= -->
+        <div class="footer-section">
+            <p>
+                Found an issue or want to suggest a property?
+                <span class="contact-link" id="openContactModalBtn">📬 Contact Us</span>
+            </p>
+            <p class="copyright">&copy; 2026 MySTRA - Malaysia Short-Term Rental Accommodation System</p>
+        </div>
+
+    </main>
+
+    <!-- =============================================
+    CONTACT US MODAL
+    ============================================= -->
+    <div id="contactModal" class="modal-overlay">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h2>📬 Contact Us</h2>
+                <button class="modal-close-btn" id="closeContactModalBtn">✕</button>
+            </div>
+
+            <p class="modal-subtitle">
+                Report an issue with a property or suggest a new accommodation to be verified.
+            </p>
+
+            <!-- Form -->
+            <form id="contactForm">
+
+                <!-- Name -->
+                <div class="form-group">
+                    <label>Your Name <span class="required">*</span></label>
+                    <input type="text" id="contactName" placeholder="Enter your full name" required>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                    <label>Description <span class="required">*</span></label>
+                    <textarea id="contactDescription" placeholder="Describe the issue or the property you want to suggest..." required></textarea>
+                </div>
+
+                <!-- Image Upload -->
+                <div class="form-group">
+                    <label>Upload Image</label>
+                    <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('contactImage').click();">
+                        <div class="icon">📸</div>
+                        <div class="text">Click to upload or drag &amp; drop</div>
+                        <div class="hint">Supported: JPG, PNG, PDF (Max 5MB)</div>
+                        <input type="file" id="contactImage" accept=".jpg,.jpeg,.png,.pdf">
+                        <span class="file-name" id="imageFileName"></span>
+                    </div>
+                </div>
+
+                <!-- Category / Filter -->
+                <div class="form-group">
+                    <label>Category <span class="required">*</span></label>
+                    <select id="contactCategory" required>
+                        <option value="">Select a category...</option>
+                        <option value="complaint">📢 Complaint</option>
+                        <option value="suggestion">💡 Suggestion</option>
+                        <option value="new-property">🏠 Suggest New Property</option>
+                        <option value="bug">🐛 Bug Report</option>
+                        <option value="inquiry">❓ General Inquiry</option>
+                        <option value="other">📎 Other</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit">📤 Submit Feedback</button>
+            </form>
+
+            <!-- Success Message -->
+            <div id="contactSuccess" class="success-message">
+                <div class="check">✅</div>
+                <div class="title">Thank you for your feedback!</div>
+                <div class="sub">We will review your submission and get back to you soon.</div>
+                <button class="close-btn" onclick="closeContactModal()">Close</button>
+            </div>
+
+        </div>
     </div>
 
-    <!-- ==========================================================================
+    <!-- =============================================
     SCRIPTS
-    ========================================================================== -->
+    ============================================= -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Module 2 Logic -->
+    <!-- Main Application Script -->
     <script>
-        // ==============================================================================
-        // 🗺️ MODULE 2 - PUBLIC VERIFIED DIRECTORY & INTERACTIVE MAP VIEW
-        // ==============================================================================
+        // =============================================
+        // MODULE 2 - PUBLIC VERIFIED DIRECTORY
+        // =============================================
 
-        console.log('🗺️ Module 2 - Public Verified Directory starting...');
+        console.log('🗺️ MySTRA Public Verified Directory starting...');
 
         let map = null;
         let markers = [];
         let allProperties = [];
         let currentProperties = [];
 
-        // ==============================================================================
-        // 🔄 REFRESH MAP FUNCTION
-        // ==============================================================================
-
-        function refreshMap() {
-            loadProperties();
-        }
-
-        // ==============================================================================
-        // 🗺️ MAP INITIALIZATION
-        // ==============================================================================
+        // =============================================
+        // MAP INITIALIZATION (WITH INVALIDATE SIZE FIX)
+        // =============================================
 
         function initMap() {
             map = L.map('map').setView([4.2105, 101.9758], 6);
@@ -356,41 +922,46 @@
                 maxZoom: 19
             }).addTo(map);
 
+            // Fix map size after rendering
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                    console.log('🗺️ Map size validated');
+                }
+            }, 100);
+
             console.log('🗺️ Map initialized');
         }
 
-        // ==============================================================================
-        // 📊 LOAD PROPERTIES FROM SUPABASE
-        // ==============================================================================
+        // =============================================
+        // LOAD PROPERTIES
+        // =============================================
 
         async function loadProperties() {
-            const listContainer = document.getElementById('propertyList');
-            if (listContainer) {
-                listContainer.innerHTML = '<p style="color: #6B7280; text-align: center; padding: 20px;">Loading properties...</p>';
+            const badge = document.getElementById('db-status-badge');
+            if (badge) {
+                badge.textContent = '🟡 FETCHING DATA...';
+                badge.style.background = '#FEF3C7';
+                badge.style.color = '#92400E';
             }
 
             try {
-                // Update DB status badge
-                const badge = document.getElementById('db-status-badge');
-                if (badge) {
-                    badge.textContent = '🟡 FETCHING DATA...';
-                    badge.style.backgroundColor = '#FEF3C7';
-                    badge.style.color = '#92400E';
-                }
-
                 const { data, error } = await MySTRA_API.getProperties();
 
                 if (error) {
                     console.error('❌ Supabase error:', error);
-                    if (listContainer) {
-                        listContainer.innerHTML = `
-                            <div style="background: #FEE2E2; padding: 16px; border-radius: 8px; color: #991B1B; text-align: center;">
-                                <p><strong>⚠️ Error loading properties</strong></p>
-                                <p style="font-size: 13px;">${error.message}</p>
-                                <button onclick="loadProperties()" class="btn-secondary" style="margin-top: 8px;">🔄 Retry</button>
-                            </div>
-                        `;
+                    if (badge) {
+                        badge.textContent = '🔴 ERROR';
+                        badge.style.background = '#FEE2E2';
+                        badge.style.color = '#991B1B';
                     }
+                    document.getElementById('propertyList').innerHTML = `
+                        <div style="background:#FEE2E2; padding:16px; border-radius:8px; text-align:center; color:#991B1B;">
+                            <p><strong>⚠️ Error loading properties</strong></p>
+                            <p style="font-size:13px;">${error.message}</p>
+                            <button onclick="loadProperties()" style="margin-top:8px; padding:8px 16px; border-radius:6px; border:1px solid #991B1B; background:white; cursor:pointer;">🔄 Retry</button>
+                        </div>
+                    `;
                     return;
                 }
 
@@ -398,10 +969,9 @@
                 currentProperties = [...allProperties];
                 console.log('✅ Loaded', allProperties.length, 'properties');
 
-                // Update badge
                 if (badge) {
                     badge.textContent = '🟢 SUPABASE LIVE';
-                    badge.style.backgroundColor = '#DCFCE7';
+                    badge.style.background = '#DCFCE7';
                     badge.style.color = '#15803D';
                 }
 
@@ -410,32 +980,28 @@
                 loadFilters();
 
             } catch (err) {
-                console.error('❌ Error loading properties:', err);
-                if (listContainer) {
-                    listContainer.innerHTML = `
-                        <div style="background: #FEE2E2; padding: 16px; border-radius: 8px; color: #991B1B; text-align: center;">
-                            <p><strong>⚠️ Unexpected error</strong></p>
-                            <p style="font-size: 13px;">${err.message}</p>
-                            <button onclick="loadProperties()" class="btn-secondary" style="margin-top: 8px;">🔄 Retry</button>
-                        </div>
-                    `;
+                console.error('❌ Error:', err);
+                if (badge) {
+                    badge.textContent = '🔴 ERROR';
+                    badge.style.background = '#FEE2E2';
+                    badge.style.color = '#991B1B';
                 }
             }
         }
 
-        // ==============================================================================
-        // 🏷️ DISPLAY PROPERTIES IN LIST
-        // ==============================================================================
+        // =============================================
+        // DISPLAY PROPERTIES
+        // =============================================
 
         function displayProperties(properties) {
             const list = document.getElementById('propertyList');
 
             if (!properties || properties.length === 0) {
                 list.innerHTML = `
-                    <div style="background: #F8FAFC; padding: 24px; border-radius: 8px; text-align: center; color: #6B7280;">
-                        <p style="font-size: 40px;">🏠</p>
-                        <p>No properties found</p>
-                        <button onclick="resetFilters()" class="btn-secondary" style="margin-top: 8px; font-size: 13px;">
+                    <div style="text-align:center; padding:32px; color:#6B7280;">
+                        <p style="font-size:40px;">🏠</p>
+                        <p>No verified properties found</p>
+                        <button onclick="resetFilters()" style="margin-top:8px; padding:6px 16px; border-radius:6px; border:1px solid #6B7280; background:white; cursor:pointer; font-size:13px;">
                             Reset filters
                         </button>
                     </div>
@@ -447,13 +1013,13 @@
 
             list.innerHTML = properties.map(p => `
                 <div class="property-card" onclick="zoomToProperty('${p.id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
                         <span class="name">${p.title || p.name || 'Unnamed Property'}</span>
-                        <span class="badge-verified">✓ Verified</span>
                     </div>
-                    <p class="address">${p.address || 'Address not provided'}</p>
-                    <p class="location">${p.city || ''}${p.city && p.state ? ', ' : ''}${p.state || ''}</p>
-                    ${p.license_number ? `<p style="font-size: 11px; color: #9CA3AF; margin-top: 4px;">License: ${p.license_number}</p>` : ''}
+                    <div class="address">${p.address || 'Address not provided'}</div>
+                    <div class="location">${p.city || ''}${p.city && p.state ? ', ' : ''}${p.state || ''}</div>
+                    <div class="badge-verified">✓ Verified</div>
+                    ${p.license_number ? `<div class="license">License: ${p.license_number}</div>` : ''}
                 </div>
             `).join('');
 
@@ -461,9 +1027,9 @@
             document.getElementById('resultCount').textContent = `Showing ${properties.length} of ${allProperties.length} properties`;
         }
 
-        // ==============================================================================
-        // 📍 ADD MARKERS TO MAP
-        // ==============================================================================
+        // =============================================
+        // ADD MARKERS
+        // =============================================
 
         function addMarkers(properties) {
             markers.forEach(m => map.removeLayer(m));
@@ -478,10 +1044,10 @@
                         icon: L.divIcon({ className: 'custom-marker', iconSize: [14, 14] })
                     });
 
-                    const propertyName = p.title || p.name || 'Unnamed Property';
+                    const name = p.title || p.name || 'Unnamed Property';
 
                     marker.bindPopup(`
-                        <h3>${propertyName}</h3>
+                        <h3>${name}</h3>
                         <p class="popup-address">${p.address || 'Address not provided'}</p>
                         <p class="popup-address">${p.city || ''}${p.city && p.state ? ', ' : ''}${p.state || ''}</p>
                         <p><span class="badge-verified">✓ Verified</span></p>
@@ -501,19 +1067,17 @@
             }
         }
 
-        // ==============================================================================
-        // 🔍 LOAD FILTERS
-        // ==============================================================================
+        // =============================================
+        // LOAD FILTERS
+        // =============================================
 
         function loadFilters() {
-            // Get unique states and cities from all properties
             const states = [...new Set(allProperties.map(p => p.state || p.state).filter(Boolean))].sort();
             const cities = [...new Set(allProperties.map(p => p.city || p.city).filter(Boolean))].sort();
 
             const stateSelect = document.getElementById('stateFilter');
             const citySelect = document.getElementById('cityFilter');
 
-            // Clear existing options (keep the "All" option)
             stateSelect.innerHTML = '<option value="">All States</option>';
             citySelect.innerHTML = '<option value="">All Cities</option>';
 
@@ -532,9 +1096,9 @@
             });
         }
 
-        // ==============================================================================
-        // 🔄 APPLY FILTERS
-        // ==============================================================================
+        // =============================================
+        // APPLY FILTERS
+        // =============================================
 
         function applyFilters() {
             const state = document.getElementById('stateFilter').value;
@@ -546,7 +1110,6 @@
             if (state) filtered = filtered.filter(p => (p.state || p.state) === state);
             if (city) filtered = filtered.filter(p => (p.city || p.city) === city);
 
-            // Sort
             if (sort === 'name') {
                 filtered = filtered.sort((a, b) => (a.title || a.name || '').localeCompare(b.title || b.name || ''));
             } else if (sort === 'name_desc') {
@@ -562,9 +1125,9 @@
             addMarkers(currentProperties);
         }
 
-        // ==============================================================================
-        // 🔄 RESET FILTERS
-        // ==============================================================================
+        // =============================================
+        // RESET FILTERS
+        // =============================================
 
         function resetFilters() {
             document.getElementById('stateFilter').value = '';
@@ -577,9 +1140,9 @@
             addMarkers(currentProperties);
         }
 
-        // ==============================================================================
-        // 🔍 SEARCH PROPERTIES
-        // ==============================================================================
+        // =============================================
+        // SEARCH PROPERTIES
+        // =============================================
 
         function searchProperties() {
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -598,9 +1161,9 @@
             addMarkers(currentProperties);
         }
 
-        // ==============================================================================
-        // 🎯 ZOOM TO PROPERTY
-        // ==============================================================================
+        // =============================================
+        // ZOOM TO PROPERTY
+        // =============================================
 
         function zoomToProperty(id) {
             console.log('🔍 Zooming to property:', id);
@@ -624,33 +1187,128 @@
                         m.openPopup();
                     }
                 });
-            } else {
-                console.warn('⚠️ No coordinates for property:', id);
             }
         }
 
-        // ==============================================================================
-        // 🚀 GLOBAL EXPOSURE
-        // ==============================================================================
+        // =============================================
+        // CONTACT MODAL CONTROLS
+        // =============================================
+
+        const contactModal = document.getElementById('contactModal');
+        const openBtn = document.getElementById('openContactModalBtn');
+        const closeBtn = document.getElementById('closeContactModalBtn');
+        const form = document.getElementById('contactForm');
+        const successDiv = document.getElementById('contactSuccess');
+        const fileInput = document.getElementById('contactImage');
+        const fileNameSpan = document.getElementById('imageFileName');
+
+        // Open Modal
+        if (openBtn) {
+            openBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                contactModal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+
+        // Close Modal (X button)
+        function closeContactModal() {
+            contactModal.classList.remove('show');
+            document.body.style.overflow = '';
+            form.style.display = 'block';
+            successDiv.style.display = 'none';
+            form.reset();
+            if (fileNameSpan) fileNameSpan.textContent = '';
+        }
+
+        // Close Modal (close button)
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeContactModal);
+        }
+
+        // Close Modal (click outside)
+        contactModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeContactModal();
+            }
+        });
+
+        // Close Modal (ESC key)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && contactModal.classList.contains('show')) {
+                closeContactModal();
+            }
+        });
+
+        // =============================================
+        // IMAGE UPLOAD - SHOW FILE NAME
+        // =============================================
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileNameSpan.textContent = '📎 ' + this.files[0].name;
+                } else {
+                    fileNameSpan.textContent = '';
+                }
+            });
+        }
+
+        // =============================================
+        // FORM SUBMISSION
+        // =============================================
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                const name = document.getElementById('contactName').value.trim();
+                const description = document.getElementById('contactDescription').value.trim();
+                const category = document.getElementById('contactCategory').value;
+                const imageFile = document.getElementById('contactImage').files[0];
+
+                if (!name || !description || !category) {
+                    alert('Please fill in all required fields (*).');
+                    return;
+                }
+
+                const submission = {
+                    name: name,
+                    description: description,
+                    category: category,
+                    image: imageFile ? imageFile.name : 'No image uploaded',
+                    timestamp: new Date().toISOString()
+                };
+
+                console.log('📬 Contact Form Submission:', submission);
+
+                // Show success
+                form.style.display = 'none';
+                successDiv.style.display = 'block';
+
+                if (fileNameSpan) fileNameSpan.textContent = '';
+            });
+        }
+
+        // =============================================
+        // GLOBAL EXPOSURE
+        // =============================================
 
         window.searchProperties = searchProperties;
         window.applyFilters = applyFilters;
         window.resetFilters = resetFilters;
         window.zoomToProperty = zoomToProperty;
-        window.refreshMap = refreshMap;
+        window.closeContactModal = closeContactModal;
 
-        // ==============================================================================
-        // 🚀 INITIALIZATION
-        // ==============================================================================
+        // =============================================
+        // INITIALIZATION
+        // =============================================
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize map
             initMap();
-
-            // Load properties from Supabase
             loadProperties();
-
-            console.log('✅ Module 2 - Public Verified Directory ready!');
+            console.log('✅ MySTRA Public Verified Directory ready!');
+            console.log('📬 Contact Us modal loaded successfully!');
         });
     </script>
 
