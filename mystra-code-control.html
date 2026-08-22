@@ -22,13 +22,26 @@
         <nav class="sidebar">
             <div class="sidebar-brand">MySTRA Portal</div>
             <ul class="nav-links">
-                <!-- Added id tags for navigation mapping -->
-                <li id="nav-home" class="nav-item"><span class="icon">🏠</span> Home</li>
-                <li id="nav-manager" class="nav-item active-nav"><span class="icon">🔑</span> MySTRA Code Manager</li>
-                <li id="nav-docs" class="nav-item" onclick="window.location.href='mystra-document-portal.html';">
-                        <span class="icon">📄</span> Documents
+                <!-- Home -->
+                <li id="nav-home" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🏠</span> Home
                 </li>
-                <li id="nav-settings" class="nav-item"><span class="icon">⚙️</span> Settings</li>
+                <!-- Code Manager (Active) -->
+                <li id="nav-manager" class="nav-item active-nav" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">🔑</span> MySTRA Code Manager
+                </li>
+                <!-- Documents -->
+                <li id="nav-docs" class="nav-item" onclick="window.location.href='mystra-document-portal.html';">
+                    <span class="icon">📄</span> Documents
+                </li>
+                <!-- Map View (NEW - Added here) -->
+                <li id="nav-map" class="nav-item" onclick="window.location.href='mystra-map-view.html';">
+                    <span class="icon">🗺️</span> Map View
+                </li>
+                <!-- Settings -->
+                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-code-control.html';">
+                    <span class="icon">⚙️</span> Settings
+                </li>
             </ul>
         </nav>
 
@@ -173,8 +186,25 @@
                         </ul>
                     </div>
                 </div>
-
-                <!-- ⚙️ SIDEBAR VIEW 4: SETTINGS WORKSPACE PANEL -->
+                <!-- 🗺️ SIDEBAR VIEW 4: MAP VIEW WORKSPACE PANEL -->
+                <div id="view-map" class="tab-panel hidden">
+                    <div class="widget-card">
+                        <h2>🗺️ Public Verified Directory</h2>
+                        <p style="color: #6B7280; margin-bottom: 16px;">
+                            View verified short-term rental accommodations across Malaysia.
+                        </p>
+                        <!-- You can embed your Module 2 map here -->
+                        <div style="background: #F3F4F6; padding: 40px; text-align: center; border-radius: 12px;">
+                            <p style="font-size: 40px;">🗺️</p>
+                            <p style="color: #6B7280;">Map View Content</p>
+                            <p style="font-size: 13px; color: #9CA3AF;">Click "Open Map View" below to see full map.</p>
+                            <button class="btn-primary" onclick="window.location.href='mystra-map-view.html';" style="margin-top: 12px;">
+                                Open Map View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- ⚙️ SIDEBAR VIEW 5: SETTINGS WORKSPACE PANEL -->
                 <div id="view-settings" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2>System Control Settings</h2>
