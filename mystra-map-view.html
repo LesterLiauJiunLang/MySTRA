@@ -934,60 +934,66 @@
         }
 
         // =============================================
-        // LOAD PROPERTIES
+        // LOAD PROPERTIES - FIXED
         // =============================================
 
-        async function loadProperties() {
-            const badge = document.getElementById('db-status-badge');
-            if (badge) {
-                badge.textContent = '🟡 FETCHING DATA...';
-                badge.style.background = '#FEF3C7';
-                badge.style.color = '#92400E';
-            }
+    async function loadProperties() {
+        const badge = document.getElementById('db-status-badge');
+        if (badge) {
+            badge.textContent = '🟡 FETCHING DATA...';
+            badge.style.background = '#FEF3C7';
+            badge.style.color = '#92400E';
+        }
 
-            try {
-                const { data, error } = await MySTRA_API.getProperties();
+        try {
+            // ✅ FIX: Use window.supabaseClient (from supabase-config.js)
+            const client = window.supabaseClient || supabase;
 
-                if (error) {
-                    console.error('❌ Supabase error:', error);
-                    if (badge) {
-                        badge.textContent = '🔴 ERROR';
-                        badge.style.background = '#FEE2E2';
-                        badge.style.color = '#991B1B';
-                    }
-                    document.getElementById('propertyList').innerHTML = `
-                        <div style="background:#FEE2E2; padding:16px; border-radius:8px; text-align:center; color:#991B1B;">
-                            <p><strong>⚠️ Error loading properties</strong></p>
-                            <p style="font-size:13px;">${error.message}</p>
-                            <button onclick="loadProperties()" style="margin-top:8px; padding:8px 16px; border-radius:6px; border:1px solid #991B1B; background:white; cursor:pointer;">🔄 Retry</button>
-                        </div>
-                    `;
-                    return;
-                }
+            const { data, error } = await client
+                .from('properties')
+                .select('*')
+                .eq('is_verified', true);
 
-                allProperties = data || [];
-                currentProperties = [...allProperties];
-                console.log('✅ Loaded', allProperties.length, 'properties');
-
-                if (badge) {
-                    badge.textContent = '🟢 SUPABASE LIVE';
-                    badge.style.background = '#DCFCE7';
-                    badge.style.color = '#15803D';
-                }
-
-                displayProperties(currentProperties);
-                addMarkers(currentProperties);
-                loadFilters();
-
-            } catch (err) {
-                console.error('❌ Error:', err);
+            if (error) {
+                console.error('❌ Supabase error:', error);
                 if (badge) {
                     badge.textContent = '🔴 ERROR';
                     badge.style.background = '#FEE2E2';
                     badge.style.color = '#991B1B';
                 }
+                document.getElementById('propertyList').innerHTML = `
+                    <div style="background:#FEE2E2; padding:16px; border-radius:8px; text-align:center; color:#991B1B;">
+                        <p><strong>⚠️ Error loading properties</strong></p>
+                        <p style="font-size:13px;">${error.message}</p>
+                        <button onclick="loadProperties()" style="margin-top:8px; padding:8px 16px; border-radius:6px; border:1px solid #991B1B; background:white; cursor:pointer;">🔄 Retry</button>
+                    </div>
+                `;
+                return;
+            }
+
+            allProperties = data || [];
+            currentProperties = [...allProperties];
+            console.log('✅ Loaded', allProperties.length, 'verified properties');
+
+            if (badge) {
+                badge.textContent = '🟢 SUPABASE LIVE';
+                badge.style.background = '#DCFCE7';
+                badge.style.color = '#15803D';
+            }
+
+            displayProperties(currentProperties);
+            addMarkers(currentProperties);
+            loadFilters();
+
+        } catch (err) {
+            console.error('❌ Error:', err);
+            if (badge) {
+                badge.textContent = '🔴 ERROR';
+                badge.style.background = '#FEE2E2';
+                badge.style.color = '#991B1B';
             }
         }
+    }
 
         // =============================================
         // DISPLAY PROPERTIES
