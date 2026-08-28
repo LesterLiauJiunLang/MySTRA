@@ -1,6 +1,3 @@
-// ==============================================================================
-// 📄 DOCUMENT MANAGEMENT (MODULE 3 - LESTER)
-// ==============================================================================
 
 // --- Global State for Documents ---
 let docState = {
@@ -276,5 +273,111 @@ async function loadDocumentData() {
     if (!error && documents) {
         docState.documents = documents;
         renderDocumentStatus(documents);
+    }
+}
+
+// ==============================================================================
+// 👤 USER MANAGEMENT (Mock Auth for Testing)
+// ==============================================================================
+
+// User profiles for testing
+const MOCK_USERS = {
+    '550e8400-e29b-41d4-a716-446655440000': {
+        name: 'John Doe',
+        role: 'Property Owner',
+        verified: true,
+        properties: ['MYSTRA-KL-2026-897F']
+    },
+    '660e8400-e29b-41d4-a716-446655440001': {
+        name: 'Jane Smith',
+        role: 'Property Owner',
+        verified: false,
+        properties: ['MYSTRA-KL-2026-34AC']
+    },
+    '770e8400-e29b-41d4-a716-446655440002': {
+        name: 'Bob Lee',
+        role: 'Property Owner',
+        verified: true,
+        properties: ['MYSTRA-KL-2026-56BD']
+    }
+};
+
+function getCurrentUser() {
+    const userId = DOC_STATE.userId || '550e8400-e29b-41d4-a716-446655440000';
+    return MOCK_USERS[userId] || MOCK_USERS['550e8400-e29b-41d4-a716-446655440000'];
+}
+
+function switchUser(userId) {
+    DOC_STATE.userId = userId;
+    const user = getCurrentUser();
+    
+    // Update sidebar footer
+    const footerName = document.querySelector('.sidebar-footer span:first-child');
+    const footerRole = document.querySelector('.sidebar-footer span:last-child');
+    if (footerName) footerName.textContent = user.name;
+    if (footerRole) footerRole.textContent = `${user.role} ${user.verified ? '✅' : '⏳ Pending Verification'}`;
+    
+    // Reload documents for new user
+    loadDocumentData();
+    initGPSDetection();
+}
+
+// Add event listener for user selector
+document.addEventListener('DOMContentLoaded', () => {
+    const selector = document.getElementById('user-selector');
+    if (selector) {
+        selector.addEventListener('change', (e) => {
+            switchUser(e.target.value);
+        });
+    }
+});
+
+function updateUserVerificationStatus() {
+    const statusEl = document.getElementById('user-verification-status');
+    if (!statusEl) return;
+    
+    const user = getCurrentUser();
+    if (user.verified) {
+        statusEl.textContent = '✅ Verified';
+        statusEl.className = 'badge-approved';
+    } else {
+        statusEl.textContent = '⏳ Pending Verification';
+        statusEl.className = 'badge-pending';
+    }
+}
+
+// Call this in DOMContentLoaded
+updateUserVerificationStatus();
+
+// ==============================================================================
+// 🗑️ DELETE DOCUMENT
+// ==============================================================================
+
+async function deleteDocument(documentId) {
+    const doc = DOC_STATE.documents.find(d => d.id === documentId);
+    if (!doc) {
+        alert('Document not found.');
+        return;
+    }
+    
+    if (doc.review_status !== 'Pending') {
+        alert('Only pending documents can be deleted. Please contact admin for approved/rejected documents.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete "${doc.file_name}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const { error } = await MySTRA_API.deleteDocument(documentId);
+        if (error) {
+            alert('Delete failed: ' + error.message);
+            return;
+        }
+        alert('✅ Document deleted successfully.');
+        await loadDocumentData();
+    } catch (err) {
+        alert('Error deleting document: ' + err.message);
     }
 }
