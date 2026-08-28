@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Executive Reports</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+
+    <div class="portal-layout">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏛️</span>
+                <span class="brand-name">MySTRA Admin</span>
+            </div>
+
+            <ul class="nav-menu">
+                <a href="gov-admin-dashboard.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                </a>
+                <a href="gov-admin-document.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-label">Documents</span>
+                    </li>
+                </a>
+                <a href="gov-admin-reports.html" class="nav-link">
+                    <li class="nav-item active">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Generate Reports</span>
+                    </li>
+                </a>
+                <a href="gov-admin-verified.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="gov-admin-audit.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Audit Log</span>
+                    </li>
+                </a>
+                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
+                    <li class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                </a>
+            </ul>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
+                <div class="officer-badge">
+                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                </div>
+            </header>
+
+            <div class="gov-workspace-container">
+                <div class="gov-header">
+                    <div>
+                        <h1 class="gov-title">Executive Compliance Reports</h1>
+                        <p class="gov-subtitle">Export official regulatory metrics and state density summaries.</p>
+                    </div>
+                </div>
+
+                <!-- ALERT BANNER (HIDDEN BY DEFAULT WITH display:none) -->
+                <div id="report-alert-banner" style="display: none; padding: 12px; margin-bottom: 20px; border-radius: 6px; background-color: #FEE2E2; color: #991B1B; font-size: 13px; font-weight: 500;"></div>
+
+                <div class="gov-card" style="max-width: 600px;">
+                    <h3>Report Generator Options</h3>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 600;">Start Date:</label>
+                            <input type="date" id="report-start-date" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 13px; font-weight: 600;">End Date:</label>
+                            <input type="date" id="report-end-date" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">State Filter:</label>
+                        <select id="report-state" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="ALL">All States</option>
+                            <option value="Penang">Penang</option>
+                            <option value="Selangor">Selangor</option>
+                            <option value="Sabah">Sabah</option>
+                            <option value="Johor">Johor</option>
+                            <option value="Kuala Lumpur">Kuala Lumpur</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Document Status Filter:</label>
+                        <select id="report-status" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; font-weight: 600;">Export Format:</label>
+                        <select id="report-format" class="gov-dropdown" style="width: 100%; margin-top: 6px;">
+                            <option value="CSV">CSV Spreadsheet (.csv)</option>
+                            <option value="PDF">Printable PDF Document (.pdf)</option>
+                        </select>
+                    </div>
+
+                    <button id="btn-generate-report" class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;" onclick="reportsApp.generateReport()">📥 Generate & Export Report</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="gov-admin-reports.js"></script>
+</body>
+</html>

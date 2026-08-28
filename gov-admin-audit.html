@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Compliance Audit Log</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <style>
+        .audit-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .audit-search-box {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .audit-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .audit-input:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .audit-select {
+            padding: 10px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 13px;
+            background: #ffffff;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .audit-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .audit-table th {
+            background: #F8FAFC;
+            color: #475569;
+            padding: 12px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid #E2E8F0;
+            white-space: nowrap;
+        }
+
+        .audit-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #1E293B;
+        }
+
+        .audit-table tbody tr:hover {
+            background-color: #F8FAFC;
+        }
+
+        /* Status Badge Styling Examples for JS Dynamic Insertion */
+        .badge-pass {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #D1FAE5;
+            color: #065F46;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-fail {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #FEE2E2;
+            color: #991B1B;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="portal-layout">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏛️</span>
+                <span class="brand-name">MySTRA Admin</span>
+            </div>
+
+            <ul class="nav-menu">
+                <a href="gov-admin-dashboard.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                </a>
+                <a href="gov-admin-document.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-label">Documents</span>
+                    </li>
+                </a>
+                <a href="gov-admin-reports.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Generate Reports</span>
+                    </li>
+                </a>
+                <a href="gov-admin-verified.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="gov-admin-audit.html" class="nav-link">
+                    <li class="nav-item active">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Audit Log</span>
+                    </li>
+                </a>
+                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
+                    <li class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                </a>
+            </ul>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
+                <div class="officer-badge">
+                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                </div>
+            </header>
+
+            <div class="gov-workspace-container">
+                <div class="gov-header">
+                    <div>
+                        <h1 class="gov-title">System Audit Trail (UC-M5-06)</h1>
+                        <p class="gov-subtitle">Official non-repudiable log of administrator evaluations & system enforcement actions.</p>
+                    </div>
+                </div>
+
+                <div class="gov-card">
+                    <!-- TOOLBAR & SEARCH -->
+                    <div class="audit-toolbar">
+                        <div class="audit-search-box">
+                            <input type="text" id="input-audit-search" class="audit-input" placeholder="🔍 Search by Officer ID, Document Ref, Action, or Date...">
+                            <select id="select-audit-filter" class="audit-select" onchange="if(window.govAdminAuditModule) govAdminAuditModule.applyFilters()">
+                                <option value="ALL">All Actions</option>
+                                <option value="APPROVED">Pass / Approved</option>
+                                <option value="REJECTED">Failed / Rejected</option>
+                                <option value="REUPLOAD_REQUESTED">Re-upload Requested</option>
+                            </select>
+                        </div>
+                        <div style="font-size: 13px; color: #64748B;">
+                            Total Recorded Logs: <strong id="lbl-audit-count" style="color: #0F172A; font-size: 14px;">0</strong>
+                        </div>
+                    </div>
+
+                    <!-- DATA TABLE -->
+                    <div class="audit-table-wrapper">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action Performed By</th>
+                                    <th>Target Document Ref ID</th>
+                                    <th>Action Details</th>
+                                    <th>Status Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl-audit-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 24px; color: #64748B;">
+                                        ⏳ Fetching official audit logs from Supabase...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- EMPTY STATE -->
+                    <div id="audit-empty-state" class="empty-state hidden" style="text-align: center; padding: 40px; color: #64748B;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+                        <p style="margin: 0; font-weight: 500;">No government audit logs recorded in the system database yet.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="gov-admin-audit.js"></script>
+</body>
+</html>

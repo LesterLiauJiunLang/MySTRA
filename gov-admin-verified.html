@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Verified STR Operators</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <style>
+        .filter-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            max-width: 550px;
+        }
+
+        .gov-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .gov-select {
+            padding: 10px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .verified-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            background: #ffffff;
+        }
+
+        .gov-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .gov-table th {
+            background: #F8FAFC;
+            color: #475569;
+            padding: 12px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid #E2E8F0;
+            white-space: nowrap;
+        }
+
+        .gov-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #1E293B;
+            vertical-align: middle;
+        }
+
+        .gov-table tbody tr:hover {
+            background-color: #F8FAFC;
+        }
+
+        .code-chip {
+            display: inline-block;
+            font-family: monospace;
+            background: #EFF6FF;
+            color: #1D4ED8;
+            border: 1px solid #BFDBFE;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .ota-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .ota-agoda { background: #E0E7FF; color: #3730A3; }
+        .ota-airbnb { background: #FFE4E6; color: #9F1239; }
+        .ota-booking { background: #FEF3C7; color: #92400E; }
+
+        .status-badge-active {
+            background: #D1FAE5;
+            color: #065F46;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* DIRECT PREVIEW MODAL STYLES */
+        .preview-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .preview-modal-container {
+            background: #ffffff;
+            width: 90%;
+            max-width: 900px;
+            height: 85vh;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .preview-modal-header {
+            padding: 16px 20px;
+            background: #0F172A;
+            color: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .preview-modal-close {
+            background: transparent;
+            border: none;
+            color: #94A3B8;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .preview-modal-close:hover {
+            color: #ffffff;
+        }
+
+        .preview-modal-body {
+            flex: 1;
+            background: #F8FAFC;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            padding: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="portal-layout">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar" id="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🏛️</span>
+                <span class="brand-name">MySTRA Admin</span>
+            </div>
+
+            <ul class="nav-menu">
+                <a href="gov-admin-dashboard.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">Dashboard</span>
+                    </li>
+                </a>
+                <a href="gov-admin-document.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📄</span>
+                        <span class="nav-label">Documents</span>
+                    </li>
+                </a>
+                <a href="gov-admin-reports.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-label">Generate Reports</span>
+                    </li>
+                </a>
+                <a href="gov-admin-verified.html" class="nav-link">
+                    <li class="nav-item active">
+                        <span class="nav-icon">🏢</span>
+                        <span class="nav-label">Verified Operators</span>
+                    </li>
+                </a>
+                <a href="gov-admin-audit.html" class="nav-link">
+                    <li class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-label">Audit Log</span>
+                    </li>
+                </a>
+                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
+                    <li class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-label">Settings</span>
+                    </li>
+                </a>
+            </ul>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
+                <div class="officer-badge">
+                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                </div>
+            </header>
+
+            <div class="gov-workspace-container">
+                <div class="gov-header">
+                    <div>
+                        <h1 class="gov-title">Verified STR Operators Directory</h1>
+                        <p class="gov-subtitle">Official registry of approved operators actively integrated with partner OTA platforms (Agoda / Airbnb / Booking).</p>
+                    </div>
+                </div>
+
+                <div class="gov-card">
+                    <!-- FILTER TOOLBAR -->
+                    <div class="filter-bar">
+                        <div class="search-box">
+                            <input type="text" id="input-verified-search" class="gov-input" placeholder="🔍 Search by Operator Name, SSM, Code, or OTA Listing ID...">
+                            <select id="select-ota-filter" class="gov-select">
+                                <option value="ALL">All OTA Platforms</option>
+                                <option value="Agoda">Agoda Only</option>
+                                <option value="Airbnb">Airbnb Only</option>
+                                <option value="Booking.com">Booking.com Only</option>
+                            </select>
+                        </div>
+                        <div style="font-size: 13px; color: #64748B;">
+                            Active Verified Operators: <strong id="lbl-verified-count" style="color: #059669; font-size: 15px;">0</strong>
+                        </div>
+                    </div>
+
+                    <!-- TABLE -->
+                    <div class="verified-table-wrapper">
+                        <table class="gov-table">
+                            <thead>
+                                <tr>
+                                    <th>Operator Entity</th>
+                                    <th>MySTRA Compliance Code</th>
+                                    <th>Linked OTA Platform</th>
+                                    <th>OTA Listing Ref</th>
+                                    <th>Compliance Status</th>
+                                    <th>Activation Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl-verified-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 24px; color: #64748B;">
+                                        ⏳ Loading active verified operators from registry...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- EMPTY STATE -->
+                    <div id="verified-empty-state" class="empty-state hidden" style="text-align: center; padding: 40px; color: #64748B;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🏢</div>
+                        <p style="margin: 0; font-weight: 500;">No active verified operators found matching your criteria.</p>
+                        <small style="color: #94A3B8;">Operators appear here only after approving SSM and successfully binding with an OTA platform.</small>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- DIRECT DOCUMENT PREVIEW MODAL -->
+    <div id="licenseModal" class="preview-modal-overlay" style="display: none;">
+        <div class="preview-modal-container">
+            <div class="preview-modal-header">
+                <h3 id="modalOperatorTitle" class="preview-modal-title">📄 Verified Document Preview</h3>
+                <button onclick="window.verifiedApp.closeLicenseModal()" class="preview-modal-close">&times;</button>
+            </div>
+            <div id="modalPreviewBody" class="preview-modal-body">
+                <!-- Dynamic Iframe or Image preview inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="gov-admin-verified.js"></script>
+</body>
+</html>
