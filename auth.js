@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const resendBtn = document.getElementById("link-resend-otp");
 
   let tempUserData = { email: "", password: "", fullName: "", phone: "" };
-  let tempLegacyData = { email: "", licenseNo: "", ssm: "" };
+  let tempLegacyData = { email: "", licenseNo: "", ssm: "", fullName: "", businessName: "", phone: "", documentUrl: "" };
   let currentGeneratedOTP = null;
 
   // Eye Toggle Helper
@@ -320,7 +320,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==============================================================================
-  // 1. MIGRATE LEGACY ACCOUNT HANDLERS
+  // 1. MIGRATE LEGACY ACCOUNT HANDLERS (MOCK DB -> PROFILES & COMPLIANCE)
   // ==============================================================================
   const migPassInput = document.getElementById("mig-password");
   const migConfirmInput = document.getElementById("mig-confirm-password");
@@ -383,12 +383,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const client = getSupabaseClient();
       if (!client) return;
 
+      // Query mock_legacy_external_db using its native schema
       const { data: legacyRecord, error: legacyErr } = await client
-        .from("legacy_accounts")
+        .from("mock_legacy_external_db")
         .select("*")
-        .ilike("legacy_email", email)
-        .ilike("license_no", licenseNo)
-        .eq("business_ssm", ssm)
+        .ilike("operator_email", email)
+        .ilike("licence_no_code", licenseNo)
+        .eq("ssm_reg_number", ssm)
         .single();
 
       if (legacyErr || !legacyRecord) {
@@ -396,12 +397,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (legacyRecord.is_migrated) {
+      if (legacyRecord.system_status === "MIGRATED") {
         alert("❌ This legacy account has already been migrated. Please log in with your credentials.");
         return;
       }
 
-      tempLegacyData = { email, licenseNo, ssm };
+      // Map legacy schema to application structure (ETL transformation)
+      tempLegacyData = {
+        email: legacyRecord.operator_email,
+        licenseNo: legacyRecord.licence_no_code,
+        ssm: legacyRecord.ssm_reg_number,
+        fullName: legacyRecord.operator_name || "Legacy Operator",
+        businessName: legacyRecord.operator_business_name || "Legacy Business",
+        phone: legacyRecord.phone_number || "",
+        documentUrl: legacyRecord.document_url || ""
+      };
+
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
@@ -459,13 +470,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const client = getSupabaseClient();
       try {
+        // 1. Create Supabase Auth User with metadata
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempLegacyData.email,
           password: newPassword,
           options: {
             data: {
-              full_name: "Legacy Operator",
+              full_name: tempLegacyData.fullName,
+              business_name: tempLegacyData.businessName,
               business_ssm: tempLegacyData.ssm,
+              phone_no: tempLegacyData.phone,
               is_verified: true
             }
           }
@@ -476,12 +490,51 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        await client
-          .from("legacy_accounts")
-          .update({ is_migrated: true })
-          .eq("legacy_email", tempLegacyData.email);
+        // 2. Load transformed profile into clean public.profiles
+        if (authData?.user) {
+          const { error: profileError } = await client
+            .from("profiles")
+            .insert([
+              {
+                id: authData.user.id,
+                full_name: tempLegacyData.fullName,
+                business_name: tempLegacyData.businessName,
+                business_ssm: tempLegacyData.ssm,
+                phone_no: tempLegacyData.phone,
+                role: "operator"
+              }
+            ]);
 
-        alert("✅ Legacy account migrated successfully! Please log in to continue.");
+          if (profileError) {
+            console.warn("Profile Insert Notice:", profileError.message);
+          }
+
+          // 3. Ingest legacy document into document compliance pipeline ONLY upon successful migration
+          if (tempLegacyData.documentUrl) {
+            const { error: complianceErr } = await client
+              .from("document_compliance")
+              .insert([
+                {
+                  profile_id: authData.user.id,
+                  document_url: tempLegacyData.documentUrl,
+                  status: "PENDING_REVIEW",
+                  submitted_at: new Date().toISOString()
+                }
+              ]);
+
+            if (complianceErr) {
+              console.warn("Compliance Ingestion Notice:", complianceErr.message);
+            }
+          }
+        }
+
+        // 4. Update status in external DB to MIGRATED
+        await client
+          .from("mock_legacy_external_db")
+          .update({ system_status: "MIGRATED" })
+          .eq("operator_email", tempLegacyData.email);
+
+        alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
         window.location.href = "login.html";
 
       } catch (err) {
@@ -501,9 +554,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const password = document.getElementById("reg-password")?.value || "";
       const confirmPassword = document.getElementById("reg-confirm-password")?.value || "";
       const fullName = document.getElementById("reg-fullname")?.value.trim() || "";
+      const businessName = document.getElementById("reg-business-name")?.value.trim() || "";
       const phone = document.getElementById("reg-phone")?.value.trim() || "";
 
-      if (!email || !password || !confirmPassword || !fullName || !phone) {
+      if (!email || !password || !confirmPassword || !fullName || !businessName || !phone) {
         alert("❌ Please complete all required fields.");
         return;
       }
@@ -513,7 +567,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      tempUserData = { email, password, fullName, phone };
+      tempUserData = { email, password, fullName, businessName, phone };
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
@@ -555,12 +609,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
+        // 1. Create Supabase Auth User with metadata
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempUserData.email,
           password: tempUserData.password,
           options: {
             data: {
               full_name: tempUserData.fullName,
+              business_name: tempUserData.businessName,
               phone_no: tempUserData.phone
             }
           }
@@ -569,6 +625,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (signUpError) {
           alert("❌ Registration Error: " + signUpError.message);
           return;
+        }
+
+        // 2. Insert into profiles table
+        if (authData?.user) {
+          const { error: profileError } = await client
+            .from("profiles")
+            .insert([
+              {
+                id: authData.user.id,
+                full_name: tempUserData.fullName,
+                business_name: tempUserData.businessName,
+                phone_no: tempUserData.phone,
+                role: "operator"
+              }
+            ]);
+
+          if (profileError) {
+            console.warn("Profile Insert Notice:", profileError.message);
+          }
         }
 
         alert("✅ Account created successfully! Redirecting to login...");
