@@ -338,14 +338,6 @@ const MySTRA_API = {
               return R * c; // Distance in meters
               },
 
-    async deleteDocument(documentId) {
-    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
-    return await supabaseClient
-        .from('compliance_documents')
-        .delete()
-        .eq('id', documentId);
-            }
-
 };
 
 
