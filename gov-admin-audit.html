@@ -10,6 +10,104 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+
+    <style>
+        .audit-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .audit-search-box {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .audit-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .audit-input:focus {
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .audit-select {
+            padding: 10px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            font-size: 13px;
+            background: #ffffff;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .audit-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        .audit-table th {
+            background: #F8FAFC;
+            color: #475569;
+            padding: 12px 16px;
+            font-weight: 600;
+            border-bottom: 1px solid #E2E8F0;
+            white-space: nowrap;
+        }
+
+        .audit-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #F1F5F9;
+            color: #1E293B;
+        }
+
+        .audit-table tbody tr:hover {
+            background-color: #F8FAFC;
+        }
+
+        /* Status Badge Styling Examples for JS Dynamic Insertion */
+        .badge-pass {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #D1FAE5;
+            color: #065F46;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-fail {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #FEE2E2;
+            color: #991B1B;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
 
@@ -28,7 +126,7 @@
                         <span class="nav-label">Dashboard</span>
                     </li>
                 </a>
-                <a href="gov-admin-workspace.html" class="nav-link">
+                <a href="gov-admin-document.html" class="nav-link">
                     <li class="nav-item">
                         <span class="nav-icon">📄</span>
                         <span class="nav-label">Documents</span>
@@ -74,35 +172,53 @@
                 <div class="gov-header">
                     <div>
                         <h1 class="gov-title">System Audit Trail (UC-M5-06)</h1>
-                        <p class="gov-subtitle">Official non-repudiable log of administrator evaluations & system actions.</p>
+                        <p class="gov-subtitle">Official non-repudiable log of administrator evaluations & system enforcement actions.</p>
                     </div>
                 </div>
 
                 <div class="gov-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <input type="text" id="input-audit-search" placeholder="🔍 Search by Officer ID, Document Ref, Action, or Date..." style="width: 100%; max-width: 420px; padding: 10px 14px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
+                    <!-- TOOLBAR & SEARCH -->
+                    <div class="audit-toolbar">
+                        <div class="audit-search-box">
+                            <input type="text" id="input-audit-search" class="audit-input" placeholder="🔍 Search by Officer ID, Document Ref, Action, or Date...">
+                            <select id="select-audit-filter" class="audit-select" onchange="if(window.govAdminAuditModule) govAdminAuditModule.applyFilters()">
+                                <option value="ALL">All Actions</option>
+                                <option value="APPROVED">Pass / Approved</option>
+                                <option value="REJECTED">Failed / Rejected</option>
+                                <option value="REUPLOAD_REQUESTED">Re-upload Requested</option>
+                            </select>
+                        </div>
                         <div style="font-size: 13px; color: #64748B;">
-                            Total Recorded Logs: <strong id="lbl-audit-count">0</strong>
+                            Total Recorded Logs: <strong id="lbl-audit-count" style="color: #0F172A; font-size: 14px;">0</strong>
                         </div>
                     </div>
 
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                        <thead>
-                            <tr style="background: #F1F5F9; color: #475569; border-bottom: 1px solid #E2E8F0;">
-                                <th style="padding: 12px; font-weight: 600;">Timestamp</th>
-                                <th style="padding: 12px; font-weight: 600;">Action Performed By</th>
-                                <th style="padding: 12px; font-weight: 600;">Target Document Ref ID</th>
-                                <th style="padding: 12px; font-weight: 600;">Action Details</th>
-                                <th style="padding: 12px; font-weight: 600;">Status Result</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbl-audit-body">
-                            <!-- Dynamic Rows -->
-                        </tbody>
-                    </table>
+                    <!-- DATA TABLE -->
+                    <div class="audit-table-wrapper">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action Performed By</th>
+                                    <th>Target Document Ref ID</th>
+                                    <th>Action Details</th>
+                                    <th>Status Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbl-audit-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 24px; color: #64748B;">
+                                        ⏳ Fetching official audit logs from Supabase...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
+                    <!-- EMPTY STATE -->
                     <div id="audit-empty-state" class="empty-state hidden" style="text-align: center; padding: 40px; color: #64748B;">
-                        <p>No government audit logs recorded in the system database yet.</p>
+                        <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+                        <p style="margin: 0; font-weight: 500;">No government audit logs recorded in the system database yet.</p>
                     </div>
                 </div>
             </div>

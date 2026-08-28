@@ -8,9 +8,104 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gov-admin-styles.css">
 
+    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+
+    <!-- Chart.js Engine -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: #ffffff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .metric-card .title {
+            font-size: 12px;
+            color: #64748B;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .metric-card .value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-top: 6px;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: #ffffff;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            min-height: 380px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .chart-card h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1E293B;
+        }
+
+        .chart-card p {
+            margin: 0 0 16px 0;
+            font-size: 12px;
+            color: #64748B;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            height: 280px;
+        }
+
+        .btn-chart-toggle {
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #475569;
+            background: #F1F5F9;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-chart-toggle:hover {
+            background: #E2E8F0;
+            color: #0F172A;
+        }
+    </style>
 </head>
 <body>
 
@@ -29,7 +124,7 @@
                         <span class="nav-label">Dashboard</span>
                     </li>
                 </a>
-                <a href="gov-admin-workspace.html" class="nav-link">
+                <a href="gov-admin-document.html" class="nav-link">
                     <li class="nav-item">
                         <span class="nav-icon">📄</span>
                         <span class="nav-label">Documents</span>
@@ -53,12 +148,6 @@
                         <span class="nav-label">Audit Log</span>
                     </li>
                 </a>
-                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
-                    <li class="nav-item">
-                        <span class="nav-icon">⚙️</span>
-                        <span class="nav-label">Settings</span>
-                    </li>
-                </a>
             </ul>
         </aside>
 
@@ -71,71 +160,70 @@
                 </div>
             </header>
 
-            <div id="gov-alert-banner" class="alert-banner" style="display: none; padding: 12px; margin-bottom: 15px; border-radius: 6px; background-color: #FEE2E2; color: #991B1B; font-size: 13px;"></div>
-
             <div class="gov-workspace-container">
                 <div class="gov-header">
                     <div>
-                        <h1 class="gov-title">Executive Compliance Dashboard</h1>
-                        <p class="gov-subtitle">Nationwide accommodation registration metrics & state density analysis.</p>
+                        <h1 class="gov-title">Executive Compliance Analytics</h1>
+                        <p class="gov-subtitle">Real-time oversight of short-term rental compliance status and verified operator growth.</p>
                     </div>
                 </div>
 
-                <!-- REGIONAL FILTERS -->
-                <div class="filter-panel-card">
-                    <div class="filter-group">
-                        <label for="filter-state">State:</label>
-                        <select id="filter-state" class="gov-dropdown" onchange="dashboardApp.loadDashboardData()">
-                            <option value="ALL">All States (Nationwide)</option>
-                            <option value="Penang">Penang</option>
-                            <option value="Sabah">Sabah</option>
-                            <option value="Selangor">Selangor</option>
-                            <option value="Johor">Johor</option>
-                            <option value="Kuala Lumpur">Kuala Lumpur (DBKL)</option>
-                        </select>
+                <!-- TOP METRIC CARDS (6-CARD GRID) -->
+                <div class="dashboard-grid">
+                    <div class="metric-card" style="border-left: 4px solid #64748B;">
+                        <div class="title">Total Submissions</div>
+                        <div class="value" id="metric-total">0</div>
                     </div>
-
-                    <div class="filter-group">
-                        <label for="filter-district">District:</label>
-                        <select id="filter-district" class="gov-dropdown" onchange="dashboardApp.loadDashboardData()">
-                            <option value="ALL">All Districts</option>
-                            <option value="George Town">George Town</option>
-                            <option value="Kota Kinabalu">Kota Kinabalu</option>
-                            <option value="Petaling">Petaling</option>
-                        </select>
+                    <div class="metric-card" style="border-left: 4px solid #F59E0B;">
+                        <div class="title">Pending Review</div>
+                        <div class="value" id="metric-pending" style="color: #D97706;">0</div>
                     </div>
-
-                    <button class="gov-btn btn-secondary" onclick="dashboardApp.resetFilters()">🔄 Reset Filters</button>
-                </div>
-
-                <!-- METRIC CARDS -->
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <span class="metric-title">Total Registered Operators</span>
-                        <div class="metric-value" id="metric-total-operators">0</div>
+                    <div class="metric-card" style="border-left: 4px solid #10B981;">
+                        <div class="title">Approved Docs</div>
+                        <div class="value" id="metric-approved" style="color: #059669;">0</div>
                     </div>
-                    <div class="metric-card success">
-                        <span class="metric-title">Verified Status</span>
-                        <div class="metric-value" id="metric-verified-count">0</div>
+                    <div class="metric-card" style="border-left: 4px solid #EF4444;">
+                        <div class="title">Rejected Docs</div>
+                        <div class="value" id="metric-rejected" style="color: #DC2626;">0</div>
                     </div>
-                    <div class="metric-card warning">
-                        <span class="metric-title">Pending Review</span>
-                        <div class="metric-value" id="metric-pending-count">0</div>
+                    <div class="metric-card" style="border-left: 4px solid #6366F1;">
+                        <div class="title">Revision Needed</div>
+                        <div class="value" id="metric-revision" style="color: #4F46E5;">0</div>
                     </div>
-                    <div class="metric-card danger">
-                        <span class="metric-title">Rejected / Revision</span>
-                        <div class="metric-value" id="metric-rejected-count">0</div>
+                    <div class="metric-card" style="border-left: 4px solid #2563EB;">
+                        <div class="title">Verified Operators</div>
+                        <div class="value" id="metric-verified" style="color: #2563EB;">0</div>
                     </div>
                 </div>
 
-                <!-- CHART -->
-                <div class="gov-card">
-                    <h3>State Accommodation Distribution</h3>
-                    <div id="chart-empty-state" style="display: none; padding: 15px; color: #6B7280; font-size: 13px;">
-                        <span>📊 No registered properties found for the selected region.</span>
+                <!-- CHARTS SECTION -->
+                <div class="charts-container">
+                    <!-- CHART 1: Document Audit Overview (UC-M5-01) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Document Audit Overview</h3>
+                            <button class="btn-chart-toggle" onclick="window.govAdminDashboardModule.toggleStatusChartType()">
+                                📊 Switch Chart Type
+                            </button>
+                        </div>
+                        <p>Distribution of all submitted compliance documents across evaluation stages.</p>
+                        <div class="chart-wrapper">
+                            <canvas id="statusDoughnutChart"></canvas>
+                        </div>
                     </div>
-                    <div class="chart-wrapper" id="chart-wrapper" style="position: relative; height: 320px; width: 100%;">
-                        <canvas id="stateDistributionChart"></canvas>
+
+                    <!-- CHART 2: State Accommodation Statistics (UC-M5-03) -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>State Accommodation Statistics</h3>
+                            <button class="btn-chart-toggle" onclick="window.govAdminDashboardModule.toggleStateChartType()">
+                                📊 Switch Chart Type
+                            </button>
+                        </div>
+                        <p>Regional distribution and property density of registered operators across Malaysian states.</p>
+                        <div class="chart-wrapper">
+                            <canvas id="stateBarChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
