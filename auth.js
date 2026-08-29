@@ -692,6 +692,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
+        // 1. Authenticate credentials
         const { data: authData, error: authError } = await client.auth.signInWithPassword({
           email: email,
           password: password,
@@ -702,8 +703,25 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        alert("✅ Login successful! Redirecting...");
-        window.location.href = "index.html";
+        // 2. Query user role from public.profiles
+        const { data: profile, error: profileError } = await client
+          .from("profiles")
+          .select("role")
+          .eq("id", authData.user.id)
+          .single();
+
+        if (profileError) {
+          console.warn("Could not retrieve profile role:", profileError.message);
+        }
+
+        // 3. Redirect to destination based on role
+        if (profile && (profile.role === "admin" || profile.role === "gov_admin")) {
+          alert("✅ Admin login successful! Redirecting to dashboard...");
+          window.location.href = "gov-admin-dashboard.html";
+        } else {
+          alert("✅ Login successful! Redirecting...");
+          window.location.href = "index.html";
+        }
 
       } catch (err) {
         alert("❌ Login Error: " + err.message);

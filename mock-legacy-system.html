@@ -1,193 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>mock-legacy-system | Registration Portal & ETL Engine</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MySTRA - Legacy System & Background ETL Simulator</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 30px; }
-    .container { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .card { background: #1e293b; padding: 24px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-    h2 { margin-top: 0; color: #38bdf8; font-size: 20px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
-    label { font-size: 11px; font-weight: 600; color: #94a3b8; display: block; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    input { width: 100%; padding: 8px 10px; margin-top: 2px; box-sizing: border-box; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; font-size: 13px; }
-    input:focus { outline: none; border-color: #38bdf8; }
-    button { width: 100%; padding: 12px; margin-top: 16px; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: all 0.2s; }
-    .btn-submit { background: #2563eb; color: white; }
-    .btn-submit:hover { background: #1d4ed8; }
-    .btn-etl { background: #10b981; color: white; }
-    .btn-etl:hover { background: #059669; }
-    #log { background: #020617; color: #38bdf8; font-family: "Fira Code", monospace; font-size: 12px; padding: 14px; border-radius: 6px; border: 1px solid #1e293b; height: 400px; overflow-y: auto; white-space: pre-wrap; margin-top: 8px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 2rem; color: #333; }
+    .card { background: #fff; max-width: 950px; margin: 0 auto 2rem auto; border-radius: 12px; padding: 1.5rem 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h2, h3 { margin-top: 0; }
+    .btn { background: #0066cc; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 8px; }
+    .btn:hover { background: #0052a3; }
+    .btn-green { background: #28a745; }
+    .btn-green:hover { background: #218838; }
+    .btn-outline { background: transparent; color: #0066cc; border: 1px solid #0066cc; }
+    .btn-outline:hover { background: #e6f0fa; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    input { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 0.9rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 0.85rem; }
+    th { background-color: #f8f9fa; font-weight: 600; }
+    .log-box { background: #1e1e1e; color: #00ff66; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; height: 200px; overflow-y: auto; line-height: 1.4; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; display: inline-block; }
+    .badge-migrated { background: #d4edda; color: #155724; }
+    .badge-pending { background: #fff3cd; color: #856404; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <!-- Card 1: Legacy Registration Form -->
+  <!-- CARD 1: LEGACY EXTERNAL DB ENTRY SIMULATOR -->
   <div class="card">
-    <h2>🏛️ mock-legacy-system</h2>
-    <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Saves raw legacy entries directly into <code>mock_legacy_external_db</code>.</p>
+    <h2>1. Seed External Legacy System (`mock_legacy_external_db`)</h2>
+    <p style="font-size: 0.9rem; color: #666; margin-bottom: 1.5rem;">
+      Simulate raw registration entries on the legacy operator system.
+    </p>
     
-    <form id="regForm">
-      <label>Operator Full Name</label>
-      <input type="text" id="opName" placeholder="e.g. Ahmad Razali" required />
-
-      <label>Business Name</label>
-      <input type="text" id="bizName" placeholder="e.g. Langkawi Ocean Resort" required />
-
-      <label>Operator Email (Unique Key)</label>
-      <input type="email" id="email" placeholder="e.g. ahmad@langkawiocean.com" required />
-
-      <label>License Code (Unique Key)</label>
-      <input type="text" id="license" placeholder="e.g. LIC-LGK-9922" required />
-
-      <label>SSM Registration Number (Unique Key)</label>
-      <input type="text" id="ssm" placeholder="e.g. SSM-2026-882211" required />
-
-      <label>Phone Number</label>
-      <input type="text" id="phone" placeholder="e.g. +60123456789" required />
-
-      <label>State</label>
-      <input type="text" id="state" placeholder="e.g. Kedah" required />
-
-      <label>District</label>
-      <input type="text" id="district" placeholder="e.g. Langkawi" required />
-
-      <button type="submit" class="btn-submit">Register Account</button>
+    <form id="legacy-entry-form">
+      <div class="form-grid">
+        <input type="text" id="legacy-name" placeholder="Operator Full Name (operator_name)" required />
+        <input type="email" id="legacy-email" placeholder="Operator Email (operator_email)" required />
+        <input type="text" id="legacy-biz" placeholder="Business Name (operator_business_name)" required />
+        <input type="text" id="legacy-license" placeholder="License Code (licence_no_code)" required />
+        <input type="text" id="legacy-ssm" placeholder="SSM Reg Number (ssm_reg_number)" required />
+        <input type="text" id="legacy-phone" placeholder="Phone Number (phone_number)" required />
+        <input type="text" id="legacy-state" placeholder="Legacy State (legacy_state)" />
+        <input type="text" id="legacy-district" placeholder="Legacy District (legacy_district)" />
+      </div>
+      <button type="submit" class="btn">Register in Legacy System</button>
     </form>
   </div>
 
-  <!-- Card 2: ETL Control Panel -->
+  <!-- CARD 2: AUTOMATED BACKGROUND ETL ENGINE -->
   <div class="card">
-    <h2>⚡ ETL Ingestion Control</h2>
-    <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Extracts active records and populates <code>legacy_accounts</code>, <code>profiles</code>, and <code>compliance_documents</code>.</p>
+    <h2>2. Silent Background ETL Engine Simulation</h2>
+    <p style="font-size: 0.9rem; color: #666;">
+      Extracts active rows from <code>mock_legacy_external_db</code>, constructs an in-memory CSV buffer, transforms schema mapping, and updates <code>legacy_accounts</code> automatically.
+    </p>
     
-    <button id="runEtlBtn" class="btn-etl">🚀 Trigger Migration Ingestion</button>
+    <div style="margin-bottom: 1rem;">
+      <button id="btn-run-etl" class="btn btn-green">⚡ Trigger Silent Background ETL</button>
+      <button id="btn-download-csv" class="btn btn-outline" style="display: none;">📥 Download Debug CSV Copy</button>
+    </div>
     
-    <label style="margin-top: 14px;">Live Engine Execution Console:</label>
-    <div id="log">System initialized. Ready for operations...</div>
+    <h3>ETL Pipeline Console Logs</h3>
+    <div id="log-output" class="log-box">> System Ready. Click "Trigger Silent Background ETL" to execute pipeline.</div>
   </div>
-</div>
 
-<script>
-  const SUPABASE_URL = "https://lpovahpueihltaclwzzy.supabase.co";
-  const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwb3ZhaHB1ZWlobHRhY2x3enp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjkwMjQ2OCwiZXhwIjoyMTAyNDc4NDY4fQ.PdiFWArBh5WM6S7RlPm13xnPYo2ux524U0gYSHt6keg";
+  <!-- CARD 3: TARGET TABLE PREVIEW -->
+  <div class="card">
+    <h3>3. Target Staging Table (`legacy_accounts`) Live Preview</h3>
+    <table id="target-table">
+      <thead>
+        <tr>
+          <th>UUID (ID)</th>
+          <th>Legacy Email</th>
+          <th>License No</th>
+          <th>Business SSM</th>
+          <th>Migration Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align: center;">No records synced yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  const logDiv = document.getElementById('log');
+  <script>
+    // Supabase Configuration
+    const SUPABASE_URL = "https://lpovahpueihltaclwzzy.supabase.co"; 
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwb3ZhaHB1ZWlobHRhY2x3enp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MDI0NjgsImV4cCI6MjEwMjQ3ODQ2OH0.TtSAsdEhn5ZOLiqEsLcXxB5RoPn2XIv6hd4l6v906sU";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  function log(msg) {
-    logDiv.innerText += "\n" + msg;
-    logDiv.scrollTop = logDiv.scrollHeight;
-  }
+    const logBox = document.getElementById("log-output");
+    const downloadCsvBtn = document.getElementById("btn-download-csv");
+    let lastInMemoryCsv = "";
 
-  function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  }
+    function log(msg) {
+      logBox.innerHTML += `<br>> ${msg}`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
 
-  // 1. Submit registration form
-  document.getElementById('regForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    log("📝 Transmitting record to mock_legacy_external_db...");
-
-    const payload = {
-      operator_name: document.getElementById('opName').value,
-      operator_business_name: document.getElementById('bizName').value,
-      operator_email: document.getElementById('email').value,
-      licence_no_code: document.getElementById('license').value,
-      ssm_reg_number: document.getElementById('ssm').value,
-      phone_number: document.getElementById('phone').value,
-      legacy_state: document.getElementById('state').value,
-      legacy_district: document.getElementById('district').value,
-      system_status: 'ACTIVE',
-      created_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabaseClient.from('mock_legacy_external_db').insert([payload]).select();
-
-    if (error) {
-      log("❌ Insert Error: " + error.message);
-    } else {
-      log(`✅ DB ACKNOWLEDGED INSERT! raw_id: ${data[0].raw_id} | Email: "${data[0].operator_email}"`);
+    // 1. Seed raw record into mock_legacy_external_db
+    document.getElementById("legacy-entry-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
       
-      document.getElementById('opName').value = '';
-      document.getElementById('bizName').value = '';
-      document.getElementById('email').value = '';
-      document.getElementById('license').value = '';
-      document.getElementById('ssm').value = '';
-      document.getElementById('phone').value = '';
-      document.getElementById('state').value = '';
-      document.getElementById('district').value = '';
-    }
-  });
-
-  // 2. Execute browser ETL pipeline across profiles and compliance_documents
-  document.getElementById('runEtlBtn').addEventListener('click', async () => {
-    log("\n⚡ Starting Multi-Table Ingestion Engine...");
-
-    const { data: allRows, error: extractErr } = await supabaseClient.from('mock_legacy_external_db').select('*');
-    if (extractErr) return log("❌ Extraction Error: " + extractErr.message);
-
-    const activeRows = (allRows || []).filter(r => r.system_status && r.system_status.trim().toUpperCase() === 'ACTIVE');
-    log(`📦 Extracted ${activeRows.length} active records from legacy DB.`);
-
-    for (const raw of activeRows) {
-      const email = (raw.operator_email || raw.old_operator_email || '').trim().toLowerCase();
-      const license = (raw.licence_no_code || '').trim().toUpperCase();
-      const ssm = (raw.ssm_reg_number || '').trim().toUpperCase();
-      const opName = (raw.operator_name || raw.old_operator_name || 'Legacy Operator').trim();
-      const bizName = (raw.operator_business_name || opName).trim();
-      const phone = (raw.phone_number || '+60000000000').trim();
-      const state = (raw.legacy_state || '').trim();
-      const district = (raw.legacy_district || '').trim();
-
-      if (!email || !license || !ssm) continue;
-
-      // A) Save legacy_accounts
-      const { error: legacyErr } = await supabaseClient.from('legacy_accounts').upsert({
-        legacy_email: email, 
-        license_no: license, 
-        business_ssm: ssm, 
-        is_migrated: false
-      }, { onConflict: 'legacy_email' });
-
-      if (!legacyErr) log(`✅ [legacy_accounts] Saved ${email}`);
-
-      // B) Save profiles
-      const profilePayload = {
-        id: generateUUID(),
-        full_name: opName,
-        phone_no: phone,
-        business_name: bizName,
-        business_ssm: ssm,
-        is_verified: true,
-        role: 'operator'
+      const newRecord = {
+        operator_name: document.getElementById("legacy-name").value.trim(),
+        operator_email: document.getElementById("legacy-email").value.trim().toLowerCase(),
+        operator_business_name: document.getElementById("legacy-biz").value.trim(),
+        licence_no_code: document.getElementById("legacy-license").value.trim().toUpperCase(),
+        ssm_reg_number: document.getElementById("legacy-ssm").value.trim().toUpperCase(),
+        phone_number: document.getElementById("legacy-phone").value.trim(),
+        legacy_state: document.getElementById("legacy-state").value.trim(),
+        legacy_district: document.getElementById("legacy-district").value.trim(),
+        system_status: "ACTIVE"
       };
 
-      const { error: profileErr } = await supabaseClient.from('profiles').upsert(profilePayload, { onConflict: 'business_ssm' });
-      if (!profileErr) log(`👤 [profiles] Saved Name: "${opName}" | Biz: "${bizName}"`);
+      const { data, error } = await supabaseClient
+        .from("mock_legacy_external_db")
+        .insert([newRecord]);
 
-      // C) Save compliance_documents
-      const compliancePayload = {
-        document_type: 'SSM Certificate',
-        review_status: 'Pending',
-        status: 'PENDING',
-        ssm_number: ssm,
-        operator_name: opName,
-        state: state,
-        district: district,
-        uploaded_at: new Date().toISOString()
-      };
+      if (error) {
+        alert("❌ Error saving to legacy system: " + error.message);
+      } else {
+        alert("✅ Legacy registration successful!");
+        document.getElementById("legacy-entry-form").reset();
+      }
+    });
 
-      const { error: complianceErr } = await supabaseClient.from('compliance_documents').insert([compliancePayload]);
-      if (!complianceErr) log(`📄 [compliance_documents] Saved Doc for SSM ${ssm}`);
+    // 2. Automated Silent In-Memory ETL Execution
+    document.getElementById("btn-run-etl").addEventListener("click", async () => {
+      logBox.innerHTML = "> Starting automated background ETL pipeline...";
+      downloadCsvBtn.style.display = "none";
+
+      try {
+        // STEP 1: EXTRACT full active records from legacy source database
+        log("1. EXTRACT: Fetching active rows from 'mock_legacy_external_db'...");
+        const { data: legacyRows, error: fetchErr } = await supabaseClient
+          .from("mock_legacy_external_db")
+          .select("*")
+          .eq("system_status", "ACTIVE");
+
+        if (fetchErr) throw fetchErr;
+
+        if (!legacyRows || legacyRows.length === 0) {
+          log("⚠️ Extract Complete: No active legacy records found.");
+          return;
+        }
+        log(`✔ Extracted ${legacyRows.length} legacy registration row(s).`);
+
+        // STEP 2: GENERATE CSV BUFFER (Purely in Memory)
+        log("2. TRANSFORM (Phase A): Generating CSV buffer in memory...");
+        const csvHeaders = ["raw_id", "operator_name", "operator_email", "operator_business_name", "licence_no_code", "ssm_reg_number", "phone_number", "legacy_state", "legacy_district"];
+        
+        const csvLines = [
+          csvHeaders.join(","),
+          ...legacyRows.map(row => 
+            `${row.raw_id},"${row.operator_name || ''}","${row.operator_email}","${row.operator_business_name || ''}","${row.licence_no_code}","${row.ssm_reg_number}","${row.phone_number || ''}","${row.legacy_state || ''}","${row.legacy_district || ''}"`
+          )
+        ];
+        
+        lastInMemoryCsv = csvLines.join("\n");
+        log("✔ In-memory CSV buffer created.");
+        downloadCsvBtn.style.display = "inline-block";
+
+        // STEP 3: PARSE & TRANSFORM CSV BUFFER TO TARGET SCHEMA
+        log("3. TRANSFORM (Phase B): Mapping CSV data to target schema ('legacy_accounts')...");
+        const csvLinesArray = lastInMemoryCsv.split("\n").slice(1);
+        
+        const transformedPayload = csvLinesArray
+          .filter(line => line.trim() !== "")
+          .map(line => {
+            const matches = line.match(/(?:^|,)("(?:[^"]|"")*"|[^,]*)/g);
+            const columns = matches.map(col => col.replace(/^,?"?|"$/g, ''));
+            
+            return {
+              legacy_email: columns[2].toLowerCase().trim(),
+              license_no: columns[4].toUpperCase().trim(),
+              business_ssm: columns[5].toUpperCase().trim(),
+              is_migrated: false
+            };
+          });
+
+        log(`✔ Formatted ${transformedPayload.length} objects for destination database.`);
+
+        // STEP 4: LOAD INTO TARGET STAGING DATABASE (legacy_accounts)
+        log("4. LOAD: Writing transformed records into 'legacy_accounts' table...");
+        const { data: upsertData, error: loadErr } = await supabaseClient
+          .from("legacy_accounts")
+          .upsert(transformedPayload, { onConflict: "legacy_email" });
+
+        if (loadErr) throw loadErr;
+
+        log("🎉 PIPELINE SUCCESS: Legacy records processed into 'legacy_accounts'.");
+        renderTargetTable();
+
+      } catch (err) {
+        log(`❌ ETL PIPELINE ERROR: ${err.message}`);
+      }
+    });
+
+    // Optional manual CSV download for debug verification
+    downloadCsvBtn.addEventListener("click", () => {
+      if (!lastInMemoryCsv) return;
+      const blob = new Blob([lastInMemoryCsv], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `debug_legacy_export_${Date.now()}.csv`;
+      link.click();
+    });
+
+    // Render live state of legacy_accounts table
+    async function renderTargetTable() {
+      const { data, error } = await supabaseClient.from("legacy_accounts").select("*");
+      const tbody = document.querySelector("#target-table tbody");
+      
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">No records found in legacy_accounts.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(row => `
+        <tr>
+          <td style="font-family: monospace; font-size: 0.75rem;">${row.id}</td>
+          <td>${row.legacy_email}</td>
+          <td>${row.license_no}</td>
+          <td>${row.business_ssm}</td>
+          <td>
+            <span class="badge ${row.is_migrated ? 'badge-migrated' : 'badge-pending'}">
+              ${row.is_migrated ? '✔ MIGRATED' : '⏳ PENDING'}
+            </span>
+          </td>
+        </tr>
+      `).join("");
     }
-    log("🎉 [ETL Pipeline Completed Successfully]");
-  });
-</script>
 
+    renderTargetTable();
+  </script>
 </body>
 </html>
