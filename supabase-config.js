@@ -245,7 +245,7 @@ const MySTRA_API = {
      // 1. Upload file to Supabase Storage
      const fileExt = file.name.split('.').pop();
      const fileName = `${userId}/${Date.now()}.${fileExt}`;
-     const filePath = `documents/${fileName}`;
+     const filePath = `${userId}/${Date.now()}.${fileExt}`; // Creates: userId/123456.pdf
     
      const { data: uploadData, error: uploadError } = await supabaseClient.storage
          .from('compliance-documents')
@@ -263,6 +263,7 @@ const MySTRA_API = {
         user_id: userId,
         property_id: propertyId,
         document_type: documentType,
+        document_name: documentName,
         file_name: file.name,
         file_path: urlData.publicUrl,
         file_size: file.size,

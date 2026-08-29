@@ -109,7 +109,7 @@ async function uploadDocument(file, documentType, userId, propertyId, gpsLat, gp
         console.error('MySTRA_API not available');
         return { data: null, error: new Error('API not initialized') };
     }
-    return await MySTRA_API.uploadDocument(file, documentType, userId, propertyId, gpsLat, gpsLng);
+    return await MySTRA_API.uploadDocument(file, documentType, documentName, userId, propertyId, gpsLat, gpsLng);
 }
 
 async function getDocumentsByUser(userId) {
@@ -192,6 +192,7 @@ function renderDocumentStatus(documents) {
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th>Document Name</th>
                         <th>Document Type</th>
                         <th>File Name</th>
                         <th>Uploaded</th>
@@ -203,7 +204,10 @@ function renderDocumentStatus(documents) {
                     ${documents.map(doc => {
                         const isRejected = doc.review_status === 'Rejected' || doc.review_status === 'Needs Revision';
                         const isPending = doc.review_status === 'Pending';
-                        
+
+                        // 🔥 Use document_name or fallback to file_name or 'Untitled'
+                        const displayName = doc.document_name || 'Untitled';
+
                         const fileLink = doc.file_path && doc.file_path !== '#'
                             ? `<a href="${doc.file_path}" target="_blank" style="color: #2563EB; text-decoration: underline; font-size: 13px;">${doc.file_name}</a>`
                             : `<span style="font-size: 13px;">${doc.file_name}</span>`;
@@ -219,8 +223,9 @@ function renderDocumentStatus(documents) {
                         
                         return `
                             <tr>
-                                <td><strong>${doc.document_type}</strong></td>
-                                <td>${fileLink}</td>
+                                <td><strong>${displayName}</strong></td>
+                                <td style="font-size: 13px;">${doc.document_type}</td>
+                                <td style="font-size: 13px;">${fileLink}</td>
                                 <td style="font-size: 13px;">${new Date(doc.uploaded_at).toLocaleDateString()}</td>
                                 <td>${getStatusBadge(doc.review_status)}</td>
                                 <td>${actionBtn}</td>
@@ -272,7 +277,8 @@ function viewDocument(documentId) {
     if (doc.file_path && doc.file_path !== '#') {
         window.open(doc.file_path, '_blank');
     } else {
-        alert(`📄 Document: ${doc.document_type}\nFile: ${doc.file_name}\nStatus: ${doc.review_status}\nUploaded: ${new Date(doc.uploaded_at).toLocaleDateString()}`);
+        alert(`📄 Document: ${doc.document_type}\nFile: ${doc.file_name}
+            \nStatus: ${doc.review_status}\nUploaded: ${new Date(doc.uploaded_at).toLocaleDateString()}`);
     }
 }
 
@@ -659,7 +665,14 @@ async function handleDocumentUpload(e) {
 
     const fileInput = document.getElementById('doc-file-input');
     const docType = document.getElementById('doc-type-select').value;
+    const docName = document.getElementById('doc-name-input').value.trim();
     const file = fileInput.files[0];
+
+
+    if (!docName) {
+        alert('Please enter a document name.');
+        return;
+    }
 
     if (!file) {
         alert('Please select a file to upload.');
@@ -708,6 +721,7 @@ async function handleDocumentUpload(e) {
     const { data, error } = await uploadDocument(
         file,
         docType,
+        docName,
         userId,
         propertyId,
         gps.lat,
