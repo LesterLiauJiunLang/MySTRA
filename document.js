@@ -4,6 +4,7 @@
 
 const DOC_STATE = {
     documents: [],
+    filteredDocuments: [],
     selectedDocument: null,
     isRevisionMode: false,
     userId: '550e8400-e29b-41d4-a716-446655440000', // Default user
@@ -12,6 +13,8 @@ const DOC_STATE = {
 };
 
 let currentGPS = null;
+let currentFilter = 'all';  
+let currentSearch = '';
 
 // ==============================================================================
 // 👤 USER MANAGEMENT (Mock Auth for Testing)
@@ -173,15 +176,28 @@ function renderDocumentStatus(documents) {
     const container = document.getElementById('documents-status-container');
     if (!container) return;
 
-    updateDocumentStats(documents);
+    DOC_STATE.documents = documents || [];
 
-    if (!documents || documents.length === 0) {
+    // Apply filters
+    const filtered = applyFiltersToDocuments(DOC_STATE.documents);
+    DOC_STATE.filteredDocuments = filtered;
+
+    updateDocumentStats(DOC_STATE.documents);
+    renderRequiredDocuments(DOC_STATE.documents);
+
+    if (!filtered || filtered.length === 0) {
+        const message = (DOC_STATE.documents && DOC_STATE.documents.length > 0) 
+            ? 'No documents match your filters.' 
+            : 'Upload your compliance documents to get verified.';
         container.innerHTML = `
             <div class="empty-state">
                 <div class="icon">📄</div>
-                <h3>No Documents Uploaded</h3>
-                <p>Upload your compliance documents to get verified.</p>
-                <button class="btn-primary" onclick="switchDocTab('upload')">📤 Upload Documents</button>
+                <h3>${DOC_STATE.documents && DOC_STATE.documents.length > 0 ? 'No Results Found' : 'No Documents Uploaded'}</h3>
+                <p>${message}</p>
+                ${DOC_STATE.documents && DOC_STATE.documents.length > 0 ? 
+                    `<button class="btn-secondary" onclick="applyFilter('all'); document.getElementById('doc-search-input').value = '';">Reset Filters</button>` :
+                    `<button class="btn-primary" onclick="switchDocTab('upload')">📤 Upload Documents</button>`
+                }
             </div>
         `;
         return;
@@ -201,7 +217,7 @@ function renderDocumentStatus(documents) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${documents.map(doc => {
+                    ${filtered.map(doc => {
                         const isRejected = doc.review_status === 'Rejected' || doc.review_status === 'Needs Revision';
                         const isPending = doc.review_status === 'Pending';
 
@@ -668,16 +684,29 @@ async function handleDocumentUpload(e) {
     const docName = document.getElementById('doc-name-input').value.trim();
     const file = fileInput.files[0];
 
-
-    if (!docName) {
-        alert('Please enter a document name.');
+     if (!docType) {
+        alert('Please select a document type.');
         return;
+    }
+
+    let documentName = '';
+    if (docType === 'Other') {
+        documentName = docNameInput ? docNameInput.value.trim() : '';
+        if (!documentName) {
+            alert('Please enter a name for your custom document.');
+            return;
+        }
+    } else {
+        // For standard types, use the document type as the name
+        documentName = docType;
     }
 
     if (!file) {
         alert('Please select a file to upload.');
         return;
     }
+
+    
 
     const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!validTypes.includes(file.type)) {
@@ -777,6 +806,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    const searchInput = document.getElementById('doc-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            currentSearch = searchInput.value;
+            renderDocumentStatus(DOC_STATE.documents);
+        });
+    }
+
+    const docTypeSelect = document.getElementById('doc-type-select');
+    const docNameContainer = document.getElementById('document-name-container');
+    if (docTypeSelect && docNameContainer) {
+        docTypeSelect.addEventListener('change', () => {
+            if (docTypeSelect.value === 'Other') {
+                docNameContainer.style.display = 'block';
+            } else {
+                docNameContainer.style.display = 'none';
+            }
+        });
+    }
+
     // Setup user selector
     const selector = document.getElementById('user-selector');
     if (selector) {
@@ -798,4 +847,107 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('revision-modal').addEventListener('click', function(e) {
         if (e.target === this) closeRevisionModal();
     });
+
+    // ==============================================================================
+// 📋 REQUIRED DOCUMENTS CHECKLIST
+// ==============================================================================
+
+const REQUIRED_DOCUMENTS = [
+    { type: 'SSM Certificate', icon: '📜', description: 'Business registration proof' },
+    { type: 'Tax Information File', icon: '💲', description: 'LHDN tax registration' },
+    { type: 'Safety Certificate', icon: '🛡️', description: 'Fire safety compliance' },
+    { type: 'Municipal Permit', icon: '🏛️', description: 'Local council approval' },
+    { type: 'Business License', icon: '📋', description: 'Business operating license' }
+];
+
+function renderRequiredDocuments(documents) {
+    const container = document.getElementById('required-documents-checklist');
+    if (!container) return;
+
+    const uploadedTypes = documents ? documents.map(d => d.document_type) : [];
+
+    container.innerHTML = REQUIRED_DOCUMENTS.map(req => {
+        const isUploaded = uploadedTypes.includes(req.type);
+        // Check if the uploaded document is approved
+        const doc = documents ? documents.find(d => d.document_type === req.type) : null;
+        const isApproved = doc && doc.review_status === 'Approved';
+
+        let statusIcon = '⬜';
+        let statusText = 'Not uploaded';
+        let styleClass = '';
+
+        if (isUploaded && isApproved) {
+            statusIcon = '✅';
+            statusText = 'Verified';
+            styleClass = 'uploaded';
+        } else if (isUploaded) {
+            statusIcon = '⏳';
+            statusText = 'Pending review';
+            styleClass = '';
+        } else {
+            statusIcon = '⬜';
+            statusText = 'Required';
+            styleClass = '';
+        }
+
+        return `
+            <div class="required-doc-item ${styleClass}">
+                <span class="status-icon">${statusIcon}</span>
+                <span><strong>${req.icon} ${req.type}</strong></span>
+                <span style="font-size: 12px; color: #6B7280; margin-left: auto;">${statusText}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// ==============================================================================
+// 🔍 FILTER FUNCTIONS
+// ==============================================================================
+
+function applyFiltersToDocuments(documents) {
+    if (!documents) return [];
+
+    let filtered = [...documents];
+
+    // Status filter
+    if (currentFilter !== 'all') {
+        filtered = filtered.filter(d => d.review_status === currentFilter);
+    }
+
+    // Search filter (by document name or document type)
+    if (currentSearch && currentSearch.trim() !== '') {
+        const search = currentSearch.toLowerCase().trim();
+        filtered = filtered.filter(d => 
+            (d.document_name && d.document_name.toLowerCase().includes(search)) ||
+            (d.document_type && d.document_type.toLowerCase().includes(search)) ||
+            (d.file_name && d.file_name.toLowerCase().includes(search))
+        );
+    }
+
+    return filtered;
+}
+
+function applyFilter(status) {
+    currentFilter = status;
+    
+    // Update active button state
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === status) {
+            btn.classList.add('active');
+        }
+    });
+
+    renderDocumentStatus(DOC_STATE.documents);
+}
+
+function applySearch() {
+    const searchInput = document.getElementById('doc-search-input');
+    currentSearch = searchInput ? searchInput.value : '';
+    renderDocumentStatus(DOC_STATE.documents);
+}
+
+
+
+
 });

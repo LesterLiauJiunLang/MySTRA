@@ -409,15 +409,15 @@
                             </select>
                         </div>
                         
-                        <div>
+                        <div id="document-name-container" style="display: none;">
                             <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
                                 Document Name <span style="color: #EF4444;">*</span>
                             </label>
-                            <input type="text" id="doc-name-input" placeholder="e.g., SSM Certificate 2026" 
-                               style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px;" required>
-                            <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-                                Give your document a meaningful name for easy identification.
-                            </p>
+                        <input type="text" id="doc-name-input" placeholder="e.g., Custom Document Name" 
+                                style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px;">
+                        <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+                                Give your custom document a meaningful name for easy identification.
+                        </p>
                         </div>
 
                         <!-- File Input -->
@@ -466,6 +466,25 @@
                             <button class="btn-secondary" onclick="loadDocumentData()">🔄 Refresh</button>
                         </div>
                     </div>
+
+                 
+        <div id="filter-section" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: center;">
+            <!-- Status Filter -->
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <button class="filter-btn active" data-filter="all" onclick="applyFilter('all')">All</button>
+                <button class="filter-btn" data-filter="Pending" onclick="applyFilter('Pending')">🟡 Pending</button>
+                <button class="filter-btn" data-filter="Approved" onclick="applyFilter('Approved')">🟢 Approved</button>
+                <button class="filter-btn" data-filter="Rejected" onclick="applyFilter('Rejected')">🔴 Rejected</button>
+                <button class="filter-btn" data-filter="Needs Revision" onclick="applyFilter('Needs Revision')">🟠 Needs Revision</button>
+            </div>
+            
+            <!-- Search Bar -->
+            <div style="display: flex; gap: 4px; align-items: center; margin-left: auto;">
+                <input type="text" id="doc-search-input" placeholder="Search documents..." 
+                       style="padding: 6px 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 13px; min-width: 180px;"
+                       oninput="applyFilter(document.querySelector('.filter-btn.active')?.dataset?.filter || 'all')">
+            </div>
+        </div>
 
                     <div id="doc-status-summary" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
             <div style="background: #F8FAFC; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #E5E7EB;">
