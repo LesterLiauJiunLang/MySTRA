@@ -528,11 +528,16 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        // 4. Update status in external DB to MIGRATED
-        await client
-          .from("mock_legacy_external_db")
-          .update({ system_status: "MIGRATED" })
-          .eq("operator_email", tempLegacyData.email);
+        
+        // 4. Update status in legacy_accounts table to migrated
+      const { error: updateLegacyErr } = await client
+        .from("legacy_accounts")
+        .update({ is_migrated: true })
+        .eq("legacy_email", tempLegacyData.email);
+
+if (updateLegacyErr) {
+  console.warn("Legacy Table Update Notice:", updateLegacyErr.message);
+}
 
         alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
         window.location.href = "login.html";
