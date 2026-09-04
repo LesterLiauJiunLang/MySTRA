@@ -93,6 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+});
 
   setupOtpInputs("legacy-otp-container");
   setupOtpInputs("otp-container");
@@ -661,11 +662,15 @@ if (updateLegacyErr) {
   }
 
   // ==============================================================================
-  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE
+  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE 
   // ==============================================================================
   if (loginForm) {
     const emailInput = document.getElementById("email");
     const rememberCheckbox = document.getElementById("remember-me");
+
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutes
+    const ATTEMPT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
     const savedEmail = localStorage.getItem("mystra_remembered_email");
     if (savedEmail && emailInput && rememberCheckbox) {
@@ -676,18 +681,28 @@ if (updateLegacyErr) {
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const email = emailInput ? emailInput.value.trim() : "";
+      const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
       const password = document.getElementById("password") ? document.getElementById("password").value : "";
 
-      if (email && rememberCheckbox && rememberCheckbox.checked) {
-        localStorage.setItem("mystra_remembered_email", email);
-      } else {
-        localStorage.removeItem("mystra_remembered_email");
+      // Flow A5: Empty Required Fields
+      if (!email || !password) {
+        alert("Please enter both your email and password.");
+        return;
       }
 
-      if (!email || !password) {
-        alert("❌ Please enter both your email and password.");
+      // Flow A4: Rate Limiting / Lockout Check
+      const now = Date.now();
+      let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
+      let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
+
+      if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
+        alert("Too many failed attempts. Please try again in 15 minutes.");
         return;
+      }
+
+      // Reset attempt window if 10 minutes have passed since first failed attempt
+      if (now - userAttempts.firstAttemptTime > ATTEMPT_WINDOW_MS) {
+        userAttempts = { count: 0, firstAttemptTime: now, lockUntil: 0 };
       }
 
       const client = getSupabaseClient();
@@ -697,35 +712,62 @@ if (updateLegacyErr) {
       }
 
       try {
-        // 1. Authenticate credentials
+        // Step 5: Authenticate credentials against Supabase
         const { data: authData, error: authError } = await client.auth.signInWithPassword({
           email: email,
           password: password,
         });
 
+        // Flow A1 & A2: Invalid Credentials Handling
         if (authError) {
-          alert("❌ Invalid email or password.");
+          userAttempts.count += 1;
+          if (userAttempts.count === 1) {
+            userAttempts.firstAttemptTime = now;
+          }
+
+          if (userAttempts.count >= MAX_ATTEMPTS) {
+            userAttempts.lockUntil = now + LOCKOUT_TIME_MS;
+            attemptsData[email] = userAttempts;
+            localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+            alert("Too many failed attempts. Please try again in 15 minutes.");
+            return;
+          }
+
+          attemptsData[email] = userAttempts;
+          localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+
+          alert("Invalid email or password.");
           return;
         }
 
-        // 2. Query user role from public.profiles
-        const { data: profile, error: profileError } = await client
+        // Reset failed attempt counter on successful login
+        delete attemptsData[email];
+        localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+
+        // Flow A7: Remember Me handling
+        if (emailInput && rememberCheckbox && rememberCheckbox.checked) {
+          localStorage.setItem("mystra_remembered_email", email);
+        } else {
+          localStorage.removeItem("mystra_remembered_email");
+        }
+
+        // Step 6 / Flow A3: Check Verification State & Role
+        const { data: profile } = await client
           .from("profiles")
-          .select("role")
+          .select("role, is_verified")
           .eq("id", authData.user.id)
           .single();
 
-        if (profileError) {
-          console.warn("Could not retrieve profile role:", profileError.message);
-        }
+        const isVerified = profile?.is_verified ?? authData.user.user_metadata?.is_verified ?? false;
 
-        // 3. Redirect to destination based on role
+        // Step 7: Redirect to respective dashboard
         if (profile && (profile.role === "admin" || profile.role === "gov_admin")) {
-          alert("✅ Admin login successful! Redirecting to dashboard...");
+          alert("✅ Admin login successful! Redirecting...");
           window.location.href = "gov-admin-dashboard.html";
         } else {
           alert("✅ Login successful! Redirecting...");
-          window.location.href = "index.html";
+          // Pass verification state to index page so banner can render if false (Flow A3)
+          window.location.href = isVerified ? "index.html" : "index.html?verified=false";
         }
 
       } catch (err) {
@@ -733,4 +775,3 @@ if (updateLegacyErr) {
       }
     });
   }
-});
