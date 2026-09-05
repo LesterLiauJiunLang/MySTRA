@@ -7,9 +7,6 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="gov-admin-styles.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
 </head>
 <body>
 
@@ -52,12 +49,12 @@
                         <span class="nav-label">Audit Log</span>
                     </li>
                 </a>
-                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
-                    <li class="nav-item">
-                        <span class="nav-icon">⚙️</span>
-                        <span class="nav-label">Settings</span>
-                    </li>
-                </a>
+                <a href="#" class="nav-link" id="btn-logout" onclick="handleLogout(event)">
+    <li class="nav-item">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-label">Logout</span>
+    </li>
+</a>
             </ul>
         </aside>
 
@@ -125,12 +122,23 @@
                         </select>
                     </div>
 
-                    <button id="btn-generate-report" class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;" onclick="reportsApp.generateReport()">📥 Generate & Export Report</button>
+                    <!-- 移除内联 onclick，改由 JS 统一进行事件监听绑定 -->
+                    <button id="btn-generate-report" class="gov-btn btn-primary" style="margin-top: 20px; width: 100%;">📥 Generate & Export Report</button>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- 统一在页面底部按顺序加载 JS 脚本 -->
+    <!-- 1. Supabase SDK 和配置文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- 2. 提供 Log 公共方法的模块 -->
+    <script src="gov-admin-audit.js"></script>
+
+    <!-- 3. 报表业务逻辑脚本 -->
     <script src="gov-admin-reports.js"></script>
+    
 </body>
 </html>

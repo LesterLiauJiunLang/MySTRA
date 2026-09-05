@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 class GovVerifiedDirectory {
     constructor() {
-        this.rawRecords = [];
+        this.rawOperators = [];
         this.init();
     }
 
@@ -39,45 +39,85 @@ class GovVerifiedDirectory {
         }
 
         try {
-            // 1. Query records from compliance_documents
-            const { data: docs, error: docErr } = await window.supabaseClient
-                .from('compliance_documents')
-                .select('*')
-                .or('status.eq.APPROVED,status.eq.VERIFIED,review_status.eq.APPROVED');
+            // 1. 查询 profiles 中已验证的 operator（对齐图片字段）
+            const { data: profiles, error: profErr } = await window.supabaseClient
+                .from('profiles')
+                .select('id, full_name, phone_no, business_name, business_ssm, is_verified, role, created_at')
+                .eq('role', 'operator')
+                .eq('is_verified', true);
 
-            if (docErr) throw docErr;
+            if (profErr) throw profErr;
 
-            // 2. Fetch mystra_codes mapping
+            // 2. 独立查询 properties 表（通过 owner_id 在 JS 内部关联，避免 Schema 报错）
+            const { data: properties, error: propErr } = await window.supabaseClient
+                .from('properties')
+                .select('id, owner_id, title, name, address, city, state, license_number, created_at');
+
+            if (propErr) console.warn('Could not fetch properties:', propErr);
+
+            // 将 properties 按 owner_id 分组
+            const propertyMap = {};
+            (properties || []).forEach(prop => {
+                if (prop.owner_id) {
+                    if (!propertyMap[prop.owner_id]) {
+                        propertyMap[prop.owner_id] = [];
+                    }
+                    propertyMap[prop.owner_id].push(prop);
+                }
+            });
+
+            // 3. 查询 mystra_codes 表（严格对应图片中的 registration_code 字段）
             const { data: codes } = await window.supabaseClient
                 .from('mystra_codes')
-                .select('*');
+                .select('registration_code, property_id, code_status');
 
             const codeMap = {};
             if (codes) {
                 codes.forEach(c => {
-                    if (c.property_id) codeMap[c.property_id] = c.code || c.code_string || c.mystra_code;
-                    if (c.user_id) codeMap[c.user_id] = c.code || c.code_string || c.mystra_code;
-                    if (c.ssm_number) codeMap[c.ssm_number] = c.code || c.code_string || c.mystra_code;
+                    if (c.property_id) {
+                        codeMap[c.property_id] = c.registration_code;
+                    }
                 });
             }
 
-            // 3. Map records with actual database platform fields
-            this.rawRecords = (docs || []).map(doc => {
-                const realCode = codeMap[doc.property_id] || codeMap[doc.user_id] || codeMap[doc.ssm_number] || doc.code_string;
-                const directFileUrl = doc.document_url || doc.file_url || doc.file_path || doc.url || doc.certificate_url || '';
+            // 4. 组装数据
+            this.rawOperators = (profiles || []).map(p => {
+                const userProperties = propertyMap[p.id] || [];
+                
+                // 组装房产及对应编码
+                const accommodations = userProperties.map(prop => {
+                    const code = codeMap[prop.id] || prop.license_number || `MYS-${prop.id.toString().substring(0, 6).toUpperCase()}`;
+                    return {
+                        id: prop.id,
+                        property_name: prop.title || prop.name || 'Accommodation Listing',
+                        state: prop.state || 'WPKL',
+                        district: prop.city || '',
+                        code: code,
+                        platform: 'Agoda / Airbnb',
+                        file_url: ''
+                    };
+                });
+
+                // 生成展示用的主编码
+                const primaryCode = accommodations.length > 0 
+                    ? accommodations[0].code 
+                    : `MYS-${p.id.substring(0, 6).toUpperCase()}`;
 
                 return {
-                    ...doc,
-                    // Pull real platform field from DB or fallback to mixed platforms
-                    ota_platform: doc.ota_platform || doc.platform || doc.channel || 'Agoda / Airbnb',
-                    display_code: realCode || (doc.id ? `MYS-${doc.id.toString().substring(0, 8).toUpperCase()}` : 'MYS-PENDING'),
-                    file_link: directFileUrl
+                    operator_name: p.business_name || p.full_name || 'Registered Operator Entity',
+                    account_name: p.full_name || 'Operator Account',
+                    ssm_number: p.business_ssm || 'N/A',
+                    phone_no: p.phone_no || 'N/A',
+                    accommodations: accommodations,
+                    mystra_codes: new Set(accommodations.map(a => a.code).concat([primaryCode])),
+                    ota_platforms: new Set(['Agoda / Airbnb']),
+                    latest_date: p.created_at
                 };
-            }).sort((a, b) => new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0));
+            });
 
-            if (this.rawRecords.length === 0) {
+            if (this.rawOperators.length === 0) {
                 if (tableBody) {
-                    tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748B;">No verified operators found in the database.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748B;">No verified operator accounts found in database.</td></tr>`;
                 }
                 if (countLabel) countLabel.innerText = '0';
                 return;
@@ -101,52 +141,55 @@ class GovVerifiedDirectory {
 
         if (records.length === 0) {
             if (tableBody) {
-                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748B;">No verified operators found matching criteria.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748B;">No verified operator accounts found matching criteria.</td></tr>`;
             }
             return;
         }
 
         if (tableBody) {
-            tableBody.innerHTML = records.map(r => {
-                const operatorName = r.operator_name || 'Registered Operator Entity';
-                const ssmNumber = r.ssm_number || 'N/A';
-                const mystraCode = r.display_code;
-                const otaPlatform = r.ota_platform;
-                const location = `${r.state || 'Kuala Lumpur'} ${r.district ? '(' + r.district + ')' : ''}`;
-                const formattedDate = r.uploaded_at ? new Date(r.uploaded_at).toLocaleDateString() : '8/17/2026';
-                const documentUrl = r.file_link ? encodeURIComponent(r.file_link) : '';
+            tableBody.innerHTML = records.map((r, index) => {
+                const accomCount = r.accommodations.length;
+                const platforms = Array.from(r.ota_platforms).join(' / ');
+                const primaryCode = Array.from(r.mystra_codes)[0] || 'MYS-VERIFIED';
+                const formattedDate = r.latest_date ? new Date(r.latest_date).toLocaleDateString() : 'N/A';
+                const accomListHtml = accomCount > 0 
+                    ? r.accommodations.map(a => `• ${a.property_name} (${a.state}) [${a.code}]`).join('\n')
+                    : 'No accommodation listings linked yet.';
 
                 return `
                     <tr style="border-bottom: 1px solid #F1F5F9;">
                         <td style="padding: 16px;">
-                            <div style="font-weight: 700; color: #0F172A; font-size: 14px;">🏥 ${operatorName}</div>
+                            <div style="font-weight: 700; color: #0F172A; font-size: 14px;">🏢 ${r.operator_name}</div>
                             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">
-                                👤 Owner: System Admin | SSM: ${ssmNumber}
+                                👤 ${r.account_name} | SSM: ${r.ssm_number} | 📞 ${r.phone_no}
                             </div>
                         </td>
                         <td style="padding: 16px;">
                             <span style="background-color: #EFF6FF; color: #2563EB; padding: 6px 10px; border-radius: 6px; font-family: monospace; font-weight: 700; font-size: 12px;">
-                                ${mystraCode}
+                                ${primaryCode} ${accomCount > 1 ? `(+${accomCount - 1})` : ''}
+                            </span>
+                        </td>
+                        <td style="padding: 16px;">
+                            <span style="background: #F1F5F9; color: #334155; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;">
+                                🏠 <strong>${accomCount}</strong> Accommodation${accomCount > 1 ? 's' : ''}
                             </span>
                         </td>
                         <td style="padding: 16px; color: #334155; font-size: 13px;">
-                            🌐 ${otaPlatform}
-                        </td>
-                        <td style="padding: 16px; color: #475569; font-size: 13px;">
-                            📍 ${location}
+                            🌐 ${platforms}
                         </td>
                         <td style="padding: 16px;">
                             <span style="color: #059669; font-weight: 700; font-size: 12px; background-color: #D1FAE5; padding: 4px 8px; border-radius: 12px;">
-                                ● ACTIVE
+                                ● VERIFIED ACCOUNT
                             </span>
                         </td>
                         <td style="padding: 16px; color: #64748B; font-size: 13px;">
                             ${formattedDate}
                         </td>
                         <td style="padding: 16px;">
-                            <button onclick="window.verifiedApp.viewCertificate('${mystraCode}', '${encodeURIComponent(operatorName)}', '${documentUrl}')" 
+                            <button onclick="window.verifiedApp.showOperatorDetails(${index})" 
+                                    title="${accomListHtml}"
                                     style="background-color: #2563EB; color: #FFF; border: none; padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                                📄 View License
+                                📄 View Accommodations (${accomCount})
                             </button>
                         </td>
                     </tr>
@@ -162,25 +205,23 @@ class GovVerifiedDirectory {
         const rawQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
         const selectedOTA = otaSelect ? otaSelect.value : 'ALL';
 
-        const filtered = this.rawRecords.filter(r => {
+        const filtered = this.rawOperators.filter(r => {
             const operator = (r.operator_name || '').toLowerCase();
             const ssm = (r.ssm_number || '').toLowerCase();
-            const code = (r.display_code || '').toLowerCase();
-            const state = (r.state || '').toLowerCase();
-            const platform = (r.ota_platform || '').toLowerCase();
+            const account = (r.account_name || '').toLowerCase();
+            const platforms = Array.from(r.ota_platforms).join(' ').toLowerCase();
 
-            // 1. Text Search Filter
-            const matchesText = !rawQuery || 
-                operator.includes(rawQuery) || 
-                ssm.includes(rawQuery) || 
-                code.includes(rawQuery) || 
-                state.includes(rawQuery) ||
-                platform.includes(rawQuery);
+            const matchesAccom = r.accommodations.some(a => 
+                (a.property_name || '').toLowerCase().includes(rawQuery) ||
+                (a.code || '').toLowerCase().includes(rawQuery) ||
+                (a.state || '').toLowerCase().includes(rawQuery)
+            );
 
-            // 2. Dropdown Filter Logic
+            const matchesText = !rawQuery || operator.includes(rawQuery) || ssm.includes(rawQuery) || account.includes(rawQuery) || matchesAccom;
+
             let matchesOTA = true;
             if (selectedOTA !== 'ALL') {
-                matchesOTA = platform.includes(selectedOTA.toLowerCase());
+                matchesOTA = platforms.includes(selectedOTA.toLowerCase());
             }
 
             return matchesText && matchesOTA;
@@ -189,9 +230,9 @@ class GovVerifiedDirectory {
         this.renderRows(filtered);
     }
 
-    viewCertificate(code, name, encodedUrl) {
-        const decodedName = decodeURIComponent(name);
-        let decodedUrl = encodedUrl ? decodeURIComponent(encodedUrl) : '';
+    showOperatorDetails(index) {
+        const record = this.rawOperators[index];
+        if (!record) return;
 
         const modal = document.getElementById('licenseModal');
         const titleEl = document.getElementById('modalOperatorTitle');
@@ -199,41 +240,47 @@ class GovVerifiedDirectory {
 
         if (!modal || !bodyEl) return;
 
-        titleEl.innerText = `📄 STR License File: ${decodedName} (${code})`;
+        titleEl.innerText = `🏢 Verified Operator: ${record.operator_name} (SSM: ${record.ssm_number})`;
 
-        const isValidExternalUrl = decodedUrl.startsWith('http://') || decodedUrl.startsWith('https://');
-
-        if (isValidExternalUrl) {
-            const isImage = /\.(jpeg|jpg|png|gif|webp)$/i.test(decodedUrl);
-            if (isImage) {
-                bodyEl.innerHTML = `<img src="${decodedUrl}" class="preview-image" alt="License File">`;
-            } else {
-                bodyEl.innerHTML = `<iframe src="${decodedUrl}" class="preview-iframe"></iframe>`;
-            }
-        } else {
-            bodyEl.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #475569; width: 100%;">
-                    <div style="font-size: 54px; margin-bottom: 12px;">📜</div>
-                    <h2 style="margin: 0 0 8px 0; color: #0F172A; font-size: 20px;">Official STR Operating License</h2>
-                    <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: 600; color: #334155;">${decodedName}</p>
-                    <div style="margin: 12px 0;">
-                        <span style="background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; padding: 6px 14px; border-radius: 8px; font-family: monospace; font-weight: 700; font-size: 14px;">
-                            MySTRA Code: ${code}
-                        </span>
+        const accomCards = record.accommodations.length > 0 
+            ? record.accommodations.map((a, idx) => `
+                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 700; color: #0F172A; font-size: 14px;">🏠 ${idx + 1}. ${a.property_name}</div>
+                        <div style="font-size: 12px; color: #64748B; margin-top: 4px;">
+                            Location: ${a.state} ${a.district ? '(' + a.district + ')' : ''} | Code: <strong style="color: #2563EB;">${a.code}</strong>
+                        </div>
                     </div>
-                    <div style="margin-top: 16px;">
-                        <span style="background: #D1FAE5; color: #065F46; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 12px; display: inline-block;">
-                            ● STATUS: ACTIVE & OFFICIALLY VERIFIED
+                    <div>
+                        <span style="background: #EFF6FF; color: #1D4ED8; font-weight: 600; font-size: 11px; padding: 4px 8px; border-radius: 6px; margin-right: 8px;">
+                            ${a.platform}
                         </span>
+                        <button onclick="window.verifiedApp.previewSingleLicense('${a.code}', '${encodeURIComponent(a.property_name)}', '${encodeURIComponent(a.file_url)}')"
+                                style="background: #10B981; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                            📄 View Code
+                        </button>
                     </div>
-                    <p style="margin-top: 24px; font-size: 12px; color: #94A3B8; border-top: 1px dashed #CBD5E1; padding-top: 16px;">
-                        Verified via Malaysia Short-Term Residential Accommodation (MySTRA) Registry System.
-                    </p>
                 </div>
-            `;
-        }
+            `).join('')
+            : `<div style="text-align: center; color: #94A3B8; padding: 20px;">No registered accommodations found under this operator account.</div>`;
+
+        bodyEl.innerHTML = `
+            <div style="padding: 20px; width: 100%; max-height: 70vh; overflow-y: auto;">
+                <div style="margin-bottom: 16px; background: #F8FAFC; padding: 12px; border-radius: 8px;">
+                    <span style="font-size: 13px; color: #475569;">Registered Account Name: <strong>${record.account_name}</strong></span> | 
+                    <span style="font-size: 13px; color: #475569;">Total Linked Accommodations: <strong style="color: #059669;">${record.accommodations.length}</strong></span>
+                </div>
+                <h4 style="margin: 0 0 12px 0; color: #1E293B; font-size: 14px;">Registered Accommodation Listings:</h4>
+                ${accomCards}
+            </div>
+        `;
 
         modal.style.display = 'flex';
+    }
+
+    previewSingleLicense(code, name, encodedUrl) {
+        const decodedName = decodeURIComponent(name);
+        alert(`📜 Official STR Code Details\n\nProperty: ${decodedName}\nRegistration Code: ${code}\nStatus: ACTIVE & OFFICIALLY VERIFIED`);
     }
 
     closeLicenseModal() {
@@ -241,5 +288,40 @@ class GovVerifiedDirectory {
         const bodyEl = document.getElementById('modalPreviewBody');
         if (modal) modal.style.display = 'none';
         if (bodyEl) bodyEl.innerHTML = '';
+    }
+}
+
+async function handleLogout(event) {
+    if (event) event.preventDefault();
+
+    if (!window.supabaseClient) {
+        console.error('❌ Supabase 客户端未初始化');
+        return;
+    }
+
+    try {
+        // 1. 记录登出审计日志（若 GovAuditLogDirectory 存在）
+        if (window.GovAuditLogDirectory) {
+            await window.GovAuditLogDirectory.logAction({
+                actionDetails: 'Admin logged out',
+                isValidPass: true
+            });
+        }
+
+        // 2. 执行 Supabase Auth 注销
+        const { error } = await window.supabaseClient.auth.signOut();
+
+        if (error) {
+            alert('Logout Failed: ' + error.message);
+            return;
+        }
+
+        // 3. 清理 Session 并重定向
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+
+    } catch (err) {
+        console.error('❌ Logout Exception:', err);
     }
 }

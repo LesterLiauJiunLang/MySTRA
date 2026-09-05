@@ -87,25 +87,24 @@
             background-color: #F8FAFC;
         }
 
-        /* Status Badge Styling Examples for JS Dynamic Insertion */
         .badge-pass {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 4px 8px;
             background: #D1FAE5;
             color: #065F46;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .badge-fail {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 4px 8px;
             background: #FEE2E2;
             color: #991B1B;
-            border-radius: 20px;
+            border-radius: 4px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -150,12 +149,12 @@
                         <span class="nav-label">Audit Log</span>
                     </li>
                 </a>
-                <a href="#" class="nav-link" onclick="alert('Settings panel active.')">
-                    <li class="nav-item">
-                        <span class="nav-icon">⚙️</span>
-                        <span class="nav-label">Settings</span>
-                    </li>
-                </a>
+                <a href="#" class="nav-link" id="btn-logout" onclick="handleLogout(event)">
+    <li class="nav-item">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-label">Logout</span>
+    </li>
+</a>
             </ul>
         </aside>
 
@@ -181,7 +180,7 @@
                     <div class="audit-toolbar">
                         <div class="audit-search-box">
                             <input type="text" id="input-audit-search" class="audit-input" placeholder="🔍 Search by Officer ID, Document Ref, Action, or Date...">
-                            <select id="select-audit-filter" class="audit-select" onchange="if(window.govAdminAuditModule) govAdminAuditModule.applyFilters()">
+                            <select id="select-audit-filter" class="audit-select">
                                 <option value="ALL">All Actions</option>
                                 <option value="APPROVED">Pass / Approved</option>
                                 <option value="REJECTED">Failed / Rejected</option>
