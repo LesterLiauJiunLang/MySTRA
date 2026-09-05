@@ -10,7 +10,26 @@
   <script src="auth.js" defer></script>
 </head>
 <body class="auth-body">
-
+  <!-- ===== TOP NAVIGATION ===== -->
+  <div style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
+    <a href="mystra-map-view.html" style="
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: white;
+      color: #1E3A8A;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.2s ease;
+    " onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='white'">
+      ⬅ Return to Map
+    </a>
+  </div>
   <!-- STEP 1: SPLIT CARD FOR INITIAL REGISTRATION -->
   <div id="step-register" class="split-card">
     <!-- LEFT FORM PANEL -->
