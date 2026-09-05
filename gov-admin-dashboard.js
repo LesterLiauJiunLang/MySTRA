@@ -23,7 +23,7 @@ class GovAdminDashboardModule {
 
     async loadDashboardMetrics() {
         try {
-            // 1. Fetch All Compliance Documents for Status Breakdown
+            // 1. 获取所有 Compliance Documents 用于 Document Audit Status (UC-M5-01)
             const { data: docs, error: docError } = await window.supabaseClient
                 .from('compliance_documents')
                 .select('*');
@@ -35,37 +35,45 @@ class GovAdminDashboardModule {
             const allDocs = docs || [];
             const totalDocs = allDocs.length;
 
-            // Strict document status calculations for Card Metrics & Status Chart
             const pendingDocs = allDocs.filter(d => (d.status || '').toUpperCase() === 'PENDING').length;
             const approvedDocs = allDocs.filter(d => (d.status || '').toUpperCase() === 'APPROVED').length;
             const rejectedDocs = allDocs.filter(d => (d.status || '').toUpperCase() === 'REJECTED').length;
             const revisionDocs = allDocs.filter(d => (d.status || '').toUpperCase() === 'REUPLOAD_REQUESTED').length;
 
-            // 2. Fetch Verified Operators directly using the EXACT query from GovVerifiedDirectory
-            const { data: verifiedDocs, error: verifiedError } = await window.supabaseClient
-                .from('compliance_documents')
-                .select('*')
-                .or('status.eq.APPROVED,status.eq.VERIFIED,review_status.eq.APPROVED');
+            // 2. 独立查询 profiles 中所有已验证的 operator 账号 (与 Verified Directory 保持一致)
+            const { data: verifiedProfiles, error: profErr } = await window.supabaseClient
+                .from('profiles')
+                .select('id')
+                .eq('role', 'operator')
+                .eq('is_verified', true);
 
-            if (verifiedError) {
-                console.error("Error fetching verified docs:", verifiedError.message);
+            if (profErr) {
+                console.error("Error fetching verified profiles:", profErr.message);
             }
 
-            const activeVerifiedDocs = verifiedDocs || [];
-            const verifiedCount = activeVerifiedDocs.length;
+            const verifiedOperators = verifiedProfiles || [];
+            const verifiedCount = verifiedOperators.length; // 真实已验证 Operator 账号总数
+            const verifiedOperatorIds = new Set(verifiedOperators.map(p => p.id));
 
-            // 3. Aggregate State Statistics from Verified Records
+            // 3. 独立查询 properties 表，获取这些已验证 Operator 名下的房产，并按 State 进行统计 (UC-M5-03)
+            const { data: properties, error: propErr } = await window.supabaseClient
+                .from('properties')
+                .select('id, owner_id, state');
+
+            if (propErr) {
+                console.error("Error fetching properties for state stats:", propErr.message);
+            }
+
             let stateCounts = {};
-            activeVerifiedDocs.forEach(item => {
-                const stateName = item.state || 'Kuala Lumpur';
-                stateCounts[stateName] = (stateCounts[stateName] || 0) + 1;
+            (properties || []).forEach(prop => {
+                // 仅统计属于已验证 Operator 的房产
+                if (prop.owner_id && verifiedOperatorIds.has(prop.owner_id)) {
+                    const stateName = prop.state || 'WPKL';
+                    stateCounts[stateName] = (stateCounts[stateName] || 0) + 1;
+                }
             });
 
-            if (Object.keys(stateCounts).length === 0 && verifiedCount > 0) {
-                stateCounts = { 'Kuala Lumpur': verifiedCount };
-            }
-
-            // 4. Update UI Metric Cards (6 Cards Total)
+            // 4. 更新 UI 顶部 Metric 卡片
             this.setCardValue(['metric-total', 'metric-total-docs'], totalDocs);
             this.setCardValue(['metric-pending', 'metric-pending-docs'], pendingDocs);
             this.setCardValue(['metric-approved', 'metric-approved-docs'], approvedDocs);
@@ -73,7 +81,7 @@ class GovAdminDashboardModule {
             this.setCardValue(['metric-revision'], revisionDocs);
             this.setCardValue(['metric-verified', 'metric-verified-operators'], verifiedCount);
 
-            // Cache data for chart updates and toggling
+            // 缓存数据供图表切换与渲染使用
             this.cachedStatusCounts = {
                 pending: pendingDocs,
                 approved: approvedDocs,
@@ -82,7 +90,7 @@ class GovAdminDashboardModule {
             };
             this.cachedStateData = stateCounts;
 
-            // 5. Render UC-M5-01 & UC-M5-03 Charts
+            // 5. 渲染图表
             this.renderDocumentStatusChart(this.cachedStatusCounts, this.currentStatusChartType);
             this.renderStateAccommodationChart(this.cachedStateData, this.currentStateChartType);
 
@@ -238,5 +246,40 @@ class GovAdminDashboardModule {
                 }
             }
         });
+    }
+}
+
+async function handleLogout(event) {
+    if (event) event.preventDefault();
+
+    if (!window.supabaseClient) {
+        console.error('❌ Supabase 客户端未初始化');
+        return;
+    }
+
+    try {
+        // 1. 记录登出审计日志（若 GovAuditLogDirectory 存在）
+        if (window.GovAuditLogDirectory) {
+            await window.GovAuditLogDirectory.logAction({
+                actionDetails: 'Admin logged out',
+                isValidPass: true
+            });
+        }
+
+        // 2. 执行 Supabase Auth 注销
+        const { error } = await window.supabaseClient.auth.signOut();
+
+        if (error) {
+            alert('Logout Failed: ' + error.message);
+            return;
+        }
+
+        // 3. 清理 Session 并重定向
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+
+    } catch (err) {
+        console.error('❌ Logout Exception:', err);
     }
 }
