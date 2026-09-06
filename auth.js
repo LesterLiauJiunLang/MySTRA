@@ -93,8 +93,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
-});
-
   setupOtpInputs("legacy-otp-container");
   setupOtpInputs("otp-container");
   setupOtpInputs("forgot-otp-container");
@@ -775,3 +773,5 @@ if (updateLegacyErr) {
       }
     });
   }
+});
+
