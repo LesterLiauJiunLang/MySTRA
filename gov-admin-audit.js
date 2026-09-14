@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 只有在 Audit Log 页面才初始化视图管理
+    // Initialize view management only on pages containing the Audit Log table or search input
     if (document.getElementById('tbl-audit-body') || document.getElementById('input-audit-search')) {
         window.auditApp = new GovAuditLogDirectory();
     }
@@ -9,14 +9,14 @@ class GovAuditLogDirectory {
     constructor() {
         this.rawLogs = [];
         this.initRetries = 0;
-        this.maxRetries = 30; // 最多轮询等待 30 次 (约 9 秒)
+        this.maxRetries = 30; // Maximum polling retries (approx. 9 seconds)
         this.init();
     }
 
     async init() {
         if (!window.supabaseClient) {
             if (this.initRetries >= this.maxRetries) {
-                console.error('❌ [Audit] 初始化超时：未能在预定时间内检测到 window.supabaseClient。');
+                console.error('❌ [Audit] Initialization timeout: window.supabaseClient not detected in time.');
                 return;
             }
             this.initRetries++;
@@ -29,18 +29,11 @@ class GovAuditLogDirectory {
     }
 
     /**
-     * 【审计日志记录】：无需 Supabase Auth Session 即可写入，同时精准记录操作人名字
-     * 
-     * @param {Object} params
-     * @param {string} [params.performerName='System Admin'] - 操作员姓名/编号 (例: 'Officer Tan', 'ADMIN-001')
-     * @param {string} [params.registrationCode=null] - 申请单号
-     * @param {string} [params.targetDocId=null] - 目标文档 ID
-     * @param {string} params.actionDetails - 操作细节说明
-     * @param {boolean} [params.isValidPass=true] - 操作状态/结果
-     * @param {string} [params.requestingOta='GOV_ADMIN'] - 请求来源标识
+     * Audit log recorder: Writes action logs to Supabase interceptor_audit_logs table.
+     * Automatically captures logged-in user information if performerName is omitted.
      */
     static async logAction({ 
-        performerName = 'System Admin', 
+        performerName = null, 
         registrationCode = null, 
         targetDocId = null, 
         actionDetails = '', 
@@ -49,26 +42,33 @@ class GovAuditLogDirectory {
     }) {
         try {
             if (!window.supabaseClient) {
-                console.error('❌ [Audit] Supabase 客户端未初始化，无法写入日志。');
+                console.error('❌ [Audit] Supabase client uninitialized. Cannot write audit log.');
                 return { success: false, error: 'Supabase client missing' };
             }
 
-            // 1. 尝试获取当前的 Auth Session UUID
+            // 1. Attempt to retrieve current Auth Session details
             let officerUuid = null;
+            let currentUserEmail = null;
             try {
                 const { data: { user } } = await window.supabaseClient.auth.getUser();
-                if (user && user.id) {
+                if (user) {
                     officerUuid = user.id;
+                    currentUserEmail = user.email;
                 }
             } catch (authErr) {
-                // 忽略未登录报错
+                // Ignore unauthenticated session errors
             }
 
-            // 2. 将操作人姓名/标识融合写入 action_details（作为未关联 profiles 时的降级方案）
-            const safePerformer = performerName || 'System Admin';
+            // 2. Resolve operator identity (Priority: passed name -> currentAdminName -> currentAdminEmail -> auth email -> fallback)
+            const safePerformer = performerName 
+                || window.currentAdminName 
+                || window.currentAdminEmail 
+                || currentUserEmail 
+                || 'System Admin';
+
             const formattedActionDetails = `[Actor: ${safePerformer}] ${actionDetails}`;
 
-            // 3. 构造数据库插入 Payload
+            // 3. Construct database payload
             const insertPayload = {
                 registration_code: registrationCode,
                 target_doc_id: targetDocId,
@@ -81,32 +81,32 @@ class GovAuditLogDirectory {
                 insertPayload.officer_id = officerUuid;
             }
 
-            // 4. 执行写入
+            // 4. Perform database insertion
             const { data, error } = await window.supabaseClient
                 .from('interceptor_audit_logs')
                 .insert([insertPayload])
                 .select();
 
             if (error) {
-                console.error('❌ [Audit] Supabase 数据库插入失败:', error.message);
+                console.error('❌ [Audit] Supabase database insertion failed:', error.message);
                 return { success: false, error: error.message };
             }
 
-            console.log('✅ [Audit] 日志已成功写入 Supabase:', data);
+            console.log('✅ [Audit] Log successfully written to Supabase:', data);
 
-            // 5. 自动刷新页面展示
+            // 5. Automatically refresh UI table if audit view is active
             if (window.auditApp && typeof window.auditApp.loadAuditLogs === 'function') {
                 await window.auditApp.loadAuditLogs();
             }
 
             return { success: true, data };
         } catch (err) {
-            console.error('❌ [Audit] 记录日志时发生未知异常:', err);
+            console.error('❌ [Audit] Unexpected exception while logging audit:', err);
             return { success: false, error: err.message };
         }
     }
 
-    // 实例方法包装器
+    // Instance wrapper for logAction
     async recordAudit(params) {
         return await GovAuditLogDirectory.logAction(params);
     }
@@ -131,10 +131,11 @@ class GovAuditLogDirectory {
         const countLabel = document.getElementById('lbl-audit-count') || document.getElementById('total-recorded-logs');
 
         try {
-            // 1. 查询审计日志单表数据（彻底解耦 Supabase 外键约束依赖，100% 避免 Embedding 连表报错）
+            // 1. Query raw audit logs ordered descending by timestamp directly from DB
             const { data: logs, error: logErr } = await window.supabaseClient
                 .from('interceptor_audit_logs')
-                .select('*');
+                .select('*')
+                .order('timestamp', { ascending: false });
 
             if (logErr) {
                 throw new Error(logErr.message);
@@ -142,7 +143,7 @@ class GovAuditLogDirectory {
 
             let logData = logs || [];
 
-            // 2. 提取所有非空的 officer_id，批量向 profiles 表查询对应管理员信息
+            // 2. Extract unique officer_ids to batch query user profiles
             const officerIds = [...new Set(logData.map(l => l.officer_id).filter(Boolean))];
             const profileMap = {};
 
@@ -161,19 +162,15 @@ class GovAuditLogDirectory {
                         });
                     }
                 } catch (pErr) {
-                    console.warn('⚠️ [Audit] 获取 profiles 列表失败，降级使用 [Actor: xxx] 提取名称:', pErr);
+                    console.warn('⚠️ [Audit] Failed to load profiles list. Fallback to [Actor: xxx] tag parsing:', pErr);
                 }
             }
 
-            // 3. 将 profiles 回填至对应 log 记录，并按最新时间倒序排列（最新的显示在最上面）
+            // 3. Map profile details to logs
             this.rawLogs = logData.map(log => ({
                 ...log,
                 profiles: log.officer_id ? (profileMap[log.officer_id] || null) : null
-            })).sort((a, b) => {
-                const timeA = new Date(a.timestamp || a.created_at || 0).getTime();
-                const timeB = new Date(b.timestamp || b.created_at || 0).getTime();
-                return timeB - timeA; // 最新时间置顶
-            });
+            }));
 
             if (this.rawLogs.length === 0) {
                 if (tableBody) tableBody.innerHTML = '';
@@ -186,9 +183,9 @@ class GovAuditLogDirectory {
             this.renderRows(this.rawLogs);
 
         } catch (err) {
-            console.error('❌ [Audit] 加载日志异常:', err);
+            console.error('❌ [Audit] Exception while loading audit logs:', err);
             if (tableBody) {
-                tableBody.innerHTML = `<tr><td colspan="5" style="color:#EF4444; text-align:center; padding:20px;">加载日志失败: ${this.escapeHtml(err.message)}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" style="color:#EF4444; text-align:center; padding:20px;">Failed to load audit logs: ${this.escapeHtml(err.message)}</td></tr>`;
             }
         }
     }
@@ -214,20 +211,19 @@ class GovAuditLogDirectory {
                 
                 let rawDetails = String(log.action_details || 'Application Audit Update');
 
-                // 1. 优先读取 profiles 表中的 full_name
+                // 1. Prioritize full_name from profiles table
                 let adminName = log.profiles?.full_name;
 
-                // 2. 尝试提取 [Actor: xxx] 并清洗详情字段
+                // 2. Extract [Actor: xxx] prefix and sanitize raw details
                 const actorMatch = rawDetails.match(/^\[Actor:\s*([^\]]+)\]\s*(.*)$/);
                 if (actorMatch) {
-                    // 仅当 profiles 表未返回 full_name 时，才退回使用 [Actor: xxx]
                     if (!adminName) {
                         adminName = actorMatch[1];
                     }
-                    rawDetails = actorMatch[2]; // 清除掉 [Actor: xxx] 标签，还原真实描述
+                    rawDetails = actorMatch[2]; // Restore original description text
                 }
 
-                // 3. 兜底默认值
+                // 3. Default fallback value
                 if (!adminName) {
                     adminName = 'System Admin';
                 }
@@ -380,24 +376,36 @@ class GovAuditLogDirectory {
 
 window.GovAuditLogDirectory = GovAuditLogDirectory;
 
+/**
+ * Global Admin Logout Handler
+ * Captures active logged-in officer identity, logs audit action, and signs out.
+ */
 async function handleLogout(event) {
     if (event) event.preventDefault();
 
     if (!window.supabaseClient) {
-        console.error('❌ Supabase 客户端未初始化');
+        console.error('❌ Supabase client uninitialized');
         return;
     }
 
     try {
-        // 1. 记录登出审计日志（若 GovAuditLogDirectory 存在）
+        // 1. Identify active admin user before signing out
+        let activeAdmin = window.currentAdminName || window.currentAdminEmail;
+        if (!activeAdmin) {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            activeAdmin = session?.user?.email || session?.user?.id || 'Unknown Admin';
+        }
+
+        // 2. Write logout audit log
         if (window.GovAuditLogDirectory) {
             await window.GovAuditLogDirectory.logAction({
-                actionDetails: 'Admin logged out',
+                performerName: activeAdmin,
+                actionDetails: 'Admin user logged out successfully',
                 isValidPass: true
             });
         }
 
-        // 2. 执行 Supabase Auth 注销
+        // 3. Perform Supabase Sign Out
         const { error } = await window.supabaseClient.auth.signOut();
 
         if (error) {
@@ -405,10 +413,10 @@ async function handleLogout(event) {
             return;
         }
 
-        // 3. 清理 Session 并重定向
+        // 4. Clear local/session storage and redirect to login
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = 'login.html';
+        window.location.replace('login.html');
 
     } catch (err) {
         console.error('❌ Logout Exception:', err);

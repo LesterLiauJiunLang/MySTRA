@@ -10,6 +10,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+    <script src="admin-auth-guard.js"></script>
 
     <style>
         /* Floating Popup Overlay Backdrop */
@@ -156,8 +157,8 @@
         <main class="main-workspace">
             <header class="top-bar">
                 <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
-                <div class="officer-badge">
-                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                <div class="session-badge">
+                     🟢 Officer Session: ACTIVE [<span id="lbl-admin-name">Loading...</span>]
                 </div>
             </header>
 

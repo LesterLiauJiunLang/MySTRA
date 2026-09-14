@@ -4,22 +4,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
 class GovAdminDocumentModule {
     constructor() {
-        this.adminId = "ADM-MYSTRA-2026";
-        this.currentFilter = 'PENDING';
+        this.adminId = window.currentAdminEmail || "GOV_ADMIN";
+        this.currentFilter = 'ALL';
         this.selectedDocData = null;
         this.allDocuments = [];
         this.profileMap = {};
         this.propertyMap = {};
+
         this.init();
     }
 
     init() {
-        if (!window.supabaseClient) {
-            setTimeout(() => this.init(), 300);
-            return;
-        }
         this.bindEvents();
         this.fetchQueueDocuments();
+    }
+
+    /**
+     * Sanitizes dynamic user strings to prevent XSS attacks
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     bindEvents() {
@@ -27,8 +37,9 @@ class GovAdminDocumentModule {
         document.querySelectorAll('.gov-filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.gov-filter-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.currentFilter = e.target.getAttribute('data-filter');
+                const target = e.currentTarget || e.target;
+                target.classList.add('active');
+                this.currentFilter = target.getAttribute('data-filter') || 'ALL';
                 this.applyFilters();
             });
         });
@@ -38,6 +49,7 @@ class GovAdminDocumentModule {
         document.getElementById('btn-action-reject')?.addEventListener('click', () => this.processDecision('REJECTED'));
         document.getElementById('btn-action-reupload')?.addEventListener('click', () => this.processDecision('REUPLOAD_REQUESTED'));
         document.getElementById('btn-open-preview')?.addEventListener('click', () => this.openDocumentModal());
+        document.getElementById('btn-close-modal')?.addEventListener('click', () => this.closeDocumentModal());
 
         // Search Input and State Select Dropdown
         document.getElementById('gov-search-input')?.addEventListener('input', () => this.applyFilters());
@@ -79,7 +91,7 @@ class GovAdminDocumentModule {
         } catch (err) {
             console.error("Error fetching queue documents:", err);
             if (queueContainer) {
-                queueContainer.innerHTML = `<p style="color:#EF4444; font-size:13px; text-align:center; padding:20px;">Error loading queue: ${err.message}</p>`;
+                queueContainer.innerHTML = `<p style="color:#EF4444; font-size:13px; text-align:center; padding:20px;">Error loading queue: ${this.escapeHtml(err.message)}</p>`;
             }
         }
     }
@@ -92,13 +104,11 @@ class GovAdminDocumentModule {
         const stateFilter = document.getElementById('gov-state-filter')?.value || 'ALL';
 
         const filteredDocs = this.allDocuments.filter(doc => {
-            // Normalize status values to Uppercase for strict parity
-            const rawStatus = doc.status || doc.review_status || 'PENDING';
+            const rawStatus = doc.review_status || doc.status || 'PENDING';
             const status = rawStatus.toUpperCase();
-            
-            let matchesTab = (this.currentFilter === 'ALL') || (status === this.currentFilter);
 
-            // Get mapped names for global search
+            const matchesTab = (this.currentFilter === 'ALL') || (status === this.currentFilter);
+
             const userId = doc.user_id || doc.operator_id;
             const operator = (doc.operator_name || this.profileMap[userId] || '').toLowerCase();
             const property = (this.propertyMap[doc.property_id] || '').toLowerCase();
@@ -106,11 +116,11 @@ class GovAdminDocumentModule {
             const docType = (doc.document_type || doc.document_name || '').toLowerCase();
             const refId = (doc.id || '').toString().toLowerCase();
 
-            const matchesSearch = !searchQuery || 
-                operator.includes(searchQuery) || 
+            const matchesSearch = !searchQuery ||
+                operator.includes(searchQuery) ||
                 property.includes(searchQuery) ||
-                ssm.includes(searchQuery) || 
-                docType.includes(searchQuery) || 
+                ssm.includes(searchQuery) ||
+                docType.includes(searchQuery) ||
                 refId.includes(searchQuery);
 
             const docState = doc.state || '';
@@ -126,21 +136,27 @@ class GovAdminDocumentModule {
 
         queueContainer.innerHTML = filteredDocs.map(doc => {
             const userId = doc.user_id || doc.operator_id;
-            const operator = doc.operator_name || this.profileMap[userId] || 'Registered Operator';
-            const propertyName = this.propertyMap[doc.property_id] || 'Accommodation Listing';
-            const location = doc.state ? ` (${doc.state})` : '';
+            const rawOperator = doc.operator_name || this.profileMap[userId] || 'Registered Operator';
+            const rawProperty = this.propertyMap[doc.property_id] || 'Accommodation Listing';
+            const rawDocType = doc.document_type || doc.document_name || 'Regulatory Document';
+
+            const operator = this.escapeHtml(rawOperator);
+            const propertyName = this.escapeHtml(rawProperty);
+            const docType = this.escapeHtml(rawDocType);
+            const location = doc.state ? ` (${this.escapeHtml(doc.state)})` : '';
             const isSelected = this.selectedDocData?.id === doc.id;
-            const docType = doc.document_type || doc.document_name || 'Regulatory Document';
-            
-            // Normalize status to Uppercase
-            const rawStatus = doc.status || doc.review_status || 'PENDING';
+            const docIdStr = this.escapeHtml(doc.id.toString());
+
+            const rawStatus = doc.review_status || doc.status || 'PENDING';
             const status = rawStatus.toUpperCase();
 
             return `
-                <div class="gov-queue-item ${isSelected ? 'selected' : ''}" onclick='govAdminDocumentModule.selectDocument(${JSON.stringify(doc)})' style="cursor:pointer; border:1px solid ${isSelected ? '#2563EB' : '#E2E8F0'}; background:${isSelected ? '#EFF6FF' : '#FFFFFF'}; padding:12px; border-radius:8px; margin-bottom:8px;">
+                <div class="gov-queue-item ${isSelected ? 'selected' : ''}" 
+                     onclick='govAdminDocumentModule.selectDocument(${JSON.stringify(doc)})' 
+                     style="cursor:pointer; border:1px solid ${isSelected ? '#2563EB' : '#E2E8F0'}; background:${isSelected ? '#EFF6FF' : '#FFFFFF'}; padding:12px; border-radius:8px; margin-bottom:8px;">
                     <div style="display:flex; justify-content:space-between; font-weight:600; font-size:13px; color:#0F172A;">
                         <span>📄 ${docType}</span>
-                        <span style="color:#2563EB; font-family:monospace;">#${doc.id.toString().substring(0, 8)}</span>
+                        <span style="color:#2563EB; font-family:monospace;">#${docIdStr.substring(0, 8)}</span>
                     </div>
                     <div style="font-size:12px; color:#1E293B; font-weight:600; margin-top:4px;">
                         👤 ${operator}${location}
@@ -150,7 +166,7 @@ class GovAdminDocumentModule {
                     </div>
                     <div style="font-size:11px; color:#6B7280; margin-top:4px; display:flex; justify-content:space-between;">
                         <span>Uploaded: ${new Date(doc.uploaded_at || Date.now()).toLocaleDateString()}</span>
-                        <span>Status: <strong style="color:${status === 'APPROVED' ? '#059669' : status === 'REJECTED' ? '#DC2626' : '#D97706'}">${status}</strong></span>
+                        <span>Status: <strong style="color:${status === 'APPROVED' ? '#059669' : status === 'REJECTED' ? '#DC2626' : '#D97706'}">${this.escapeHtml(status)}</strong></span>
                     </div>
                 </div>
             `;
@@ -159,8 +175,7 @@ class GovAdminDocumentModule {
 
     selectDocument(doc) {
         this.selectedDocData = doc;
-        
-        // Populate evaluation panel
+
         const selectedIdInput = document.getElementById('gov-selected-doc-id');
         const refDisplayInput = document.getElementById('gov-doc-ref-display');
         const categoryDisplayInput = document.getElementById('gov-doc-category-display');
@@ -170,15 +185,14 @@ class GovAdminDocumentModule {
         if (refDisplayInput) refDisplayInput.value = `#${doc.id}`;
         if (categoryDisplayInput) categoryDisplayInput.value = doc.document_type || doc.document_name || 'N/A';
         if (remarksInput) remarksInput.value = doc.admin_feedback || '';
-        
+
         const previewBtn = document.getElementById('btn-open-preview');
         if (previewBtn) previewBtn.disabled = false;
 
         const actionRow = document.getElementById('gov-action-row');
         const lockedNotice = document.getElementById('gov-locked-notice');
-        
-        // Normalize status to Uppercase
-        const rawStatus = doc.status || doc.review_status || 'PENDING';
+
+        const rawStatus = doc.review_status || doc.status || 'PENDING';
         const status = rawStatus.toUpperCase();
 
         if (status === 'PENDING') {
@@ -188,7 +202,7 @@ class GovAdminDocumentModule {
             if (actionRow) actionRow.classList.add('hidden');
             if (lockedNotice) {
                 lockedNotice.classList.remove('hidden');
-                
+
                 if (status === 'APPROVED' || status === 'VERIFIED') {
                     lockedNotice.style.backgroundColor = '#D1FAE5';
                     lockedNotice.style.color = '#065F46';
@@ -216,10 +230,10 @@ class GovAdminDocumentModule {
 
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
-        
-        const fileUrl = this.selectedDocData.file_path || this.selectedDocData.file_url || this.selectedDocData.document_url;
 
-        if (!fileUrl || fileUrl.trim() === '') {
+        const rawUrl = this.selectedDocData.file_path || this.selectedDocData.file_url || this.selectedDocData.document_url;
+
+        if (!rawUrl || rawUrl.trim() === '') {
             container.innerHTML = `
                 <div style="text-align:center; padding:40px 20px; border:2px dashed #CBD5E1; border-radius:8px; background:#F8FAFC;">
                     <div style="font-size:32px; margin-bottom:8px;">📄</div>
@@ -230,13 +244,15 @@ class GovAdminDocumentModule {
             return;
         }
 
+        const fileUrl = this.escapeHtml(rawUrl.trim());
         const isPdf = fileUrl.toLowerCase().includes('.pdf');
+
         if (isPdf) {
-            const viewerUrl = fileUrl.startsWith('http') ? `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true` : fileUrl;
+            const viewerUrl = fileUrl.startsWith('http') ? `https://docs.google.com/gview?url=${encodeURIComponent(rawUrl)}&embedded=true` : fileUrl;
             container.innerHTML = `
-                <iframe src="${viewerUrl}" style="width:100%; height:480px; border:1px solid #E2E8F0; border-radius:8px;" frameborder="0"></iframe>
+                <iframe src="${this.escapeHtml(viewerUrl)}" style="width:100%; height:480px; border:1px solid #E2E8F0; border-radius:8px;" frameborder="0"></iframe>
                 <div style="margin-top:10px; text-align:right;">
-                    <a href="${fileUrl}" target="_blank" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ Open direct PDF file</a>
+                    <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ Open direct PDF file</a>
                 </div>
             `;
         } else {
@@ -245,11 +261,11 @@ class GovAdminDocumentModule {
                      style="max-width:100%; max-height:480px; border-radius:8px; display:block; margin:0 auto;" 
                      onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'text-align:center; padding:30px; color:#EF4444; font-size:13px;\\'>⚠️ File link broken or inaccessible.</div>';" />
                 <div style="margin-top:10px; text-align:right;">
-                    <a href="${fileUrl}" target="_blank" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ View full image</a>
+                    <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563EB; font-size:12px; font-weight:600; text-decoration:none;">↗ View full image</a>
                 </div>
             `;
         }
-    }   
+    }
 
     closeDocumentModal() {
         const modal = document.getElementById('document-preview-modal');
@@ -275,23 +291,21 @@ class GovAdminDocumentModule {
         }
 
         try {
-            // Ensure status and review_status are synchronized in UPPERCASE
             const statusValue = decisionType.toUpperCase();
-            const reviewStatusValue = statusValue;
 
             // 1. Update compliance_documents table
             const { error: docError } = await window.supabaseClient
                 .from('compliance_documents')
-                .update({ 
-                    status: statusValue, 
-                    review_status: reviewStatusValue, 
-                    admin_feedback: comments 
+                .update({
+                    status: statusValue,
+                    review_status: statusValue,
+                    admin_feedback: comments
                 })
                 .eq('id', docId);
 
             if (docError) throw docError;
 
-            // 2. Synchronize verified status to related entities upon approval
+            // 2. Cascading verification updates upon approval
             if (statusValue === 'APPROVED' || statusValue === 'VERIFIED') {
                 const targetPropertyId = this.selectedDocData?.property_id;
                 const targetUserId = this.selectedDocData?.user_id || this.selectedDocData?.operator_id;
@@ -300,37 +314,63 @@ class GovAdminDocumentModule {
 
                 // Update property verification
                 if (targetPropertyId) {
-                    await window.supabaseClient
-                        .from('properties')
-                        .update({ is_verified: true })
-                        .eq('id', targetPropertyId);
+                    try {
+                        const { error: propErr } = await window.supabaseClient
+                            .from('properties')
+                            .update({ is_verified: true })
+                            .eq('id', targetPropertyId);
+
+                        if (propErr) console.warn("Property verification update warning:", propErr);
+                    } catch (pErr) {
+                        console.warn("Failed to update linked property:", pErr);
+                    }
                 }
 
-                // Strictly update operator profile ONLY if document is SSM verification
+                // Update operator profile verification (only for SSM/Business docs)
                 if (docType.includes('SSM') || docType.includes('BUSINESS')) {
                     if (targetUserId) {
-                        const profileUpdatePayload = { is_verified: true };
-                        if (ssmNumber) {
-                            profileUpdatePayload.business_ssm = ssmNumber;
-                        }
+                        try {
+                            const profileUpdatePayload = { is_verified: true };
+                            if (ssmNumber) {
+                                profileUpdatePayload.business_ssm = ssmNumber;
+                            }
 
-                        await window.supabaseClient
-                            .from('profiles')
-                            .update(profileUpdatePayload)
-                            .eq('id', targetUserId);
+                            const { error: profErr } = await window.supabaseClient
+                                .from('profiles')
+                                .update(profileUpdatePayload)
+                                .eq('id', targetUserId);
+
+                            if (profErr) console.warn("Profile verification update warning:", profErr);
+                        } catch (uErr) {
+                            console.warn("Failed to update linked profile:", uErr);
+                        }
                     }
                 }
             }
 
-            // 3. Write audit log entry
+            // 3. Write audit log entry safely (uses shared GovAuditLogDirectory if available)
             try {
-                await window.supabaseClient.from('interceptor_audit_logs').insert([{
-                    registration_code: docId,
-                    requesting_ota: `GOV_ADMIN [${this.adminId}] - ${statusValue}`,
-                    is_valid_pass: statusValue === 'APPROVED' || statusValue === 'VERIFIED',
-                    checked_nights_snapshot: 0,
-                    timestamp: new Date().toISOString()
-                }]);
+                if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
+                    await window.GovAuditLogDirectory.logAction({
+                        performerName: window.currentAdminName || this.adminId,
+                        registrationCode: docId,
+                        targetDocId: docId,
+                        actionDetails: `Document ${statusValue} (${this.selectedDocData?.document_type || 'N/A'})`,
+                        isValidPass: statusValue === 'APPROVED' || statusValue === 'VERIFIED',
+                        requestingOta: 'GOV_ADMIN'
+                    });
+                } else {
+                    // Fallback: direct insert if audit module missing
+                    await window.supabaseClient.from('interceptor_audit_logs').insert([{
+                        registration_code: docId,
+                        target_doc_id: docId,
+                        action_details: `[Actor: ${this.adminId}] Document ${statusValue} (${this.selectedDocData?.document_type || 'N/A'})`,
+                        requesting_ota: 'GOV_ADMIN',
+                        is_valid_pass: statusValue === 'APPROVED' || statusValue === 'VERIFIED',
+                        checked_nights_snapshot: 0,
+                        timestamp: new Date().toISOString()
+                    }]);
+                }
             } catch (auditErr) {
                 console.warn("Audit log insert warning:", auditErr);
             }
@@ -341,13 +381,13 @@ class GovAdminDocumentModule {
 
         } catch (err) {
             console.error("Error processing decision:", err);
-            alert('❌ Failed to update document status: ' + err.message);
+            alert('❌ Failed to update document status: ' + (err.message || err));
         }
     }
 
     resetForm() {
         this.selectedDocData = null;
-        
+
         const selectedIdInput = document.getElementById('gov-selected-doc-id');
         const refDisplayInput = document.getElementById('gov-doc-ref-display');
         const categoryDisplayInput = document.getElementById('gov-doc-category-display');
@@ -363,33 +403,41 @@ class GovAdminDocumentModule {
 
         const actionRow = document.getElementById('gov-action-row');
         const lockedNotice = document.getElementById('gov-locked-notice');
-        
+
         if (actionRow) actionRow.classList.remove('hidden');
         if (lockedNotice) lockedNotice.classList.add('hidden');
     }
 }
 
 /**
- * 独立的全局 Logout 函数，供 HTML onclick="handleLogout(event)" 调用
+ * Handles administrator logout by recording an audit log and signing out of Supabase
  */
 async function handleLogout(event) {
     if (event) event.preventDefault();
 
     if (!window.supabaseClient) {
-        console.error('❌ Supabase 客户端未初始化');
+        console.error('❌ Supabase client uninitialized');
         return;
     }
 
     try {
-        // 1. 记录登出审计日志（若 GovAuditLogDirectory 存在）
-        if (window.GovAuditLogDirectory) {
-            await window.GovAuditLogDirectory.logAction({
-                actionDetails: 'Admin logged out',
-                isValidPass: true
-            });
+        const currentAdmin = window.currentAdminName
+            || window.currentAdminEmail
+            || 'Executive Officer';
+
+        if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
+            try {
+                await window.GovAuditLogDirectory.logAction({
+                    performerName: currentAdmin,
+                    actionDetails: 'Admin logged out',
+                    isValidPass: true,
+                    requestingOta: 'DOCUMENT_MODULE'
+                });
+            } catch (auditErr) {
+                console.warn('⚠️ Non-blocking logout audit log failure:', auditErr);
+            }
         }
 
-        // 2. 执行 Supabase Auth 注销
         const { error } = await window.supabaseClient.auth.signOut();
 
         if (error) {
@@ -397,7 +445,6 @@ async function handleLogout(event) {
             return;
         }
 
-        // 3. 清理 Session 并重定向
         localStorage.clear();
         sessionStorage.clear();
         window.location.href = 'login.html';

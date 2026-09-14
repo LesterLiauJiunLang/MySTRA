@@ -62,8 +62,8 @@
         <main class="main-workspace">
             <header class="top-bar">
                 <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
-                <div class="officer-badge">
-                    🟢 Officer Session: <strong>ACTIVE [ADM-MYSTRA-2026]</strong>
+                <div class="session-badge">
+                     🟢 Officer Session: ACTIVE [<span id="lbl-admin-name">Loading...</span>]
                 </div>
             </header>
 
@@ -129,15 +129,10 @@
         </main>
     </div>
 
-    <!-- 统一在页面底部按顺序加载 JS 脚本 -->
-    <!-- 1. Supabase SDK 和配置文件 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-
-    <!-- 2. 提供 Log 公共方法的模块 -->
+    <script src="admin-auth-guard.js"></script>
     <script src="gov-admin-audit.js"></script>
-
-    <!-- 3. 报表业务逻辑脚本 -->
     <script src="gov-admin-reports.js"></script>
     
 </body>
