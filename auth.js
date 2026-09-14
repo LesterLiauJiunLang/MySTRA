@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const resendBtn = document.getElementById("link-resend-otp");
 
   let tempUserData = { email: "", password: "", fullName: "", phone: "" };
-  let tempLegacyData = { email: "", licenseNo: "", ssm: "" };
+  let tempLegacyData = { email: "", licenseNo: "", ssm: "", fullName: "", businessName: "", phone: "", documentUrl: "" };
   let currentGeneratedOTP = null;
 
   // Eye Toggle Helper
@@ -93,7 +93,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
-
   setupOtpInputs("legacy-otp-container");
   setupOtpInputs("otp-container");
   setupOtpInputs("forgot-otp-container");
@@ -320,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==============================================================================
-  // 1. MIGRATE LEGACY ACCOUNT HANDLERS
+  // 1. MIGRATE LEGACY ACCOUNT HANDLERS (MOCK DB -> PROFILES & COMPLIANCE)
   // ==============================================================================
   const migPassInput = document.getElementById("mig-password");
   const migConfirmInput = document.getElementById("mig-confirm-password");
@@ -383,12 +382,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const client = getSupabaseClient();
       if (!client) return;
 
+      // Query mock_legacy_external_db using its native schema
       const { data: legacyRecord, error: legacyErr } = await client
-        .from("legacy_accounts")
+        .from("mock_legacy_external_db")
         .select("*")
-        .ilike("legacy_email", email)
-        .ilike("license_no", licenseNo)
-        .eq("business_ssm", ssm)
+        .ilike("operator_email", email)
+        .ilike("licence_no_code", licenseNo)
+        .eq("ssm_reg_number", ssm)
         .single();
 
       if (legacyErr || !legacyRecord) {
@@ -396,12 +396,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (legacyRecord.is_migrated) {
+      if (legacyRecord.system_status === "MIGRATED") {
         alert("❌ This legacy account has already been migrated. Please log in with your credentials.");
         return;
       }
 
-      tempLegacyData = { email, licenseNo, ssm };
+      // Map legacy schema to application structure (ETL transformation)
+      tempLegacyData = {
+        email: legacyRecord.operator_email,
+        licenseNo: legacyRecord.licence_no_code,
+        ssm: legacyRecord.ssm_reg_number,
+        fullName: legacyRecord.operator_name || "Legacy Operator",
+        businessName: legacyRecord.operator_business_name || "Legacy Business",
+        phone: legacyRecord.phone_number || "",
+        documentUrl: legacyRecord.document_url || ""
+      };
+
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
@@ -459,13 +469,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const client = getSupabaseClient();
       try {
+        // 1. Create Supabase Auth User with metadata
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempLegacyData.email,
           password: newPassword,
           options: {
             data: {
-              full_name: "Legacy Operator",
+              full_name: tempLegacyData.fullName,
+              business_name: tempLegacyData.businessName,
               business_ssm: tempLegacyData.ssm,
+              phone_no: tempLegacyData.phone,
               is_verified: true
             }
           }
@@ -476,12 +489,56 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        await client
-          .from("legacy_accounts")
-          .update({ is_migrated: true })
-          .eq("legacy_email", tempLegacyData.email);
+        // 2. Load transformed profile into clean public.profiles
+        if (authData?.user) {
+          const { error: profileError } = await client
+            .from("profiles")
+            .insert([
+              {
+                id: authData.user.id,
+                full_name: tempLegacyData.fullName,
+                business_name: tempLegacyData.businessName,
+                business_ssm: tempLegacyData.ssm,
+                phone_no: tempLegacyData.phone,
+                role: "operator"
+              }
+            ]);
 
-        alert("✅ Legacy account migrated successfully! Please log in to continue.");
+          if (profileError) {
+            console.warn("Profile Insert Notice:", profileError.message);
+          }
+
+          // 3. Ingest legacy document into document compliance pipeline ONLY upon successful migration
+          if (tempLegacyData.documentUrl) {
+            const { error: complianceErr } = await client
+              .from("document_compliance")
+              .insert([
+                {
+                  profile_id: authData.user.id,
+                  document_url: tempLegacyData.documentUrl,
+                  status: "PENDING_REVIEW",
+                  submitted_at: new Date().toISOString()
+                }
+              ]);
+
+            if (complianceErr) {
+              console.warn("Compliance Ingestion Notice:", complianceErr.message);
+            }
+          }
+        }
+
+        
+        // 4. Update status in legacy_accounts table to migrated
+      const { error: updateLegacyErr } = await client
+        .from("legacy_accounts")
+        .update({ is_migrated: true })
+        .eq("legacy_email", tempLegacyData.email);
+
+if (updateLegacyErr) {
+  console.warn("Legacy Table Update Notice:", updateLegacyErr.message);
+}
+
+        alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
         window.location.href = "login.html";
 
       } catch (err) {
@@ -501,9 +558,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const password = document.getElementById("reg-password")?.value || "";
       const confirmPassword = document.getElementById("reg-confirm-password")?.value || "";
       const fullName = document.getElementById("reg-fullname")?.value.trim() || "";
+      const businessName = document.getElementById("reg-business-name")?.value.trim() || "";
       const phone = document.getElementById("reg-phone")?.value.trim() || "";
 
-      if (!email || !password || !confirmPassword || !fullName || !phone) {
+      if (!email || !password || !confirmPassword || !fullName || !businessName || !phone) {
         alert("❌ Please complete all required fields.");
         return;
       }
@@ -513,7 +571,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      tempUserData = { email, password, fullName, phone };
+      tempUserData = { email, password, fullName, businessName, phone };
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
@@ -555,12 +613,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
+        // 1. Create Supabase Auth User with metadata
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempUserData.email,
           password: tempUserData.password,
           options: {
             data: {
               full_name: tempUserData.fullName,
+              business_name: tempUserData.businessName,
               phone_no: tempUserData.phone
             }
           }
@@ -569,6 +629,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (signUpError) {
           alert("❌ Registration Error: " + signUpError.message);
           return;
+        }
+
+        // 2. Insert into profiles table
+        if (authData?.user) {
+          const { error: profileError } = await client
+            .from("profiles")
+            .insert([
+              {
+                id: authData.user.id,
+                full_name: tempUserData.fullName,
+                business_name: tempUserData.businessName,
+                phone_no: tempUserData.phone,
+                role: "operator"
+              }
+            ]);
+
+          if (profileError) {
+            console.warn("Profile Insert Notice:", profileError.message);
+          }
         }
 
         alert("✅ Account created successfully! Redirecting to login...");
@@ -581,11 +660,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==============================================================================
-  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE
+  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE 
   // ==============================================================================
   if (loginForm) {
     const emailInput = document.getElementById("email");
     const rememberCheckbox = document.getElementById("remember-me");
+
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_TIME_MS = 15 * 60 * 1000; // 15 minutes
+    const ATTEMPT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
     const savedEmail = localStorage.getItem("mystra_remembered_email");
     if (savedEmail && emailInput && rememberCheckbox) {
@@ -596,18 +679,28 @@ document.addEventListener("DOMContentLoaded", () => {
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const email = emailInput ? emailInput.value.trim() : "";
+      const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
       const password = document.getElementById("password") ? document.getElementById("password").value : "";
 
-      if (email && rememberCheckbox && rememberCheckbox.checked) {
-        localStorage.setItem("mystra_remembered_email", email);
-      } else {
-        localStorage.removeItem("mystra_remembered_email");
+      // Flow A5: Empty Required Fields
+      if (!email || !password) {
+        alert("Please enter both your email and password.");
+        return;
       }
 
-      if (!email || !password) {
-        alert("❌ Please enter both your email and password.");
+      // Flow A4: Rate Limiting / Lockout Check
+      const now = Date.now();
+      let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
+      let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
+
+      if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
+        alert("Too many failed attempts. Please try again in 15 minutes.");
         return;
+      }
+
+      // Reset attempt window if 10 minutes have passed since first failed attempt
+      if (now - userAttempts.firstAttemptTime > ATTEMPT_WINDOW_MS) {
+        userAttempts = { count: 0, firstAttemptTime: now, lockUntil: 0 };
       }
 
       const client = getSupabaseClient();
@@ -617,18 +710,63 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       try {
+        // Step 5: Authenticate credentials against Supabase
         const { data: authData, error: authError } = await client.auth.signInWithPassword({
           email: email,
           password: password,
         });
 
+        // Flow A1 & A2: Invalid Credentials Handling
         if (authError) {
-          alert("❌ Invalid email or password.");
+          userAttempts.count += 1;
+          if (userAttempts.count === 1) {
+            userAttempts.firstAttemptTime = now;
+          }
+
+          if (userAttempts.count >= MAX_ATTEMPTS) {
+            userAttempts.lockUntil = now + LOCKOUT_TIME_MS;
+            attemptsData[email] = userAttempts;
+            localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+            alert("Too many failed attempts. Please try again in 15 minutes.");
+            return;
+          }
+
+          attemptsData[email] = userAttempts;
+          localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+
+          alert("Invalid email or password.");
           return;
         }
 
-        alert("✅ Login successful! Redirecting...");
-        window.location.href = "index.html";
+        // Reset failed attempt counter on successful login
+        delete attemptsData[email];
+        localStorage.setItem("mystra_login_attempts", JSON.stringify(attemptsData));
+
+        // Flow A7: Remember Me handling
+        if (emailInput && rememberCheckbox && rememberCheckbox.checked) {
+          localStorage.setItem("mystra_remembered_email", email);
+        } else {
+          localStorage.removeItem("mystra_remembered_email");
+        }
+
+        // Step 6 / Flow A3: Check Verification State & Role
+        const { data: profile } = await client
+          .from("profiles")
+          .select("role, is_verified")
+          .eq("id", authData.user.id)
+          .single();
+
+        const isVerified = profile?.is_verified ?? authData.user.user_metadata?.is_verified ?? false;
+
+        // Step 7: Redirect to respective dashboard
+        if (profile && (profile.role === "admin" || profile.role === "gov_admin")) {
+          alert("✅ Admin login successful! Redirecting...");
+          window.location.href = "gov-admin-dashboard.html";
+        } else {
+          alert("✅ Login successful! Redirecting...");
+          // Pass verification state to index page so banner can render if false (Flow A3)
+          window.location.href = isVerified ? "index.html" : "index.html?verified=false";
+        }
 
       } catch (err) {
         alert("❌ Login Error: " + err.message);
@@ -636,3 +774,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+

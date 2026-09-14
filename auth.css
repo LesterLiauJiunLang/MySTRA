@@ -128,25 +128,30 @@
 }
 
 /* Inline Form Rows */
+/* Stacked Form Rows */
 .form-group-inline {
   display: flex;
-  align-items: center;
+  flex-direction: column; /* Stack label above input */
+  align-items: flex-start;
   margin-bottom: 1rem;
+  width: 100%;
 }
 
 .form-group-inline label {
-  width: 130px;
+  width: 100%;
   font-size: 0.82rem;
   font-weight: bold;
   color: #334155;
+  margin-bottom: 0.35rem; /* Space between label and input */
+  text-align: left;
 }
 
-/* Inputs with Blue Stroke */
+/* Inputs Span Full Width */
 .form-group-inline input {
-  flex: 1;
-  padding: 0.55rem 0.8rem;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
   border: 1px solid #3b82f6;
-  border-radius: 12px;
+  border-radius: 8px; /* Slightly tighter radius looks cleaner */
   font-size: 0.85rem;
   background-color: #ffffff;
   outline: none;
@@ -162,6 +167,17 @@
 .form-group-inline input::placeholder {
   color: #94a3b8;
   font-size: 0.8rem;
+}
+
+/* Full Width Register Button */
+.form-panel .button-row {
+  width: 100%;
+}
+
+.form-panel .btn-blue {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.9rem;
 }
 
 /* Password Eye Toggle & Criteria */
