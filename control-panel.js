@@ -290,11 +290,11 @@ function renderDocuments(docs) {
         container.innerHTML = `
             <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>📄 Municipal STRA Guidelines 2026.pdf</span>
-                <button class="btn-secondary" onclick="alert('Downloading Document Guideline...')">📥 Download</button>
+                <a class="btn-secondary" href="docs/Municipal-STRA-Guidelines-2026.pdf" download="Municipal-STRA-Guidelines-2026.pdf" style="text-decoration:none;">📥 Download</a>
             </li>
             <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
                 <span>📄 Operator Identity Certification Packet.pdf</span>
-                <button class="btn-secondary" onclick="alert('Downloading Verification Packet...')">📥 Download</button>
+                <a class="btn-secondary" href="docs/Operator-Identity-Certification-Packet.pdf" download="Operator-Identity-Certification-Packet.pdf" style="text-decoration:none;">📥 Download</a>
             </li>
         `;
         return;
@@ -307,7 +307,10 @@ function renderDocuments(docs) {
                 <span class="badge-green" style="margin-left: 8px;">${d.review_status || 'APPROVED'}</span>
                 ${d.admin_feedback ? `<p style="font-size: 12px; color: #6B7280; margin-top: 4px;">Note: ${d.admin_feedback}</p>` : ''}
             </div>
-            <button class="btn-secondary" onclick="alert('Accessing file: ${d.file_path || 'document.pdf'}')">📥 Download</button>
+            ${d.file_path
+                ? `<a class="btn-secondary" href="${d.file_path}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📥 Download</a>`
+                : `<span class="btn-secondary" style="opacity:0.5; cursor:not-allowed;">📎 No File</span>`
+            }
         </li>
     `).join('');
 }
