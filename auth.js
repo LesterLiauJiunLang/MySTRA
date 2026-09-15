@@ -382,13 +382,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const client = getSupabaseClient();
       if (!client) return;
 
-      // Query mock_legacy_external_db using its native schema
+      // 1. Query internal legacy_accounts table using its precise schema
       const { data: legacyRecord, error: legacyErr } = await client
-        .from("mock_legacy_external_db")
+        .from("legacy_accounts")
         .select("*")
-        .ilike("operator_email", email)
-        .ilike("licence_no_code", licenseNo)
-        .eq("ssm_reg_number", ssm)
+        .ilike("legacy_email", email)
+        .ilike("license_no", licenseNo)
+        .eq("business_ssm", ssm)
         .single();
 
       if (legacyErr || !legacyRecord) {
@@ -396,18 +396,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (legacyRecord.system_status === "MIGRATED") {
+      if (legacyRecord.is_migrated) {
         alert("❌ This legacy account has already been migrated. Please log in with your credentials.");
         return;
       }
 
-      // Map legacy schema to application structure (ETL transformation)
+      // 2. Map legacy_accounts schema to tempLegacyData structure
       tempLegacyData = {
-        email: legacyRecord.operator_email,
-        licenseNo: legacyRecord.licence_no_code,
-        ssm: legacyRecord.ssm_reg_number,
+        email: legacyRecord.legacy_email,
+        licenseNo: legacyRecord.license_no,
+        ssm: legacyRecord.business_ssm,
         fullName: legacyRecord.operator_name || "Legacy Operator",
-        businessName: legacyRecord.operator_business_name || "Legacy Business",
+        businessName: legacyRecord.business_name || "Legacy Business",
         phone: legacyRecord.phone_number || "",
         documentUrl: legacyRecord.document_url || ""
       };
@@ -529,13 +529,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         
         // 4. Update status in legacy_accounts table to migrated
-      const { error: updateLegacyErr } = await client
-        .from("legacy_accounts")
-        .update({ is_migrated: true })
-        .eq("legacy_email", tempLegacyData.email);
+  // 4a. Update status in your internal tracking table (legacy_accounts)
+const { error: updateLegacyErr } = await client
+  .from("legacy_accounts")
+  .update({ is_migrated: true })
+  .ilike("legacy_email", tempLegacyData.email);
 
 if (updateLegacyErr) {
-  console.warn("Legacy Table Update Notice:", updateLegacyErr.message);
+  console.warn("Internal Legacy Table Update Notice:", updateLegacyErr.message);
+}
+
+// 4b. Sync status back to mock legacy system to block re-migration lookups
+const { error: updateMockErr } = await client
+  .from("mock_legacy_external_db")
+  .update({ system_status: "MIGRATED" })
+  .ilike("operator_email", tempLegacyData.email);
+
+if (updateMockErr) {
+  console.warn("Mock Legacy System Update Notice:", updateMockErr.message);
 }
 
         alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
