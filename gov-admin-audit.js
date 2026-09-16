@@ -23,22 +23,30 @@ class GovAuditLogDirectory {
             setTimeout(() => this.init(), 300);
             return;
         }
-        
+
         this.bindEvents();
         await this.loadAuditLogs();
     }
 
     /**
-     * Audit log recorder: Writes action logs to Supabase interceptor_audit_logs table.
-     * Automatically captures logged-in user information if performerName is omitted.
+     * Audit log recorder: Writes action logs to the Supabase `interceptor_audit_logs` table.
+     *
+     * Actor resolution strategy (in priority order):
+     *   1. Explicitly passed `performerName` argument (should be a real name, NOT an email)
+     *   2. Live lookup from the `profiles` table using the authenticated user's UUID
+     *   3. `window.currentAdminName` cache (set by the auth guard)
+     *   4. Generic fallback: 'System Admin'
+     *
+     * IMPORTANT: This method NEVER uses `window.currentAdminEmail` as a name fallback,
+     * because emails must not leak into the audit trail as actor identities.
      */
-    static async logAction({ 
-        performerName = null, 
-        registrationCode = null, 
-        targetDocId = null, 
-        actionDetails = '', 
-        isValidPass = true, 
-        requestingOta = 'GOV_ADMIN' 
+    static async logAction({
+        performerName = null,
+        registrationCode = null,
+        targetDocId = null,
+        actionDetails = '',
+        isValidPass = true,
+        requestingOta = 'GOV_ADMIN'
     }) {
         try {
             if (!window.supabaseClient) {
@@ -46,29 +54,63 @@ class GovAuditLogDirectory {
                 return { success: false, error: 'Supabase client missing' };
             }
 
-            // 1. Attempt to retrieve current Auth Session details
+            // ----------------------------------------------------------------
+            // STEP 1: Resolve the current authenticated user UUID.
+            //         Retry once after a short delay in case the session is
+            //         mid-refresh when this method is invoked.
+            // ----------------------------------------------------------------
             let officerUuid = null;
-            let currentUserEmail = null;
-            try {
-                const { data: { user } } = await window.supabaseClient.auth.getUser();
-                if (user) {
-                    officerUuid = user.id;
-                    currentUserEmail = user.email;
+            let resolvedName = performerName || window.currentAdminName || null;
+
+            for (let attempt = 0; attempt < 2 && !officerUuid; attempt++) {
+                try {
+                    const { data: { user } } = await window.supabaseClient.auth.getUser();
+
+                    if (user) {
+                        officerUuid = user.id;
+
+                        // ----------------------------------------------------------------
+                        // STEP 2: If we still do not have a display name, fetch it
+                        //         fresh from the profiles table NOW. This eliminates
+                        //         the race condition where the auth guard has not
+                        //         finished loading the profile yet.
+                        // ----------------------------------------------------------------
+                        if (!resolvedName) {
+                            const { data: profile } = await window.supabaseClient
+                                .from('profiles')
+                                .select('full_name, business_name')
+                                .eq('id', user.id)
+                                .maybeSingle();
+
+                            resolvedName = profile?.full_name
+                                || profile?.business_name
+                                || user.user_metadata?.full_name
+                                || user.email?.split('@')[0]
+                                || null;
+                        }
+                    } else if (attempt === 0) {
+                        // Session may be mid-refresh — wait briefly and retry once.
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                } catch (authErr) {
+                    console.warn(`⚠️ [Audit] getUser attempt ${attempt + 1} failed:`, authErr.message);
                 }
-            } catch (authErr) {
-                // Ignore unauthenticated session errors
             }
 
-            // 2. Resolve operator identity (Priority: passed name -> currentAdminName -> currentAdminEmail -> auth email -> fallback)
-            const safePerformer = performerName 
-                || window.currentAdminName 
-                || window.currentAdminEmail 
-                || currentUserEmail 
+            // ----------------------------------------------------------------
+            // STEP 3: Final fallback chain.
+            //         NOTE: window.currentAdminEmail is intentionally EXCLUDED.
+            //         An email must never appear as an actor identity.
+            // ----------------------------------------------------------------
+            const safePerformer = resolvedName
+                || window.currentAdminName
                 || 'System Admin';
 
             const formattedActionDetails = `[Actor: ${safePerformer}] ${actionDetails}`;
 
-            // 3. Construct database payload
+            // ----------------------------------------------------------------
+            // STEP 4: Build the database payload
+            // ----------------------------------------------------------------
             const insertPayload = {
                 registration_code: registrationCode,
                 target_doc_id: targetDocId,
@@ -81,7 +123,9 @@ class GovAuditLogDirectory {
                 insertPayload.officer_id = officerUuid;
             }
 
-            // 4. Perform database insertion
+            // ----------------------------------------------------------------
+            // STEP 5: Insert the audit record
+            // ----------------------------------------------------------------
             const { data, error } = await window.supabaseClient
                 .from('interceptor_audit_logs')
                 .insert([insertPayload])
@@ -94,7 +138,9 @@ class GovAuditLogDirectory {
 
             console.log('✅ [Audit] Log successfully written to Supabase:', data);
 
-            // 5. Automatically refresh UI table if audit view is active
+            // ----------------------------------------------------------------
+            // STEP 6: Auto-refresh the audit table UI if it is currently open
+            // ----------------------------------------------------------------
             if (window.auditApp && typeof window.auditApp.loadAuditLogs === 'function') {
                 await window.auditApp.loadAuditLogs();
             }
@@ -117,8 +163,8 @@ class GovAuditLogDirectory {
             searchInput.addEventListener('input', this.debounce(() => this.filterLogs(), 200));
         }
 
-        const selectFilter = document.getElementById('select-audit-filter') || 
-                             document.getElementById('select-audit-action') || 
+        const selectFilter = document.getElementById('select-audit-filter') ||
+                             document.getElementById('select-audit-action') ||
                              document.querySelector('select');
 
         if (selectFilter) {
@@ -208,10 +254,10 @@ class GovAuditLogDirectory {
             tableBody.innerHTML = logs.map(log => {
                 const logTime = log.timestamp || log.created_at;
                 const formattedDate = logTime ? new Date(logTime).toLocaleString() : 'N/A';
-                
+
                 let rawDetails = String(log.action_details || 'Application Audit Update');
 
-                // 1. Prioritize full_name from profiles table
+                // 1. Prioritize full_name from the profiles table (set via officer_id lookup)
                 let adminName = log.profiles?.full_name;
 
                 // 2. Extract [Actor: xxx] prefix and sanitize raw details
@@ -227,9 +273,14 @@ class GovAuditLogDirectory {
                 if (!adminName) {
                     adminName = 'System Admin';
                 }
-                
-                const officerUuid = log.officer_id ? `#${String(log.officer_id).substring(0, 8)}` : (log.requesting_ota || 'GOV_ADMIN');
-                const docRef = log.registration_code ? `#${String(log.registration_code).substring(0, 12)}` : (log.target_doc_id ? `#${String(log.target_doc_id).substring(0, 8)}` : 'N/A');
+
+                const officerUuid = log.officer_id
+                    ? `#${String(log.officer_id).substring(0, 8)}`
+                    : (log.requesting_ota || 'GOV_ADMIN');
+
+                const docRef = log.registration_code
+                    ? `#${String(log.registration_code).substring(0, 12)}`
+                    : (log.target_doc_id ? `#${String(log.target_doc_id).substring(0, 8)}` : 'N/A');
 
                 let actionText = rawDetails;
                 let statusBadge = '';
@@ -282,8 +333,8 @@ class GovAuditLogDirectory {
 
     filterLogs() {
         const searchInput = document.getElementById('input-audit-search');
-        const selectFilter = document.getElementById('select-audit-filter') || 
-                             document.getElementById('select-audit-action') || 
+        const selectFilter = document.getElementById('select-audit-filter') ||
+                             document.getElementById('select-audit-action') ||
                              document.querySelector('select');
 
         const rawQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -296,7 +347,7 @@ class GovAuditLogDirectory {
             const regCode = (log.registration_code || '').toLowerCase();
             const officerId = (log.officer_id || '').toLowerCase();
             const rawDetails = String(log.action_details || '');
-            
+
             let adminName = (log.profiles?.full_name || '').toLowerCase();
             let cleanedDetails = rawDetails.toLowerCase();
 
@@ -315,7 +366,7 @@ class GovAuditLogDirectory {
             const logTime = log.timestamp || log.created_at;
             const dateStr = logTime ? new Date(logTime).toLocaleString().toLowerCase() : '';
 
-            const matchesSearch = !rawQuery || 
+            const matchesSearch = !rawQuery ||
                 targetDocId.includes(cleanQuery) ||
                 regCode.includes(cleanQuery) ||
                 officerId.includes(rawQuery) ||
@@ -379,6 +430,11 @@ window.GovAuditLogDirectory = GovAuditLogDirectory;
 /**
  * Global Admin Logout Handler
  * Captures active logged-in officer identity, logs audit action, and signs out.
+ *
+ * NOTE: performerName is intentionally OMITTED from the logAction call.
+ *       The logAction method resolves the officer's real name from the
+ *       profiles table using the live authenticated session — which is
+ *       always accurate and never falls back to the email.
  */
 async function handleLogout(event) {
     if (event) event.preventDefault();
@@ -389,23 +445,20 @@ async function handleLogout(event) {
     }
 
     try {
-        // 1. Identify active admin user before signing out
-        let activeAdmin = window.currentAdminName || window.currentAdminEmail;
-        if (!activeAdmin) {
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
-            activeAdmin = session?.user?.email || session?.user?.id || 'Unknown Admin';
+        // 1. Write the logout audit entry FIRST, while the session is still active
+        if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
+            try {
+                await window.GovAuditLogDirectory.logAction({
+                    actionDetails: 'Admin user logged out successfully',
+                    isValidPass: true,
+                    requestingOta: 'GOV_ADMIN'
+                });
+            } catch (auditErr) {
+                console.warn('⚠️ Non-blocking logout audit log failure:', auditErr);
+            }
         }
 
-        // 2. Write logout audit log
-        if (window.GovAuditLogDirectory) {
-            await window.GovAuditLogDirectory.logAction({
-                performerName: activeAdmin,
-                actionDetails: 'Admin user logged out successfully',
-                isValidPass: true
-            });
-        }
-
-        // 3. Perform Supabase Sign Out
+        // 2. Perform Supabase Sign Out
         const { error } = await window.supabaseClient.auth.signOut();
 
         if (error) {
@@ -413,7 +466,7 @@ async function handleLogout(event) {
             return;
         }
 
-        // 4. Clear local/session storage and redirect to login
+        // 3. Clear local/session storage and redirect to login
         localStorage.clear();
         sessionStorage.clear();
         window.location.replace('login.html');
