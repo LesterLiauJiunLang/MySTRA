@@ -45,6 +45,9 @@ function resetAllViews() {
 // Sidebar Buttons Click Handler
 sidebarButtons.forEach(button => {
     button.addEventListener('click', () => {
+        // Skip panel reset/switch if clicking the logout button
+        if (button.id === 'nav-logout') return;
+
         resetAllViews();
         button.classList.add('active-nav');
         
@@ -526,7 +529,37 @@ if (btnTestCode) {
     });
 }
 
-// Run initial load on page start
+// Run initial load & event listener bindings on page start
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Fetch initial dashboard data
     loadSupabaseData();
+
+    // 2. Attach Logout Handler
+    const logoutBtn = document.getElementById("nav-logout");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+            const confirmLogout = confirm("Are you sure you want to log out?");
+            if (!confirmLogout) return;
+
+            try {
+                // Use the active global Supabase client instance
+                const client = window.supabaseClient;
+                
+                // Terminate session on Supabase if available
+                if (client && client.auth) {
+                    await client.auth.signOut();
+                }
+
+                // Clear local storage authentication artifacts
+                localStorage.removeItem("sb-access-token");
+                localStorage.removeItem("sb-refresh-token");
+
+                // Redirect user to the map view page
+                window.location.href = "mystra-map-view.html";
+            } catch (err) {
+                console.error("Error signing out:", err);
+                alert("Logout failed: " + err.message);
+            }
+        });
+    }
 });
