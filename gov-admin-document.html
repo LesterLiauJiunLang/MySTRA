@@ -182,10 +182,10 @@
                 <!-- SEARCH & REGIONAL FILTER TOOLBAR -->
                 <div class="filter-panel-card">
                     <div style="flex: 2;">
-                        <input type="text" id="gov-search-input" class="gov-dropdown" placeholder="🔍 Search Operator, SSM #, or Ref ID..." oninput="govAdminDocumentModule.applyFilters()" style="width: 100%;">
+                        <input type="text" id="gov-search-input" class="gov-dropdown" placeholder="🔍 Search Operator, SSM #, or Ref ID..." style="width: 100%;">
                     </div>
                     <div style="flex: 1;">
-                        <select id="gov-state-filter" class="gov-dropdown" onchange="govAdminDocumentModule.applyFilters()" style="width: 100%;">
+                        <select id="gov-state-filter" class="gov-dropdown" style="width: 100%;">
                             <option value="ALL">All States (Nationwide)</option>
                             <option value="Penang">Penang</option>
                             <option value="Selangor">Selangor</option>
@@ -223,7 +223,7 @@
 
                             <div class="gov-form-group">
                                 <label>Uploaded Compliance File</label>
-                                <button type="button" class="gov-btn btn-secondary" id="btn-open-preview" onclick="govAdminDocumentModule.openDocumentModal()" disabled>
+                                <button type="button" class="gov-btn btn-secondary" id="btn-open-preview" disabled>
                                     🔍 Preview Document (SSM / Permit / LHDN)
                                 </button>
                             </div>
@@ -250,11 +250,11 @@
     </div>
 
     <!-- Floating Document Preview Popup -->
-    <div id="document-preview-modal" class="modal-overlay hidden" onclick="if(event.target === this) govAdminDocumentModule.closeDocumentModal()">
+    <div id="document-preview-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Document File Preview</h3>
-                <button class="modal-close-btn" onclick="govAdminDocumentModule.closeDocumentModal()">✕</button>
+                <button class="modal-close-btn" id="btn-close-modal">✕</button>
             </div>
             <div class="modal-body" id="modal-file-container">
                 <!-- Dynamic PDF/Image content loads here -->
@@ -262,6 +262,7 @@
         </div>
     </div>
 
+    <script src="gov-admin-audit.js"></script>
     <script src="gov-admin-document.js"></script>
 </body>
 </html>

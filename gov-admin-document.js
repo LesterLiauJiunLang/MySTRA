@@ -5,7 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
 class GovAdminDocumentModule {
     constructor() {
         this.adminId = window.currentAdminEmail || "GOV_ADMIN";
-        this.currentFilter = 'ALL';
+
+        // ----------------------------------------------------------------
+        // FIX: Read the default filter from the currently-active tab in HTML.
+        //      Previously hardcoded to 'ALL', which caused a mismatch with the
+        //      'PENDING' tab that is marked active in the HTML — the queue
+        //      showed all documents on first load instead of only pending ones.
+        // ----------------------------------------------------------------
+        const activeTab = document.querySelector('.gov-filter-btn.active');
+        this.currentFilter = activeTab?.getAttribute('data-filter') || 'PENDING';
+
         this.selectedDocData = null;
         this.allDocuments = [];
         this.profileMap = {};
@@ -150,9 +159,13 @@ class GovAdminDocumentModule {
             const rawStatus = doc.review_status || doc.status || 'PENDING';
             const status = rawStatus.toUpperCase();
 
+            // Store the doc in a global map to avoid JSON.stringify issues in the onclick attribute
+            if (!window.__mystraDocCache) window.__mystraDocCache = {};
+            window.__mystraDocCache[doc.id] = doc;
+
             return `
                 <div class="gov-queue-item ${isSelected ? 'selected' : ''}" 
-                     onclick='govAdminDocumentModule.selectDocument(${JSON.stringify(doc)})' 
+                     onclick="govAdminDocumentModule.selectDocument(window.__mystraDocCache['${docIdStr}'])" 
                      style="cursor:pointer; border:1px solid ${isSelected ? '#2563EB' : '#E2E8F0'}; background:${isSelected ? '#EFF6FF' : '#FFFFFF'}; padding:12px; border-radius:8px; margin-bottom:8px;">
                     <div style="display:flex; justify-content:space-between; font-weight:600; font-size:13px; color:#0F172A;">
                         <span>📄 ${docType}</span>
@@ -174,6 +187,7 @@ class GovAdminDocumentModule {
     }
 
     selectDocument(doc) {
+        if (!doc) return;
         this.selectedDocData = doc;
 
         const selectedIdInput = document.getElementById('gov-selected-doc-id');
@@ -293,7 +307,9 @@ class GovAdminDocumentModule {
         try {
             const statusValue = decisionType.toUpperCase();
 
-            // 1. Update compliance_documents table
+            // ================================================================
+            // STEP 1: Update the compliance_documents table
+            // ================================================================
             const { error: docError } = await window.supabaseClient
                 .from('compliance_documents')
                 .update({
@@ -305,54 +321,107 @@ class GovAdminDocumentModule {
 
             if (docError) throw docError;
 
-            // 2. Cascading verification updates upon approval
+            // ================================================================
+            // STEP 2: Cascading verification updates upon approval
+            // ================================================================
             if (statusValue === 'APPROVED' || statusValue === 'VERIFIED') {
                 const targetPropertyId = this.selectedDocData?.property_id;
                 const targetUserId = this.selectedDocData?.user_id || this.selectedDocData?.operator_id;
-                const docType = (this.selectedDocData?.document_type || this.selectedDocData?.document_name || '').toUpperCase();
+                const rawDocType = this.selectedDocData?.document_type || this.selectedDocData?.document_name || '';
+                const docType = rawDocType.toUpperCase();
                 const ssmNumber = this.selectedDocData?.ssm_number;
 
-                // Update property verification
-                if (targetPropertyId) {
-                    try {
-                        const { error: propErr } = await window.supabaseClient
-                            .from('properties')
-                            .update({ is_verified: true })
-                            .eq('id', targetPropertyId);
+                // ---- DEBUG LOG -----------------------------------------
+                console.log('🔍 [Cascade] ===== Approval Cascade Start =====');
+                console.log('🔍 [Cascade] targetPropertyId:', targetPropertyId);
+                console.log('🔍 [Cascade] targetUserId:', targetUserId);
+                console.log('🔍 [Cascade] raw document_type:', rawDocType);
+                console.log('🔍 [Cascade] docType (upper):', docType);
+                console.log('🔍 [Cascade] ssmNumber:', ssmNumber);
+                // --------------------------------------------------------
 
-                        if (propErr) console.warn("Property verification update warning:", propErr);
-                    } catch (pErr) {
-                        console.warn("Failed to update linked property:", pErr);
+                // ---- Cascade 2a: Update property verification ----
+                if (targetPropertyId) {
+                    const { data: propRows, error: propErr } = await window.supabaseClient
+                        .from('properties')
+                        .update({ is_verified: true })
+                        .eq('id', targetPropertyId)
+                        .select();
+
+                    if (propErr) {
+                        console.error('❌ [Cascade] Property update FAILED:', propErr);
+                    } else if (!propRows || propRows.length === 0) {
+                        console.warn('⚠️ [Cascade] No property matched id =', targetPropertyId);
+                    } else {
+                        console.log('✅ [Cascade] Property verified:', propRows);
                     }
+                } else {
+                    console.log('ℹ️ [Cascade] Skipped property update — no property_id on this document.');
                 }
 
-                // Update operator profile verification (only for SSM/Business docs)
-                if (docType.includes('SSM') || docType.includes('BUSINESS')) {
-                    if (targetUserId) {
-                        try {
-                            const profileUpdatePayload = { is_verified: true };
-                            if (ssmNumber) {
-                                profileUpdatePayload.business_ssm = ssmNumber;
-                            }
+                // ---- Cascade 2b: Update profile (SSM/Business only) ----
+                const isBusinessDoc =
+                    docType.includes('SSM') ||
+                    docType.includes('BUSINESS') ||
+                    docType.includes('COMPANY') ||
+                    docType.includes('REGISTRATION') ||
+                    docType.includes('SURUHANJAYA');   // Malay name for SSM
 
-                            const { error: profErr } = await window.supabaseClient
-                                .from('profiles')
-                                .update(profileUpdatePayload)
-                                .eq('id', targetUserId);
+                console.log('🔍 [Cascade] isBusinessDoc?', isBusinessDoc, '| targetUserId?', !!targetUserId);
 
-                            if (profErr) console.warn("Profile verification update warning:", profErr);
-                        } catch (uErr) {
-                            console.warn("Failed to update linked profile:", uErr);
+                if (isBusinessDoc && targetUserId) {
+                    const profileUpdatePayload = { is_verified: true };
+                    if (ssmNumber) profileUpdatePayload.business_ssm = ssmNumber;
+
+                    console.log('🔧 [Cascade] UPDATE profiles SET', profileUpdatePayload, 'WHERE id =', targetUserId);
+
+                    const { data: profRows, error: profErr } = await window.supabaseClient
+                        .from('profiles')
+                        .update(profileUpdatePayload)
+                        .eq('id', targetUserId)
+                        .select();
+
+                    if (profErr) {
+                        console.error('❌ [Cascade] Profile update FAILED:', profErr);
+                        console.error('   Message:', profErr.message);
+                        console.error('   Code:', profErr.code);
+                        console.error('   Hint:', profErr.hint);
+
+                        // Show alert so admin knows the profile update failed
+                        if (profErr.code === '42501') {
+                            alert(
+                                '⚠️ Document approved, but operator profile verification FAILED.\n\n' +
+                                'Reason: Row-Level Security (RLS) policy blocked the update.\n\n' +
+                                'Please ask your Supabase admin to run the fix-supabase.sql script to allow admins to update the profiles table.'
+                            );
+                        } else {
+                            alert(`⚠️ Document approved, but profile verification failed: ${profErr.message}`);
                         }
+                    } else if (!profRows || profRows.length === 0) {
+                        console.warn('⚠️ [Cascade] No profile matched id =', targetUserId);
+                        alert(`⚠️ Document approved, but no profile was found with id:\n${targetUserId}`);
+                    } else {
+                        console.log('✅ [Cascade] Profile verified successfully:', profRows);
                     }
+                } else if (!isBusinessDoc) {
+                    console.log('ℹ️ [Cascade] Skipped profile update — not an SSM/Business document.');
+                } else {
+                    console.warn('⚠️ [Cascade] Skipped profile update — no targetUserId (user_id/operator_id missing).');
                 }
             }
 
-            // 3. Write audit log entry safely (uses shared GovAuditLogDirectory if available)
+            // ================================================================
+            // STEP 3: Write the audit log entry.
+            //         Preferred path: delegate to the shared GovAuditLogDirectory
+            //         which resolves the officer's identity from the live session.
+            //
+            //         IMPORTANT: We do NOT pass `performerName` here.
+            //         The logAction() method will resolve it from the profiles
+            //         table using the authenticated user's UUID.
+            // ================================================================
             try {
                 if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
                     await window.GovAuditLogDirectory.logAction({
-                        performerName: window.currentAdminName || this.adminId,
                         registrationCode: docId,
                         targetDocId: docId,
                         actionDetails: `Document ${statusValue} (${this.selectedDocData?.document_type || 'N/A'})`,
@@ -360,11 +429,34 @@ class GovAdminDocumentModule {
                         requestingOta: 'GOV_ADMIN'
                     });
                 } else {
-                    // Fallback: direct insert if audit module missing
+                    // FALLBACK: Direct insert with best-effort name resolution
+                    let fallbackName = window.currentAdminName;
+                    if (!fallbackName) {
+                        try {
+                            const { data: { user } } = await window.supabaseClient.auth.getUser();
+                            if (user) {
+                                const { data: profile } = await window.supabaseClient
+                                    .from('profiles')
+                                    .select('full_name, business_name')
+                                    .eq('id', user.id)
+                                    .maybeSingle();
+
+                                fallbackName = profile?.full_name
+                                    || profile?.business_name
+                                    || user.user_metadata?.full_name
+                                    || user.email?.split('@')[0]
+                                    || null;
+                            }
+                        } catch (lookupErr) {
+                            console.warn('⚠️ [Fallback] Could not resolve officer name:', lookupErr.message);
+                        }
+                    }
+                    fallbackName = fallbackName || 'System Admin';
+
                     await window.supabaseClient.from('interceptor_audit_logs').insert([{
                         registration_code: docId,
                         target_doc_id: docId,
-                        action_details: `[Actor: ${this.adminId}] Document ${statusValue} (${this.selectedDocData?.document_type || 'N/A'})`,
+                        action_details: `[Actor: ${fallbackName}] Document ${statusValue} (${this.selectedDocData?.document_type || 'N/A'})`,
                         requesting_ota: 'GOV_ADMIN',
                         is_valid_pass: statusValue === 'APPROVED' || statusValue === 'VERIFIED',
                         checked_nights_snapshot: 0,
@@ -375,6 +467,9 @@ class GovAdminDocumentModule {
                 console.warn("Audit log insert warning:", auditErr);
             }
 
+            // ================================================================
+            // STEP 4: Notify the user and refresh the queue
+            // ================================================================
             alert(`✅ Verification decision successfully saved: ${statusValue}.`);
             this.resetForm();
             await this.fetchQueueDocuments();
@@ -410,7 +505,7 @@ class GovAdminDocumentModule {
 }
 
 /**
- * Handles administrator logout by recording an audit log and signing out of Supabase
+ * Global Admin Logout Handler (Document Module)
  */
 async function handleLogout(event) {
     if (event) event.preventDefault();
@@ -421,15 +516,10 @@ async function handleLogout(event) {
     }
 
     try {
-        const currentAdmin = window.currentAdminName
-            || window.currentAdminEmail
-            || 'Executive Officer';
-
         if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
             try {
                 await window.GovAuditLogDirectory.logAction({
-                    performerName: currentAdmin,
-                    actionDetails: 'Admin logged out',
+                    actionDetails: 'Admin user logged out successfully',
                     isValidPass: true,
                     requestingOta: 'DOCUMENT_MODULE'
                 });
