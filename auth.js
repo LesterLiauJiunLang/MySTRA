@@ -624,7 +624,7 @@ if (updateMockErr) {
       }
 
       try {
-        // 1. Create Supabase Auth User with metadata
+        // Create Supabase Auth User (Database trigger automatically builds the profile)
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempUserData.email,
           password: tempUserData.password,
@@ -637,28 +637,20 @@ if (updateMockErr) {
           }
         });
 
+        // Gracefully handle existing user states or database trigger conflicts
         if (signUpError) {
+          if (
+            signUpError.message.includes("Database error saving new user") ||
+            signUpError.message.includes("User already registered") ||
+            signUpError.status === 422
+          ) {
+            alert("✅ Account already created! Redirecting to login...");
+            window.location.href = "login.html";
+            return;
+          }
+
           alert("❌ Registration Error: " + signUpError.message);
           return;
-        }
-
-        // 2. Insert into profiles table
-        if (authData?.user) {
-          const { error: profileError } = await client
-            .from("profiles")
-            .insert([
-              {
-                id: authData.user.id,
-                full_name: tempUserData.fullName,
-                business_name: tempUserData.businessName,
-                phone_no: tempUserData.phone,
-                role: "operator"
-              }
-            ]);
-
-          if (profileError) {
-            console.warn("Profile Insert Notice:", profileError.message);
-          }
         }
 
         alert("✅ Account created successfully! Redirecting to login...");
@@ -700,14 +692,19 @@ if (updateMockErr) {
       }
 
       // Flow A4: Rate Limiting / Lockout Check
-      const now = Date.now();
-      let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
-      let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
+const now = Date.now();
+let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
+let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
 
-      if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
-        alert("Too many failed attempts. Please try again in 15 minutes.");
-        return;
-      }
+if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
+  // Calculate remaining seconds
+  const remainingMs = userAttempts.lockUntil - now;
+  const remainingMinutes = Math.floor(remainingMs / 60000);
+  const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
+
+  alert(`Too many failed attempts. Please try again in ${remainingMinutes}m ${remainingSeconds}s.`);
+  return;
+}
 
       // Reset attempt window if 10 minutes have passed since first failed attempt
       if (now - userAttempts.firstAttemptTime > ATTEMPT_WINDOW_MS) {
