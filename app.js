@@ -7,4 +7,4 @@ const supabase = (window.supabase && window.supabase.createClient)
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
-// MySTRA System Engine ready.
+console.log("⚡ MySTRA System Engine initialization sequence completed successfully.");
