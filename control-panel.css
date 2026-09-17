@@ -60,6 +60,7 @@ body {
     font-weight: 600;
     position: relative;
 }
+
 .active-nav::before {
     content: '';
     position: absolute;
@@ -110,7 +111,11 @@ body {
     cursor: pointer;
     transition: background 0.2s;
 }
-.btn-primary:hover { background-color: #1D4ED8; }
+
+.btn-primary:hover {
+    background-color: #1D4ED8;
+}
+
 .btn-primary:disabled {
     background-color: #9CA3AF;
     cursor: not-allowed;
@@ -150,6 +155,7 @@ body {
     color: #2563EB;
     font-weight: 600;
 }
+
 /* Solid blue underline for active tab selection */
 .tab-btn.active::after {
     content: '';
@@ -168,7 +174,7 @@ body {
     background-color: #FFFFFF;
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 24px;
 }
 
@@ -180,8 +186,17 @@ body {
     flex-direction: column;
     justify-content: center;
 }
-.token-left-banner h3 { margin-bottom: 12px; font-size: 20px; }
-.token-left-banner p { font-size: 14px; opacity: 0.9; line-height: 1.5; }
+
+.token-left-banner h3 {
+    margin-bottom: 12px;
+    font-size: 20px;
+}
+
+.token-left-banner p {
+    font-size: 14px;
+    opacity: 0.9;
+    line-height: 1.5;
+}
 
 .token-right-actions {
     padding: 32px;
@@ -217,10 +232,15 @@ body {
     background-color: #FFFFFF;
     border-radius: 16px;
     padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 24px;
 }
-.widget-card h2 { font-size: 18px; margin-bottom: 16px; font-weight: 700; }
+
+.widget-card h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
 
 /* Clean Data Grid Tables Style */
 .data-table {
@@ -228,6 +248,7 @@ body {
     border-collapse: collapse;
     text-align: left;
 }
+
 .data-table th {
     padding: 12px;
     border-bottom: 2px solid #F3F4F6;
@@ -235,18 +256,44 @@ body {
     font-size: 13px;
     text-transform: uppercase;
 }
+
 .data-table td {
     padding: 16px 12px;
     border-bottom: 1px solid #F3F4F6;
     font-size: 15px;
 }
-.data-table tbody tr:hover { background-color: #F9FAFB; }
 
-.mono-text-blue { font-family: 'DM Mono', monospace; color: #2563EB; font-weight: 600; }
-.mono-text { font-family: 'DM Mono', monospace; }
+.data-table tbody tr:hover {
+    background-color: #F9FAFB;
+}
 
-.badge-green { background-color: #DCFCE7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
-.badge-red { background-color: #FEE2E2; color: #991B1B; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.mono-text-blue {
+    font-family: 'DM Mono', monospace;
+    color: #2563EB;
+    font-weight: 600;
+}
+
+.mono-text {
+    font-family: 'DM Mono', monospace;
+}
+
+.badge-green {
+    background-color: #DCFCE7;
+    color: #166534;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-red {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
 
 /* Dark Terminal Style CSS */
 .terminal-card {
@@ -254,6 +301,7 @@ body {
     border-radius: 16px;
     overflow: hidden;
 }
+
 .terminal-header {
     background-color: #1F2937;
     color: #9CA3AF;
@@ -261,6 +309,7 @@ body {
     font-size: 13px;
     font-family: 'DM Mono', monospace;
 }
+
 .terminal-body {
     padding: 20px;
     font-family: 'DM Mono', monospace;
@@ -268,15 +317,39 @@ body {
     line-height: 1.6;
     color: #F3F4F6;
 }
-.text-gray { color: #6B7280; }
-.text-green { color: #34D399; }
-.text-blue { color: #60A5FA; }
-.text-red { color: #F87171; }
+
+.text-gray {
+    color: #6B7280;
+}
+
+.text-green {
+    color: #34D399;
+}
+
+.text-blue {
+    color: #60A5FA;
+}
+
+.text-red {
+    color: #F87171;
+}
 
 .blinking-cursor {
     animation: blink 1s infinite;
 }
-@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+@keyframes blink {
+
+    0%,
+    49% {
+        opacity: 1;
+    }
+
+    50%,
+    100% {
+        opacity: 0;
+    }
+}
 
 /* Inventory Section Progress Indicators */
 .inventory-item {
@@ -285,54 +358,147 @@ body {
     padding: 20px;
     margin-bottom: 16px;
 }
-.inventory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.progress-container { margin-top: 12px; }
-.progress-label { display: flex; justify-content: space-between; font-size: 13px; color: #4B5563; margin-bottom: 6px; }
-.progress-bar-bg { background-color: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden; }
-.progress-bar-fill { background-color: #2563EB; height: 100%; }
-.progress-bar-fill.bg-danger { background-color: #DC2626; }
+
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.progress-container {
+    margin-top: 12px;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #4B5563;
+    margin-bottom: 6px;
+}
+
+.progress-bar-bg {
+    background-color: #E5E7EB;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    background-color: #2563EB;
+    height: 100%;
+}
+
+.progress-bar-fill.bg-danger {
+    background-color: #DC2626;
+}
 
 /* Visibility Classes */
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
 
-/* Filter Buttons */
-.filter-btn {
-    padding: 4px 14px;
+/* ==============================================================================
+   🔒 VERIFICATION GATEWAY & BLUR LOCK OVERLAY
+   ============================================================================== */
+.workspace-viewport {
+    position: relative;
+    min-height: 520px;
+}
+
+.workspace-viewport.blurred-content>.tab-panel {
+    filter: blur(10px) saturate(0.6);
+    pointer-events: none !important;
+    user-select: none !important;
+    opacity: 0.35;
+    transition: filter 0.4s ease, opacity 0.4s ease;
+}
+
+.verification-lock-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 480px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(243, 244, 246, 0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 60;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.verification-lock-card {
+    background: #FFFFFF;
     border-radius: 20px;
-    border: 1px solid #D1D5DB;
-    background: white;
-    color: #4B5563;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.filter-btn:hover {
-    background: #F3F4F6;
-}
-.filter-btn.active {
-    background: #2563EB;
-    color: white;
-    border-color: #2563EB;
-}
-.filter-btn.active:hover {
-    background: #1D4ED8;
+    padding: 36px 32px;
+    max-width: 490px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #E5E7EB;
+    animation: lockCardPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Required Documents Checklist */
-.required-doc-item {
+@keyframes lockCardPop {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.lock-icon-badge {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: #FEF3C7;
+    color: #D97706;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: white;
-    border: 1px solid #E5E7EB;
+    justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 16px auto;
+    box-shadow: 0 6px 16px rgba(217, 119, 6, 0.18);
+}
+
+.lock-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 8px;
+}
+
+.lock-alert-pill {
+    display: inline-block;
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+    padding: 6px 14px;
+    border-radius: 20px;
     font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
 }
-.required-doc-item.uploaded {
-    background: #F0FDF4;
-    border-color: #BBF7D0;
+
+.lock-description {
+    font-size: 14px;
+    color: #4B5563;
+    line-height: 1.55;
+    margin-bottom: 24px;
 }
-.required-doc-item .status-icon {
-    font-size: 18px;
+
+.lock-action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }

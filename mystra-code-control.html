@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,17 +8,19 @@
     <!-- CSS Stylesheets -->
     <link rel="stylesheet" href="control-panel.css">
     <!-- Google Fonts for the Terminal Monospace Font -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <!-- Injecting Supabase Client Core Engine -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Supabase Configuration & API Layer -->
     <script src="supabase-config.js"></script>
 </head>
+
 <body>
 
     <!-- 🌐 GLOBAL SYSTEM CONTAINER -->
     <div class="portal-container">
-        
+
         <!-- 🧭 LEFT SIDEBAR NAVIGATION -->
         <nav class="sidebar">
             <div class="sidebar-brand">MySTRA Portal</div>
@@ -26,7 +29,7 @@
                 <li id="nav-home" class="nav-item"><span class="icon">🏠</span> Home</li>
                 <li id="nav-manager" class="nav-item active-nav"><span class="icon">🔑</span> MySTRA Code Manager</li>
                 <li id="nav-docs" class="nav-item" onclick="window.location.href='mystra-document-portal.html';">
-                        <span class="icon">📄</span> Documents
+                    <span class="icon">📄</span> Documents
                 </li>
                 <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-settings.html';"><span class="icon">⚙️</span> Settings</li>
 
@@ -35,11 +38,34 @@
                     <span class="icon">🚪</span> Logout
                 </li>
             </ul>
+
+            <!-- 🗺️ Back to Map Button (bottom of sidebar) -->
+            <div style="margin-top: auto; padding-top: 24px; border-top: 1px solid #E5E7EB;">
+                <a id="btn-back-to-map" href="mystra-map-view.html" style="
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding: 12px 16px;
+                        border-radius: 12px;
+                        background-color: #EFF6FF;
+                        color: #2563EB;
+                        font-weight: 600;
+                        font-size: 14px;
+                        text-decoration: none;
+                        border: 1px solid #BFDBFE;
+                        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+                    "
+                    onmouseover="this.style.backgroundColor='#DBEAFE'; this.style.boxShadow='0 2px 8px rgba(37,99,235,0.15)'"
+                    onmouseout="this.style.backgroundColor='#EFF6FF'; this.style.boxShadow='none'">
+                    <span style="font-size: 18px;">←</span>
+                    <span>🗺️ Back to Map View</span>
+                </a>
+            </div>
         </nav>
 
         <!-- 🖥️ MAIN WORKSPACE AREA -->
         <main class="main-content">
-            
+
             <!-- PAGE HEADER & ACTION CONTROLS -->
             <header class="content-header">
                 <div class="header-title-wrapper">
@@ -60,19 +86,52 @@
             <!-- 📥 VIEWPORT SWITCH BOX -->
             <div class="workspace-viewport">
 
+                <!-- 🔒 VERIFICATION LOCK OVERLAY (Visible when user is not verified) -->
+                <div id="verification-lock-overlay" class="verification-lock-overlay" style="display: none;">
+                    <div class="verification-lock-card">
+                        <div class="lock-icon-badge">🔒</div>
+                        <h2 class="lock-title">Verification Required</h2>
+                        <div class="lock-alert-pill">
+                            ⚠️ You must be verified to access this page
+                        </div>
+                        <p class="lock-description">
+                            Under municipal short-term rental regulations (MySTRA 2026), operators must complete
+                            document intake and identity verification before generating registration tokens and
+                            deploying accommodation listings.
+                        </p>
+                        <div class="lock-action-buttons">
+                            <a href="mystra-document-portal.html" class="btn-primary"
+                                style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px;">
+                                📄 Submit Verification Documents →
+                            </a>
+                            <a href="mystra-map-view.html" class="btn-secondary"
+                                style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px;">
+                                🗺️ Back to Map View
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 🏠 SIDEBAR VIEW 1: HOME PAGE WORKSPACE PANEL -->
                 <div id="view-home" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2 id="home-welcome-title">Welcome Back, Operator</h2>
-                        <p style="color: #6B7280; margin-bottom: 20px;">This is your short-term rental management command system baseline hub profile.</p>
+                        <p id="home-welcome-email"
+                            style="color: #2563EB; font-weight: 500; font-size: 14px; margin-bottom: 8px; display: none;">
+                        </p>
+                        <p style="color: #6B7280; margin-bottom: 20px;">This is your short-term rental management
+                            command system baseline hub profile.</p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                            <div class="inventory-item" style="cursor: pointer;" onclick="document.getElementById('nav-manager').click();">
+                            <div class="inventory-item" style="cursor: pointer;"
+                                onclick="document.getElementById('nav-manager').click();">
                                 <h3>🔑 Manage Registration Codes</h3>
-                                <p style="font-size: 14px; color: #6B7280; margin-top: 4px;">Deploy tokens, check compliance caps, and view background API telemetry.</p>
+                                <p style="font-size: 14px; color: #6B7280; margin-top: 4px;">Deploy tokens, check
+                                    compliance caps, and view background API telemetry.</p>
                             </div>
                             <div class="inventory-item">
                                 <h3>📊 Portfolio Overview</h3>
-                                <p id="portfolio-stats-text" style="font-size: 14px; color: #6B7280; margin-top: 4px;">Loading properties from Supabase...</p>
+                                <p id="portfolio-stats-text" style="font-size: 14px; color: #6B7280; margin-top: 4px;">
+                                    Loading properties from Supabase...</p>
                             </div>
                         </div>
                     </div>
@@ -84,7 +143,8 @@
                     <div class="token-card">
                         <div class="token-left-banner">
                             <h3>Generate a secure municipal token here</h3>
-                            <p>Tokens are unique municipal tracking codes and will be bound to properties upon OTA onboarding verification.</p>
+                            <p>Tokens are unique municipal tracking codes and will be bound to properties upon OTA
+                                onboarding verification.</p>
                         </div>
                         <div class="token-right-actions">
                             <label>Generated Code Slot</label>
@@ -93,7 +153,8 @@
                                 <button id="btn-copy-code" class="btn-secondary">📋 Copy</button>
                             </div>
                             <button id="btn-generate-code" class="btn-primary">Generate New Unique Code</button>
-                            <p id="token-status-hint" style="font-size: 13px; color: #4B5563; margin-top: 6px; line-height: 1.4;"></p>
+                            <p id="token-status-hint"
+                                style="font-size: 13px; color: #4B5563; margin-top: 6px; line-height: 1.4;"></p>
                         </div>
                     </div>
 
@@ -111,7 +172,8 @@
                             </thead>
                             <tbody id="simplified-listings-rows">
                                 <tr>
-                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Fetching listings from Supabase...</td>
+                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Fetching
+                                        listings from Supabase...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -121,8 +183,10 @@
                     <div class="terminal-card">
                         <div class="terminal-header">📟 Recent Activity Logs Console</div>
                         <div id="terminal-body-logs" class="terminal-body">
-                            <p><span class="text-gray">[SYSTEM]</span> <span class="text-blue">Connecting to Supabase Database...</span></p>
-                            <p class="cli-prompt"><span class="text-blue">mystra-engine:~ $</span><span class="blinking-cursor">█</span></p>
+                            <p><span class="text-gray">[SYSTEM]</span> <span class="text-blue">Connecting to Supabase
+                                    Database...</span></p>
+                            <p class="cli-prompt"><span class="text-blue">mystra-engine:~ $</span><span
+                                    class="blinking-cursor">█</span></p>
                         </div>
                     </div>
                 </div>
@@ -154,7 +218,8 @@
                             </thead>
                             <tbody id="audit-logs-rows">
                                 <tr>
-                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Loading audit logs from Supabase...</td>
+                                    <td colspan="4" style="text-align: center; color: #6B7280; padding: 20px;">Loading
+                                        audit logs from Supabase...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -165,15 +230,23 @@
                 <div id="view-docs" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2>Regulatory Documents & Frameworks</h2>
-                        <p style="color: #6B7280; margin-bottom: 16px;">Download structural compliance letters and verification guidelines.</p>
-                        <ul id="docs-list-container" style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
-                            <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <p style="color: #6B7280; margin-bottom: 16px;">Download structural compliance letters and
+                            verification guidelines.</p>
+                        <ul id="docs-list-container"
+                            style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                            <li class="inventory-item"
+                                style="display:flex; justify-content:space-between; align-items:center;">
                                 <span>📄 Municipal STRA Guidelines 2026.pdf</span>
-                                <button class="btn-secondary" onclick="alert('Downloading Document Guideline...')">📥 Download</button>
+                                <a class="btn-secondary" href="docs/Municipal-STRA-Guidelines-2026.pdf"
+                                    download="Municipal-STRA-Guidelines-2026.pdf" style="text-decoration:none;">📥
+                                    Download</a>
                             </li>
-                            <li class="inventory-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <li class="inventory-item"
+                                style="display:flex; justify-content:space-between; align-items:center;">
                                 <span>📄 Operator Identity Certification Packet.pdf</span>
-                                <button class="btn-secondary" onclick="alert('Downloading Verification Packet...')">📥 Download</button>
+                                <a class="btn-secondary" href="docs/Operator-Identity-Certification-Packet.pdf"
+                                    download="Operator-Identity-Certification-Packet.pdf"
+                                    style="text-decoration:none;">📥 Download</a>
                             </li>
                         </ul>
                     </div>
@@ -183,28 +256,41 @@
                 <div id="view-settings" class="tab-panel hidden">
                     <div class="widget-card">
                         <h2>System Control Settings</h2>
-                        <p style="color: #6B7280; margin-bottom: 20px;">Configure portal profile preferences and API connection parameters.</p>
-                        <form id="settings-form" style="display:flex; flex-direction:column; gap:16px; max-width: 450px;">
+                        <p style="color: #6B7280; margin-bottom: 20px;">Configure portal profile preferences and API
+                            connection parameters.</p>
+                        <form id="settings-form"
+                            style="display:flex; flex-direction:column; gap:16px; max-width: 450px;">
                             <div>
-                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Operator Full Name</label>
-                                <input type="text" id="setting-fullname" value="Natalie Koa" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                                <label
+                                    style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Operator
+                                    Full Name</label>
+                                <input type="text" id="setting-fullname" value="Natalie Koa"
+                                    style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
                             </div>
                             <div>
-                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Business Name</label>
-                                <input type="text" id="setting-business" value="Koa Hospitality Management Sdn Bhd" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                                <label
+                                    style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Business
+                                    Name</label>
+                                <input type="text" id="setting-business" value="Koa Hospitality Management Sdn Bhd"
+                                    style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
                             </div>
                             <div>
-                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Phone Number</label>
-                                <input type="text" id="setting-phone" value="+60 12-345 6789" style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
+                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Phone
+                                    Number</label>
+                                <input type="text" id="setting-phone" value="+60 12-345 6789"
+                                    style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
                             </div>
                             <div>
-                                <label style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Webhook Enforcement Alerts</label>
+                                <label
+                                    style="display:block; font-size:13px; font-weight:600; margin-bottom:6px;">Webhook
+                                    Enforcement Alerts</label>
                                 <select style="width:100%; padding:10px; border:1px solid #E5E7EB; border-radius:8px;">
                                     <option>Immediate Browser Push Notifications</option>
                                     <option>Email Summary Only</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-primary" style="margin-top:10px;">Save Profile to Database</button>
+                            <button type="submit" class="btn-primary" style="margin-top:10px;">Save Profile to
+                                Database</button>
                         </form>
                     </div>
                 </div>
@@ -216,4 +302,5 @@
     <!-- JavaScript Controller -->
     <script src="control-panel.js"></script>
 </body>
+
 </html>

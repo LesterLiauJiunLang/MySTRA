@@ -80,6 +80,14 @@
                 <option value="b2222222-2222-2222-2222-222222222222">Luxury Apartment @ KLCC</option>
                 <option value="c3333333-3333-3333-3333-333333333333">Urban Duplex @ Penang Island</option>
             `;
+            // Auto-fill pending code from control panel if available
+            const pendingCode = localStorage.getItem('mystra_pending_code');
+            if (pendingCode) {
+                const codeInput = document.getElementById('agoda-code-input');
+                if (codeInput && (!codeInput.value || codeInput.value === 'CLICK GENERATE TO CREATE')) {
+                    codeInput.value = pendingCode;
+                }
+            }
         }
 
         document.addEventListener('DOMContentLoaded', initAgodaPage);
@@ -131,10 +139,10 @@
                 }
 
                 if (!codeRecord) {
-                    // Record failed verification log in Supabase
+                    // Record failed verification log in Supabase & local storage
                     await MySTRA_API.logInterceptorCheck({
                         registrationCode: codeValue,
-                        requestingOta: 'Agoda-PROD-West',
+                        requestingOta: 'Agoda-PROD-West [404_NOT_FOUND]',
                         isValidPass: false,
                         checkedNightsSnapshot: 0
                     });
@@ -148,7 +156,7 @@
                     // Log audit check
                     await MySTRA_API.logInterceptorCheck({
                         registrationCode: codeValue,
-                        requestingOta: 'Agoda-PROD-West',
+                        requestingOta: 'Agoda-PROD-West [LIVE_LISTING_ACTIVE]',
                         isValidPass: isActive,
                         checkedNightsSnapshot: booked
                     });
