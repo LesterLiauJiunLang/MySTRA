@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - My Documents</title>
+    <link rel="stylesheet" href="control-panel.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="document.js" defer></script>
+    <script src="control-panel.js"></script>
+
+    <style>
+        .filter-btn {
+            padding: 4px 14px;
+            border-radius: 20px;
+            border: 1px solid #D1D5DB;
+            background: white;
+            color: #4B5563;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { background: #F3F4F6; }
+        .filter-btn.active {
+            background: #2563EB;
+            color: white;
+            border-color: #2563EB;
+        }
+        .action-btn {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: #E5E7EB;
+            color: #374151;
+        }
+        .action-btn.revise { background: #FEF3C7; color: #92400E; }
+        .badge-pending { background:#FEF3C7;color:#92400E;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-approved { background:#DCFCE7;color:#15803D;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-rejected { background:#FEE2E2;color:#991B1B;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-revision { background:#FED7AA;color:#9A3412;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-replaced { background:#E5E7EB;color:#4B5563;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .modal-overlay {
+            position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);
+            z-index:1000;display:none;justify-content:center;align-items:center;
+        }
+        .modal-overlay.show { display:flex; }
+        .modal-content { background:white;border-radius:16px;padding:32px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto; }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <!-- SIDEBAR -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">MySTRA Portal</div>
+            <ul class="nav-links">
+                <li class="nav-item" onclick="window.location.href='mystra-code-control.html';"><span class="icon">🏠</span> Home</li>
+                <li class="nav-item" onclick="window.location.href='mystra-code-control.html';"><span class="icon">🔑</span> MySTRA Code Manager</li>
+                <li class="nav-item active-nav" onclick="window.location.href='mystra-document-portal.html';"><span class="icon">📄</span> Documents</li>
+                <li class="nav-item" onclick="window.location.href='mystra-settings.html';"><span class="icon">⚙️</span> Settings</li>
+                <li id="nav-logout" class="nav-item" style="margin-top: 24px; color: #EF4444; cursor: pointer; border-top: 1px solid #E5E7EB; padding-top: 16px;">
+                    <span class="icon">🚪</span> Logout
+                </li>
+            </ul>
+            <!-- Real-time footer -->
+            <div class="sidebar-footer" style="margin-top:auto;padding-top:20px;border-top:1px solid #E5E7EB;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <div id="footer-avatar" style="width:32px;height:32px;border-radius:50%;background:#2563EB;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">--</div>
+                    <div style="flex:1;min-width:0;">
+                        <div id="sidebar-username" style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+                        <div id="sidebar-userbusiness" style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+                    </div>
+                </div>
+                <div id="sidebar-userstatus" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;display:inline-block;background:#FEF3C7;color:#92400E;">⏳ Loading...</div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <div class="header-title-wrapper">
+                    <h1>📋 My Documents</h1>
+                    <span id="db-status-badge" class="status-badge">🟢 SUPABASE LIVE</span>
+                </div>
+                <div style="display:flex;gap:12px;align-items:center;font-size:13px;color:#6B7280;">
+                    Home / Documents / My Documents
+                </div>
+            </header>
+
+            <!-- TAB NAVIGATION -->
+            <div class="segmented-control">
+                <button class="tab-btn" onclick="window.location.href='mystra-document-portal.html'">📤 Upload</button>
+                <button class="tab-btn active">📋 My Documents</button>
+                <button class="tab-btn" onclick="window.location.href='mystra-location.html'">📍 Location</button>
+            </div>
+
+            <!-- MY DOCUMENTS CONTENT -->
+            <div class="widget-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+                    <h2>Your Uploaded Documents</h2>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-secondary" onclick="window.location.href='mystra-document-portal.html'">+ Upload New</button>
+                        <button class="btn-secondary" onclick="loadDocumentData()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <!-- FILTERS -->
+                <div id="filter-section" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;align-items:center;">
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                        <button class="filter-btn active" data-filter="ALL" onclick="applyFilter('ALL')">All</button>
+                        <button class="filter-btn" data-filter="PENDING" onclick="applyFilter('PENDING')">🟡 Pending</button>
+                        <button class="filter-btn" data-filter="APPROVED" onclick="applyFilter('APPROVED')">🟢 Approved</button>
+                        <button class="filter-btn" data-filter="REJECTED" onclick="applyFilter('REJECTED')">🔴 Rejected</button>
+                        <button class="filter-btn" data-filter="REUPLOAD_REQUESTED" onclick="applyFilter('REUPLOAD_REQUESTED')">🟠 Needs Revision</button>
+                    </div>
+                    <div style="display:flex;gap:4px;align-items:center;margin-left:auto;">
+                        <input type="text" id="doc-search-input" placeholder="Search documents..."
+                               style="padding:6px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:13px;min-width:180px;">
+                    </div>
+                </div>
+
+                <!-- STATS -->
+                <div id="doc-status-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+                    <div style="background:#F8FAFC;padding:12px;border-radius:8px;text-align:center;border:1px solid #E5E7EB;">
+                        <div style="font-size:24px;font-weight:700;" id="stat-total">0</div>
+                        <div style="font-size:12px;color:#6B7280;">Total</div>
+                    </div>
+                    <div style="background:#FEF3C7;padding:12px;border-radius:8px;text-align:center;border:1px solid #FDE68A;">
+                        <div style="font-size:24px;font-weight:700;color:#92400E;" id="stat-pending">0</div>
+                        <div style="font-size:12px;color:#92400E;">Pending</div>
+                    </div>
+                    <div style="background:#DCFCE7;padding:12px;border-radius:8px;text-align:center;border:1px solid #BBF7D0;">
+                        <div style="font-size:24px;font-weight:700;color:#15803D;" id="stat-approved">0</div>
+                        <div style="font-size:12px;color:#15803D;">Approved</div>
+                    </div>
+                    <div style="background:#FEE2E2;padding:12px;border-radius:8px;text-align:center;border:1px solid #FECACA;">
+                        <div style="font-size:24px;font-weight:700;color:#991B1B;" id="stat-rejected">0</div>
+                        <div style="font-size:12px;color:#991B1B;">Rejected</div>
+                    </div>
+                </div>
+
+                <div id="documents-status-container">
+                    <p style="color:#6B7280;text-align:center;padding:20px;">Loading your documents...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Revision Modal -->
+    <div id="revision-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h2 style="font-size:20px;">✏️ Revise Document</h2>
+                <button onclick="closeRevisionModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#6B7280;">✕</button>
+            </div>
+            <div style="margin-bottom:20px;">
+                <p><strong>Document:</strong> <span id="revision-doc-type">--</span></p>
+                <p><strong>Previous File:</strong> <span id="revision-previous-file">--</span></p>
+                <div style="background:#FEE2E2;padding:12px;border-radius:8px;margin-top:12px;">
+                    <p style="font-size:13px;color:#991B1B;"><strong>🔴 Rejection Reason:</strong></p>
+                    <p id="revision-rejection-reason" style="font-size:13px;color:#991B1B;margin:0;">No reason provided.</p>
+                </div>
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="display:block;font-size:13px;font-weight:600;color:#444;margin-bottom:6px;">New File *</label>
+                <input type="file" id="revision-file-input" accept=".pdf,.jpg,.jpeg,.png" style="width:100%;padding:12px;border:2px dashed #D1D5DB;border-radius:8px;">
+            </div>
+            <div id="revision-gps-status" style="padding:12px;border-radius:8px;background:#F8FAFC;margin-bottom:20px;border:1px solid #E5E7EB;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>📍 Location Check</span>
+                    <span id="revision-gps-badge" class="badge-pending">⏳ Detecting...</span>
+                </div>
+                <div id="revision-gps-details" style="font-size:13px;color:#6B7280;margin-top:4px;">Distance: --</div>
+            </div>
+            <div style="display:flex;gap:12px;">
+                <button onclick="submitRevision()" class="btn-primary" style="flex:1;padding:12px;">📤 Submit Revision</button>
+                <button onclick="closeRevisionModal()" class="btn-secondary" style="padding:12px 24px;">Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

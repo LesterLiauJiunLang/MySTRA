@@ -4,380 +4,175 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LEGACY ACCOMMODATION DATA INTEGRATION PORTAL (MySTRA v1.0.4)</title>
+  
+  <!-- EXTERNAL AUTH CSS STYLESHEET -->
+  <link rel="stylesheet" href="mock-legacy.css" />
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body {
-      font-family: "Times New Roman", Times, serif, Arial;
-      background-color: #d8e4f0;
-      margin: 0;
-      padding: 10px;
-      color: #000;
-      font-size: 13px;
-    }
-
-    .header-banner {
-      background-color: #003366 !important;
-      color: #ffffff !important;
-      padding: 12px 15px;
-      border: 2px solid #000000;
-      margin-bottom: 8px;
-    }
-
-    .header-banner table {
-      background-color: transparent !important;
-      width: 100%;
-      border: none !important;
-    }
-
-    .header-banner td {
-      border: none !important;
-      padding: 0 !important;
-      color: #ffffff !important;
-    }
-
-    .header-banner h1 {
-      margin: 0;
-      font-size: 18px;
-      font-family: Arial, sans-serif;
-      font-weight: bold;
-      letter-spacing: 1px;
-      color: #ffffff !important;
-    }
-
-    .header-banner p {
-      margin: 4px 0 0 0;
-      font-size: 11px;
-      color: #ffcc00 !important;
-      font-family: Arial, sans-serif;
-    }
-
-    marquee {
-      background-color: #ffff99;
-      border: 1px solid #cccccc;
-      color: #cc0000;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-      font-size: 11px;
-      padding: 3px;
-      margin-bottom: 10px;
-    }
-
-    .tab-container {
-      display: flex;
-      border-bottom: 2px solid #003366;
-      margin-bottom: 12px;
-      gap: 2px;
-    }
-
-    .tab-button {
-      background: #c0c0c0;
-      border: 2px outset #ffffff;
-      border-bottom: none;
-      padding: 6px 12px;
-      font-family: Arial, sans-serif;
-      font-weight: bold;
-      font-size: 11px;
-      cursor: pointer;
-      color: #000000;
-    }
-
-    .tab-button.active {
-      background: #f2f5f8;
-      border: 2px outset #ffffff;
-      border-bottom: 2px solid #f2f5f8;
-      margin-bottom: -2px;
-      color: #003366;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    .card {
-      background-color: #f2f5f8;
-      border: 2px outset #ffffff;
-      box-shadow: 2px 2px 4px #888888;
-      margin-bottom: 12px;
-      padding: 10px;
-    }
-
-    .card-title {
-      background-color: #004080;
-      color: #ffffff;
-      padding: 4px 8px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      margin: -10px -10px 10px -10px;
-      border-bottom: 1px solid #00264d;
-    }
-
-    .btn {
-      background: #e1e1e1;
-      border: 2px outset #ffffff;
-      color: #000000;
-      padding: 3px 10px;
-      font-size: 11px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-      cursor: pointer;
-      margin-right: 5px;
-    }
-
-    .btn:active {
-      border: 2px inset #ffffff;
-    }
-
-    .btn-green { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
-    .btn-purple { background-color: #e2e3e5; color: #383d41; border-color: #d6d8db; }
-    .btn-blue { background-color: #cce5ff; color: #004085; border-color: #b8daff; }
-    .btn-outline { background-color: #ffffff; }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-
-    input, select {
-      width: 98%;
-      padding: 3px;
-      border: 1px solid #7f9db9;
-      background-color: #ffffff;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 11px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background-color: #ffffff;
-    }
-
-    th {
-      background-color: #336699;
-      color: #ffffff;
-      border: 1px solid #003366;
-      padding: 4px;
-      font-size: 11px;
-      font-family: Arial, sans-serif;
-      text-align: left;
-    }
-
-    td {
-      border: 1px solid #cccccc;
-      padding: 4px;
-      font-size: 11px;
-    }
-
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-
-    .log-box {
-      background-color: #000000;
-      color: #00ff00;
-      padding: 6px;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 11px;
-      height: 140px;
-      overflow-y: scroll;
-      border: 2px inset #ffffff;
-    }
-
-    .badge {
-      padding: 1px 4px;
-      font-size: 10px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-    }
-
-    .badge-migrated { background-color: #008000; color: #ffffff; }
-    .badge-pending { background-color: #ff9900; color: #000000; }
-
-    .comparison-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .notice-box {
-      background-color: #ffffcc;
-      border: 1px solid #ffcc00;
-      padding: 6px;
-      font-size: 11px;
-      margin-bottom: 8px;
-    }
-
-    .preset-picker {
-      background-color: #e6f2ff;
-      border: 1px solid #99ccff;
-      padding: 8px;
-      margin-bottom: 10px;
-    }
-  </style>
 </head>
-<body>
+<body class="auth-body">
 
-  <!-- GOVERNMENT HEADER BANNER -->
-  <div class="header-banner">
-    <table width="100%">
-      <tr>
-        <td valign="middle">
-          <h1>LEGACY ACCOMMODATION DATA INTEGRATION PORTAL (MySTRA)</h1>
-          <p>Ministry of Tourism & Culture — Licensing Division v1.0.4 [BUILD 20110822]</p>
-        </td>
-        <td align="right" valign="top" style="font-size: 10px; font-family: Arial;">
-          [ ADMIN MODE ]<br>
-          <span id="current-date">--/--/----</span>
-        </td>
-      </tr>
-    </table>
-  </div>
-
-  <marquee behavior="scroll" direction="left">
-    NOTICE: ACCOMMODATION PREMISE DATABASE MAINTENANCE WILL BE CONDUCTED EVERY FRIDAY AT 11:30 PM. PLEASE SAVE YOUR WORK.
-  </marquee>
-
-  <!-- NAVIGATION TABS -->
-  <div class="tab-container">
-    <button class="tab-button active" onclick="switchTab('registration-tab', this)">PREMISE OPERATOR REGISTRATION</button>
-    <button class="tab-button" onclick="switchTab('migration-tab', this)">DATA MIGRATION ENGINE & INSPECTION</button>
-  </div>
-
-  <!-- TAB 1: REGISTRATION ONLY -->
-  <div id="registration-tab" class="tab-content active">
-    <div class="card">
-      <div class="card-title">1. REGISTER LEGACY ACCOMMODATION OPERATOR (mock_legacy_external_db)</div>
-      
-      <!-- PRESET DROPDOWN PICKER -->
-      <div class="preset-picker">
-        <label><b>⚡ SELECT FROM PROVIDED DATASET (14 RECORDS AVAILABLE):</b></label><br>
-        <select id="preset-selector" onchange="populateFormFromPreset(this.value)" style="margin-top: 4px; margin-bottom: 6px;">
-          <option value="">-- Choose Raw Record from Dataset --</option>
-        </select>
-        <button type="button" class="btn btn-blue" onclick="pickRandomPreset()">🎲 Auto-Fill Random Entry</button>
-        <button type="button" class="btn btn-green" onclick="seedAllDatasetRecords()">⚡ Seed All 14 Dataset Records to Supabase</button>
-      </div>
-
-      <div class="notice-box">
-        <b>REGULATION:</b> Please ensure all accommodation premise information is accurately entered matching SSM business registration and premise operating permit code.
-      </div>
-      
-      <form id="legacy-entry-form">
-        <div class="form-grid">
-          <div><label>Raw ID:</label><input type="text" id="legacy-raw-id" placeholder="raw_id" readonly style="background-color:#eee;" /></div>
-          <div><label>Premise Operator Name:</label><input type="text" id="legacy-name" placeholder="operator_name" /></div>
-          <div><label>Contact Email:</label><input type="email" id="legacy-email" placeholder="operator_email" required /></div>
-          <div><label>Accommodation / Business Name:</label><input type="text" id="legacy-biz" placeholder="operator_business_name" required /></div>
-          <div><label>Operating License Code:</label><input type="text" id="legacy-license" placeholder="licence_no_code" required /></div>
-          <div><label>SSM Reg Number:</label><input type="text" id="legacy-ssm" placeholder="ssm_reg_number" required /></div>
-          <div><label>Phone Number:</label><input type="text" id="legacy-phone" placeholder="phone_number" /></div>
-          <div><label>Premise State:</label><input type="text" id="legacy-state" placeholder="legacy_state" /></div>
-          <div><label>Premise District:</label><input type="text" id="legacy-district" placeholder="legacy_district" /></div>
-          <div><label>Document URL:</label><input type="text" id="legacy-doc" placeholder="document_url" /></div>
-        </div>
-        <button type="submit" class="btn">Save Legacy Premise Entry</button>
-        <button type="reset" class="btn" onclick="document.getElementById('preset-selector').value=''">Clear Form</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- TAB 2: ETL ENGINE & DATASETS -->
-  <div id="migration-tab" class="tab-content">
-    <div class="card">
-      <div class="card-title">2. BACKGROUND ACCOMMODATION DATA MIGRATION ENGINE (ETL_DAEMON)</div>
-      <p style="margin-top:0;">This function extracts accommodation records from the legacy database and processes them into the MySTRA core target accounts system.</p>
-      
-      <div style="margin-bottom: 8px;">
-        <button id="btn-run-etl" class="btn btn-green">▶ EXECUTE ETL PROCESS</button>
-        <button id="btn-download-csv" class="btn btn-outline" style="display: none;">💾 DOWNLOAD CSV BUFFER (DEBUG)</button>
-      </div>
-      
-      <b>SYSTEM LOG OUTPUT (STDOUT):</b>
-      <div id="log-output" class="log-box">> SYSTEM Ready. Click "EXECUTE ETL PROCESS" to run worker script.</div>
+  <div class="portal-wrapper">
+    <!-- GOVERNMENT HEADER BANNER -->
+    <div class="header-banner">
+      <table width="100%">
+        <tr>
+          <td valign="middle">
+            <h1>LEGACY ACCOMMODATION DATA INTEGRATION PORTAL (MySTRA)</h1>
+            <p>Ministry of Tourism & Culture — Licensing Division v1.0.4 [BUILD 20110822]</p>
+          </td>
+          <td align="right" valign="top" style="font-size: 0.8rem; font-family: Arial;">
+            [ ADMIN MODE ]<br>
+            <span id="current-date">--/--/----</span>
+          </td>
+        </tr>
+      </table>
     </div>
 
-    <div class="card">
-      <div class="card-title">3. DESTINATION ACCOMMODATION DATASET (legacy_accounts)</div>
-      
-      <div style="margin-bottom: 8px;">
-        <button id="btn-refresh-target" class="btn btn-purple">🔄 REFRESH TARGET DATASET</button>
-      </div>
+    <marquee behavior="scroll" direction="left">
+      NOTICE: ACCOMMODATION PREMISE DATABASE MAINTENANCE WILL BE CONDUCTED EVERY FRIDAY AT 11:30 PM. PLEASE SAVE YOUR WORK.
+    </marquee>
 
-      <div style="overflow-x: auto;">
-        <table id="target-table">
-          <thead>
-            <tr>
-              <th>SYSTEM UUID</th>
-              <th>LEGACY EMAIL</th>
-              <th>LICENSE NO</th>
-              <th>BUSINESS SSM NO</th>
-              <th>MIGRATION STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="5" align="center">No records found. Run ETL process to populate.</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- NAVIGATION TABS -->
+    <div class="tab-container">
+      <button class="tab-button active" onclick="switchTab('registration-tab', this)">PREMISE OPERATOR REGISTRATION</button>
+      <button class="tab-button" onclick="switchTab('migration-tab', this)">DATA MIGRATION ENGINE & INSPECTION</button>
     </div>
 
-    <div class="card">
-      <div class="card-title">4. DUAL DATABASE INSPECTION VIEW (SIDE-BY-SIDE)</div>
-      <button id="btn-toggle-comparison" class="btn btn-purple" style="margin-bottom: 8px;">🔄 REFRESH COMPARISON DATA</button>
-
-      <div class="comparison-grid">
-        <div>
-          <b style="color: #cc0000;">SOURCE: mock_legacy_external_db</b>
-          <div style="overflow-x: auto; margin-top: 4px;">
-            <table id="source-comparison-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>EMAIL</th>
-                  <th>LICENSE NO</th>
-                  <th>SSM NO</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td colspan="4" align="center">Click 'Refresh Comparison Data'.</td></tr>
-              </tbody>
-            </table>
+    <!-- TAB 1: REGISTRATION ONLY -->
+    <div id="registration-tab" class="tab-content active">
+      <div class="card">
+        <div class="card-title">1. REGISTER LEGACY ACCOMMODATION OPERATOR (mock_legacy_external_db)</div>
+        
+        <!-- PRESET DROPDOWN PICKER -->
+        <div class="preset-picker">
+          <label style="font-weight: bold; font-size: 0.85rem; color: #1e3a8a;">⚡ SELECT FROM PROVIDED DATASET (2 RECORDS AVAILABLE):</label><br>
+          <select id="preset-selector" onchange="populateFormFromPreset(this.value)" style="margin-top: 6px; margin-bottom: 10px;">
+            <option value="">-- Choose Raw Record from Dataset --</option>
+          </select>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-blue" onclick="pickRandomPreset()">🎲 Auto-Fill Random Entry</button>
+            <button type="button" class="btn btn-green" onclick="seedAllDatasetRecords()">⚡ Seed All Dataset Records to Supabase</button>
           </div>
         </div>
 
-        <div>
-          <b style="color: #008000;">TARGET: legacy_accounts</b>
-          <div style="overflow-x: auto; margin-top: 4px;">
-            <table id="target-comparison-table">
-              <thead>
-                <tr>
-                  <th>UUID</th>
-                  <th>EMAIL</th>
-                  <th>LICENSE NO</th>
-                  <th>SSM NO</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td colspan="4" align="center">Click 'Refresh Comparison Data'.</td></tr>
-              </tbody>
-            </table>
+        <div class="notice-box">
+          <b>REGULATION:</b> Please ensure all accommodation premise information is accurately entered matching SSM business registration and premise operating permit code.
+        </div>
+        
+        <form id="legacy-entry-form">
+          <div class="form-grid">
+            <div><label>Raw ID:</label><input type="text" id="legacy-raw-id" placeholder="raw_id" readonly style="background-color:#f1f5f9;" /></div>
+            <div><label>Premise Operator Name:</label><input type="text" id="legacy-name" placeholder="operator_name" /></div>
+            <div><label>Contact Email:</label><input type="email" id="legacy-email" placeholder="operator_email" required /></div>
+            <div><label>Accommodation / Business Name:</label><input type="text" id="legacy-biz" placeholder="operator_business_name" required /></div>
+            <div><label>Operating License Code:</label><input type="text" id="legacy-license" placeholder="licence_no_code" required /></div>
+            <div><label>SSM Reg Number:</label><input type="text" id="legacy-ssm" placeholder="ssm_reg_number" required /></div>
+            <div><label>Phone Number:</label><input type="text" id="legacy-phone" placeholder="phone_number" /></div>
+            <div><label>Premise State:</label><input type="text" id="legacy-state" placeholder="legacy_state" /></div>
+            <div><label>Premise District:</label><input type="text" id="legacy-district" placeholder="legacy_district" /></div>
+          </div>
+          <button type="submit" class="btn btn-blue">Save Legacy Premise Entry</button>
+          <button type="reset" class="btn btn-outline" onclick="document.getElementById('preset-selector').value=''">Clear Form</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 2: ETL ENGINE & DATASETS -->
+    <div id="migration-tab" class="tab-content">
+      <div class="card">
+        <div class="card-title">2. BACKGROUND ACCOMMODATION DATA MIGRATION ENGINE (ETL_DAEMON)</div>
+        <p style="margin-top:0; font-size: 0.85rem; color: #475569;">This function extracts accommodation records from the legacy database and processes them into the MySTRA core target accounts system.</p>
+        
+        <div style="margin-bottom: 12px; display: flex; gap: 0.5rem;">
+          <button id="btn-run-etl" class="btn btn-green">▶ EXECUTE ETL PROCESS</button>
+          <button id="btn-download-csv" class="btn btn-outline" style="display: none;">💾 DOWNLOAD CSV BUFFER (DEBUG)</button>
+        </div>
+        
+        <label style="font-weight: bold; font-size: 0.85rem;">SYSTEM LOG OUTPUT (STDOUT):</label>
+        <div id="log-output" class="log-box">> SYSTEM Ready. Click "EXECUTE ETL PROCESS" to run worker script.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">3. DESTINATION ACCOMMODATION DATASET (legacy_accounts)</div>
+        
+        <div style="margin-bottom: 12px;">
+          <button id="btn-refresh-target" class="btn btn-purple">🔄 REFRESH TARGET DATASET</button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table id="target-table">
+            <thead>
+              <tr>
+                <th>SYSTEM UUID</th>
+                <th>LEGACY EMAIL</th>
+                <th>BUSINESS NAME</th>
+                <th>LICENSE NO</th>
+                <th>BUSINESS SSM NO</th>
+                <th>MIGRATION STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="6" align="center">No records found. Run ETL process to populate.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">4. DUAL DATABASE INSPECTION VIEW (SIDE-BY-SIDE)</div>
+        <button id="btn-toggle-comparison" class="btn btn-purple" style="margin-bottom: 12px;">🔄 REFRESH COMPARISON DATA</button>
+
+        <div class="comparison-grid">
+          <div>
+            <b style="color: #dc2626; font-size: 0.85rem;">SOURCE: mock_legacy_external_db</b>
+            <div style="overflow-x: auto; margin-top: 6px;">
+              <table id="source-comparison-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>EMAIL</th>
+                    <th>BUSINESS NAME</th>
+                    <th>LICENSE NO</th>
+                    <th>SSM NO</th>
+                    <th>DOCUMENT URL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="6" align="center">Click 'Refresh Comparison Data'.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <b style="color: #059669; font-size: 0.85rem;">TARGET: legacy_accounts</b>
+            <div style="overflow-x: auto; margin-top: 6px;">
+              <table id="target-comparison-table">
+                <thead>
+                  <tr>
+                    <th>UUID</th>
+                    <th>EMAIL</th>
+                    <th>BUSINESS NAME</th>
+                    <th>LICENSE NO</th>
+                    <th>SSM NO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" align="center">Click 'Refresh Comparison Data'.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- FOOTER -->
-  <div style="text-align: center; font-size: 10px; color: #555555; margin-top: 15px; border-top: 1px solid #aaaaaa; padding-top: 5px;">
-    All Rights Reserved © 2026 Ministry of Tourism & Culture.<br>
-    Best viewed using Internet Explorer 7.0 / Mozilla Firefox 3.6 at 1024x768 resolution.
+    <!-- FOOTER -->
+    <div style="text-align: center; font-size: 0.75rem; color: #64748b; margin-top: 1rem; border-top: 1px solid #cbd5e1; padding-top: 1rem;">
+      All Rights Reserved © 2026 Ministry of Tourism & Culture.<br>
+      Best viewed using Internet Explorer 7.0 / Mozilla Firefox 3.6 at 1024x768 resolution.
+    </div>
   </div>
 
   <script>
@@ -392,189 +187,33 @@
     const downloadCsvBtn = document.getElementById("btn-download-csv");
     let lastInMemoryCsv = "";
 
-    // 14 RAW DATASET RECORDS (INCLUDES chubbykoa@gmail.com)
+    // DATASET REDUCED TO 2 REAL TESTING RECORDS
     const rawDataset = [
       {
         raw_id: 1,
-        operator_business_name: "  Langkawi Beach Villa  ",
-        operator_email: " BOOKINGS@LANGKAWIBEACH.COM ",
-        licence_no_code: " lic-lgk-7701 ",
-        ssm_reg_number: " ssm-2026-990011 ",
-        legacy_state: "Kedah",
-        legacy_district: "Langkawi",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
+        operator_business_name: "Chubby Koa Retreat",
+        operator_email: "chubbykoa@gmail.com",
+        licence_no_code: "LIC-CK-9901",
+        ssm_reg_number: "SSM-2026-112233",
+        legacy_state: "Selangor",
+        legacy_district: "Petaling",
+        document_url: "documents/ssm/SSM_Certificate_SSM_2026_112233.pdf",
         system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
+        operator_name: "Chubby Koa Operator",
+        phone_number: "+60123456789"
       },
       {
         raw_id: 2,
-        operator_business_name: "Kuching Waterfront Suites",
-        operator_email: "ADMIN@KUCHINGSUITES.MY",
-        licence_no_code: "lic-kch-8822",
-        ssm_reg_number: "202604455667",
-        legacy_state: "Sarawak",
-        legacy_district: "Kuching",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
+        operator_business_name: "Sheepytoba Waterfront Stays",
+        operator_email: "sheepytoba@gmail.com",
+        licence_no_code: "LIC-ST-8822",
+        ssm_reg_number: "SSM-2026-445566",
+        legacy_state: "Kedah",
+        legacy_district: "Langkawi",
+        document_url: "documents/ssm/SSM_Certificate_SSM_2026_445566.pdf",
         system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 3,
-        operator_business_name: "Terengganu Seaview Resort",
-        operator_email: "  info_terengganu@seaview.com.my ",
-        licence_no_code: " lic-trg-3344 ",
-        ssm_reg_number: " ssm-2026-556677 ",
-        legacy_state: "Terengganu",
-        legacy_district: "Kuala Terengganu",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
-        system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 4,
-        operator_business_name: "Ipoh Oldtown Homestay",
-        operator_email: "CONTACT@IPOHOLDTOWN.COM",
-        licence_no_code: "lic-iph-1155",
-        ssm_reg_number: "202608899000",
-        legacy_state: "Perak",
-        legacy_district: "Kinta",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
-        system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 5,
-        operator_business_name: "Perlis Nature Lodge",
-        operator_email: "  stay@perlisnaturelodge.my ",
-        licence_no_code: "lic-pls-6677",
-        ssm_reg_number: " ssm-2026-112233 ",
-        legacy_state: "Perlis",
-        legacy_district: "Kangar",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
-        system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 6,
-        operator_business_name: "Borneo Haven Resort",
-        operator_email: "test_operator_999@borneohaven.com",
-        licence_no_code: "LIC-TEST-9999",
-        ssm_reg_number: "SSM-2026-999999",
-        legacy_state: "Sabah",
-        legacy_district: "Kota Kinabalu",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 7,
-        operator_business_name: "Penang Heritage Inn",
-        operator_email: "contact@penangheritageinn.com",
-        licence_no_code: "LIC-PNG-4411",
-        ssm_reg_number: "SSM-2026-778899",
-        legacy_state: "Penang",
-        legacy_district: "George Town",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "",
-        phone_number: ""
-      },
-      {
-        raw_id: 8,
-        operator_business_name: "Cameron Highlands Flora Retreat",
-        operator_email: "syahmi@cameronflora.my",
-        licence_no_code: "LIC-PHG-5533",
-        ssm_reg_number: "SSM-2026-114455",
-        legacy_state: "Pahang",
-        legacy_district: "Cameron Highlands",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Ahmad Syahmi",
-        phone_number: "+60129876543"
-      },
-      {
-        raw_id: 9,
-        operator_business_name: "Natalie Logistics Enterprise",
-        operator_email: "nataliekhy-sm23@student.tarc.edu.my",
-        licence_no_code: "MY-LKC-10022",
-        ssm_reg_number: "202401012345",
-        legacy_state: "Selangor",
-        legacy_district: "Petaling",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Natalie Khy",
-        phone_number: "+60129876543"
-      },
-      {
-        raw_id: 11,
-        operator_business_name: "Bukit Bintang Luxury Suites",
-        operator_email: "aisyah.ahmad@kl-city-stays.com.my",
-        licence_no_code: "LIC/KUL/2026/7789",
-        ssm_reg_number: "202501099881 (1509281-W)",
-        legacy_state: "W.P. Kuala Lumpur",
-        legacy_district: "Kuala Lumpur",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Nurul Aisyah binti Ahmad",
-        phone_number: "012-9988776"
-      },
-      {
-        raw_id: 12,
-        operator_business_name: "Batu Ferringhi Beachfront Chalets",
-        operator_email: "karan.subra@penang-sea-villas.com.my",
-        licence_no_code: "LIC/PNG/2026/4102",
-        ssm_reg_number: "202501088412 (1510293-P)",
-        legacy_state: "Penang",
-        legacy_district: "Timor Laut",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Karan A/L Subramaniam",
-        phone_number: "014-3321109"
-      },
-      {
-        raw_id: 13,
-        operator_business_name: "Ipoh Old Town Boutique Suites",
-        operator_email: "weiloon.ching@ipoh-heritage-stay.my",
-        licence_no_code: "LIC/PRK/2026/9012",
-        ssm_reg_number: "202501077210 (1519821-A)",
-        legacy_state: "Perak",
-        legacy_district: "Kinta",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Ching Wei Loon",
-        phone_number: "016-5544321"
-      },
-      {
-        raw_id: 14,
-        operator_business_name: "Jonker Street Heritage Villa",
-        operator_email: "sarah.zainal@melaka-homestays.my",
-        licence_no_code: "LIC/MLK/2026/3341",
-        ssm_reg_number: "202501066543 (1521034-M)",
-        legacy_state: "Melaka",
-        legacy_district: "Melaka Tengah",
-        document_url: "",
-        system_status: "ACTIVE",
-        operator_name: "Siti Sarah binti Zainal",
-        phone_number: "017-8876543"
-      },
-      {
-        raw_id: 15,
-        operator_business_name: "Chubby Koa Resort",
-        operator_email: "chubbykoa@gmail.com",
-        licence_no_code: "LGC-HOTEL-2026-001",
-        ssm_reg_number: "202401088911-A",
-        legacy_state: "Kuala Lumpur",
-        legacy_district: "Bukit Bintang",
-        document_url: "https://pdfobject.com/pdf/sample.pdf",
-        system_status: "ACTIVE",
-        operator_name: "Chubby Koa Admin",
-        phone_number: "+60123889011"
+        operator_name: "Sheepytoba Operator",
+        phone_number: "+60198765432"
       }
     ];
 
@@ -601,7 +240,6 @@
       document.getElementById("legacy-phone").value = rec.phone_number;
       document.getElementById("legacy-state").value = rec.legacy_state;
       document.getElementById("legacy-district").value = rec.legacy_district;
-      document.getElementById("legacy-doc").value = rec.document_url;
     }
 
     function pickRandomPreset() {
@@ -611,7 +249,7 @@
     }
 
     async function seedAllDatasetRecords() {
-      if (!confirm("This will insert/upsert all 14 dataset records into 'mock_legacy_external_db'. Continue?")) return;
+      if (!confirm(`This will insert/upsert all ${rawDataset.length} dataset records into 'mock_legacy_external_db'. Continue?`)) return;
 
       const payload = rawDataset.map(r => ({
         operator_name: r.operator_name,
@@ -628,12 +266,12 @@
 
       const { data, error } = await supabaseClient
         .from("mock_legacy_external_db")
-        .insert(payload);
+        .upsert(payload, { onConflict: "operator_email" });
 
       if (error) {
         alert("SEED ERROR: " + error.message);
       } else {
-        alert("SUCCESS: All 14 dataset records seeded into Supabase!");
+        alert(`SUCCESS: All ${rawDataset.length} dataset records seeded into Supabase!`);
         refreshComparisonTables();
       }
     }
@@ -654,6 +292,9 @@
     document.getElementById("legacy-entry-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       
+      const ssmClean = document.getElementById("legacy-ssm").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_");
+      const finalDocUrl = `documents/ssm/SSM_Certificate_${ssmClean}.pdf`;
+
       const newRecord = {
         operator_name: document.getElementById("legacy-name").value.trim(),
         operator_email: document.getElementById("legacy-email").value.trim().toLowerCase(),
@@ -663,7 +304,7 @@
         phone_number: document.getElementById("legacy-phone").value.trim(),
         legacy_state: document.getElementById("legacy-state").value.trim(),
         legacy_district: document.getElementById("legacy-district").value.trim(),
-        document_url: document.getElementById("legacy-doc").value.trim(),
+        document_url: finalDocUrl,
         system_status: "ACTIVE"
       };
 
@@ -682,7 +323,7 @@
     });
 
     document.getElementById("btn-run-etl").addEventListener("click", async () => {
-      logBox.innerHTML = "> INITIALIZING BATCH ETL PROCESS...";
+      logBox.innerHTML = "> INITIALIZING BATCH ETL PIPELINE...";
       downloadCsvBtn.style.display = "none";
 
       try {
@@ -700,12 +341,12 @@
         log(`✔ SUCCESS: ${legacyRows.length} raw records extracted.`);
 
         log("STEP 2: Constructing in-memory CSV stream buffer...");
-        const csvHeaders = ["id", "operator_name", "operator_email", "operator_business_name", "licence_no_code", "ssm_reg_number", "phone_number", "legacy_state", "legacy_district"];
+        const csvHeaders = ["id", "operator_name", "operator_email", "operator_business_name", "licence_no_code", "ssm_reg_number", "phone_number", "legacy_state", "legacy_district", "document_url"];
         
         const csvLines = [
           csvHeaders.join(","),
           ...legacyRows.map(row => 
-            `${row.id || ''},"${row.operator_name || ''}","${row.operator_email || ''}","${row.operator_business_name || ''}","${row.licence_no_code || ''}","${row.ssm_reg_number || ''}","${row.phone_number || ''}","${row.legacy_state || ''}","${row.legacy_district || ''}"`
+            `${row.id || ''},"${row.operator_name || ''}","${row.operator_email || ''}","${row.operator_business_name || ''}","${row.licence_no_code || ''}","${row.ssm_reg_number || ''}","${row.phone_number || ''}","${row.legacy_state || ''}","${row.legacy_district || ''}","${row.document_url || ''}"`
           )
         ];
         
@@ -713,25 +354,35 @@
         log("✔ SUCCESS: CSV buffer constructed.");
         downloadCsvBtn.style.display = "inline-block";
 
-        log("STEP 3: Sanitizing & Remapping fields to schema target 'legacy_accounts'...");
-        
-        const transformedPayload = legacyRows.map(row => ({
-          legacy_email: row.operator_email ? row.operator_email.toLowerCase().trim() : "",
-          license_no: row.licence_no_code ? row.licence_no_code.toUpperCase().trim() : "",
-          business_ssm: row.ssm_reg_number ? row.ssm_reg_number.toUpperCase().trim() : "",
-          is_migrated: false
-        }));
+        log("STEP 3: Sanitizing & Remapping fields into destination target 'legacy_accounts'...");
+        const accountPayload = legacyRows.map(row => {
+          const ssmClean = row.ssm_reg_number ? row.ssm_reg_number.trim().toUpperCase().replace(/[^A-Z0-9]/g, "_") : `RAW_${row.id}`;
+          const uniqueDocUrl = row.document_url && row.document_url.trim() !== ""
+            ? row.document_url.trim()
+            : `documents/ssm/SSM_Certificate_${ssmClean}.pdf`;
 
-        log(`✔ SUCCESS: ${transformedPayload.length} objects sanitized and mapped.`);
+          return {
+            legacy_email: row.operator_email ? row.operator_email.toLowerCase().trim() : "",
+            license_no: row.licence_no_code ? row.licence_no_code.toUpperCase().trim() : "",
+            business_ssm: row.ssm_reg_number ? row.ssm_reg_number.toUpperCase().trim() : "",
+            business_name: row.operator_business_name ? row.operator_business_name.trim() : "",
+            phone_number: row.phone_number ? row.phone_number.trim() : null,
+            operator_name: row.operator_name ? row.operator_name.trim() : null,
+            document_url: uniqueDocUrl,
+            is_migrated: false
+          };
+        });
 
-        log("STEP 4: Upserting data stream into target database...");
-        const { data: upsertData, error: loadErr } = await supabaseClient
+        const { data: migratedAccounts, error: accountErr } = await supabaseClient
           .from("legacy_accounts")
-          .upsert(transformedPayload, { onConflict: "legacy_email" });
+          .upsert(accountPayload, { onConflict: "legacy_email" })
+          .select();
 
-        if (loadErr) throw loadErr;
+        if (accountErr) throw accountErr;
 
-        log("🎉 COMPLETED: Migration pipeline executed without errors!");
+        log(`🎉 SUCCESS: ${accountPayload.length} legacy accounts staged in 'legacy_accounts' with unique SSM document paths!`);
+        log("ℹ NOTE: Compliance documents will be generated when users log in via OTP & set password.");
+        
         renderTargetTable();
         refreshComparisonTables();
 
@@ -754,12 +405,12 @@
       const { data, error } = await supabaseClient.from("legacy_accounts").select("*");
       
       if (error) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color: red;">Error: ${error.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="color: red;">Error: ${error.message}</td></tr>`;
         return;
       }
 
       if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" align="center">No records found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" align="center">No records found.</td></tr>`;
         return;
       }
 
@@ -767,6 +418,7 @@
         <tr>
           <td><font face="Courier New">${row.id || 'N/A'}</font></td>
           <td>${row.legacy_email || ''}</td>
+          <td>${row.business_name || ''}</td>
           <td>${row.license_no || ''}</td>
           <td>${row.business_ssm || ''}</td>
           <td>
@@ -785,16 +437,18 @@
       const { data: sourceData, error: sourceErr } = await supabaseClient.from("mock_legacy_external_db").select("*");
       
       if (sourceErr) {
-        sourceTbody.innerHTML = `<tr><td colspan="4" style="color: red;">Error: ${sourceErr.message}</td></tr>`;
+        sourceTbody.innerHTML = `<tr><td colspan="6" style="color: red;">Error: ${sourceErr.message}</td></tr>`;
       } else if (!sourceData || sourceData.length === 0) {
-        sourceTbody.innerHTML = `<tr><td colspan="4" align="center">Source table empty.</td></tr>`;
+        sourceTbody.innerHTML = `<tr><td colspan="6" align="center">Source table empty.</td></tr>`;
       } else {
         sourceTbody.innerHTML = sourceData.map(row => `
           <tr>
             <td>${row.id || 'N/A'}</td>
             <td>${row.operator_email || ''}</td>
+            <td>${row.operator_business_name || ''}</td>
             <td>${row.licence_no_code || ''}</td>
             <td>${row.ssm_reg_number || ''}</td>
+            <td>${row.document_url ? `<a href="${row.document_url}" target="_blank">View PDF</a>` : '-'}</td>
           </tr>
         `).join("");
       }
@@ -802,14 +456,15 @@
       const { data: targetData, error: targetErr } = await supabaseClient.from("legacy_accounts").select("*");
 
       if (targetErr) {
-        targetTbody.innerHTML = `<tr><td colspan="4" style="color: red;">Error: ${targetErr.message}</td></tr>`;
+        targetTbody.innerHTML = `<tr><td colspan="5" style="color: red;">Error: ${targetErr.message}</td></tr>`;
       } else if (!targetData || targetData.length === 0) {
-        targetTbody.innerHTML = `<tr><td colspan="4" align="center">Target table empty.</td></tr>`;
+        targetTbody.innerHTML = `<tr><td colspan="5" align="center">Target table empty.</td></tr>`;
       } else {
         targetTbody.innerHTML = targetData.map(row => `
           <tr>
             <td><font face="Courier New">${row.id ? String(row.id).substring(0,8) + '...' : 'N/A'}</font></td>
             <td>${row.legacy_email || ''}</td>
+            <td>${row.business_name || ''}</td>
             <td>${row.license_no || ''}</td>
             <td>${row.business_ssm || ''}</td>
           </tr>

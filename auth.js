@@ -382,13 +382,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const client = getSupabaseClient();
       if (!client) return;
 
-      // Query mock_legacy_external_db using its native schema
+      // 1. Query internal legacy_accounts table using its precise schema
       const { data: legacyRecord, error: legacyErr } = await client
-        .from("mock_legacy_external_db")
+        .from("legacy_accounts")
         .select("*")
-        .ilike("operator_email", email)
-        .ilike("licence_no_code", licenseNo)
-        .eq("ssm_reg_number", ssm)
+        .ilike("legacy_email", email)
+        .ilike("license_no", licenseNo)
+        .eq("business_ssm", ssm)
         .single();
 
       if (legacyErr || !legacyRecord) {
@@ -396,18 +396,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (legacyRecord.system_status === "MIGRATED") {
+      if (legacyRecord.is_migrated) {
         alert("❌ This legacy account has already been migrated. Please log in with your credentials.");
         return;
       }
 
-      // Map legacy schema to application structure (ETL transformation)
+      // 2. Map legacy_accounts schema to tempLegacyData structure
       tempLegacyData = {
-        email: legacyRecord.operator_email,
-        licenseNo: legacyRecord.licence_no_code,
-        ssm: legacyRecord.ssm_reg_number,
+        email: legacyRecord.legacy_email,
+        licenseNo: legacyRecord.license_no,
+        ssm: legacyRecord.business_ssm,
         fullName: legacyRecord.operator_name || "Legacy Operator",
-        businessName: legacyRecord.operator_business_name || "Legacy Business",
+        businessName: legacyRecord.business_name || "Legacy Business",
         phone: legacyRecord.phone_number || "",
         documentUrl: legacyRecord.document_url || ""
       };
@@ -529,13 +529,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         
         // 4. Update status in legacy_accounts table to migrated
-      const { error: updateLegacyErr } = await client
-        .from("legacy_accounts")
-        .update({ is_migrated: true })
-        .eq("legacy_email", tempLegacyData.email);
+  // 4a. Update status in your internal tracking table (legacy_accounts)
+const { error: updateLegacyErr } = await client
+  .from("legacy_accounts")
+  .update({ is_migrated: true })
+  .ilike("legacy_email", tempLegacyData.email);
 
 if (updateLegacyErr) {
-  console.warn("Legacy Table Update Notice:", updateLegacyErr.message);
+  console.warn("Internal Legacy Table Update Notice:", updateLegacyErr.message);
+}
+
+// 4b. Sync status back to mock legacy system to block re-migration lookups
+const { error: updateMockErr } = await client
+  .from("mock_legacy_external_db")
+  .update({ system_status: "MIGRATED" })
+  .ilike("operator_email", tempLegacyData.email);
+
+if (updateMockErr) {
+  console.warn("Mock Legacy System Update Notice:", updateMockErr.message);
 }
 
         alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
@@ -613,7 +624,7 @@ if (updateLegacyErr) {
       }
 
       try {
-        // 1. Create Supabase Auth User with metadata
+        // Create Supabase Auth User (Database trigger automatically builds the profile)
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempUserData.email,
           password: tempUserData.password,
@@ -626,28 +637,20 @@ if (updateLegacyErr) {
           }
         });
 
+        // Gracefully handle existing user states or database trigger conflicts
         if (signUpError) {
+          if (
+            signUpError.message.includes("Database error saving new user") ||
+            signUpError.message.includes("User already registered") ||
+            signUpError.status === 422
+          ) {
+            alert("✅ Account already created! Redirecting to login...");
+            window.location.href = "login.html";
+            return;
+          }
+
           alert("❌ Registration Error: " + signUpError.message);
           return;
-        }
-
-        // 2. Insert into profiles table
-        if (authData?.user) {
-          const { error: profileError } = await client
-            .from("profiles")
-            .insert([
-              {
-                id: authData.user.id,
-                full_name: tempUserData.fullName,
-                business_name: tempUserData.businessName,
-                phone_no: tempUserData.phone,
-                role: "operator"
-              }
-            ]);
-
-          if (profileError) {
-            console.warn("Profile Insert Notice:", profileError.message);
-          }
         }
 
         alert("✅ Account created successfully! Redirecting to login...");
@@ -660,7 +663,7 @@ if (updateLegacyErr) {
   }
 
   // ==============================================================================
-  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE 
+  // 3. MySTRA LOGIN AUTHENTICATION & CLIENT-SIDE LOCKOUT ENGINE
   // ==============================================================================
   if (loginForm) {
     const emailInput = document.getElementById("email");
@@ -689,14 +692,19 @@ if (updateLegacyErr) {
       }
 
       // Flow A4: Rate Limiting / Lockout Check
-      const now = Date.now();
-      let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
-      let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
+const now = Date.now();
+let attemptsData = JSON.parse(localStorage.getItem("mystra_login_attempts") || "{}");
+let userAttempts = attemptsData[email] || { count: 0, firstAttemptTime: now, lockUntil: 0 };
 
-      if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
-        alert("Too many failed attempts. Please try again in 15 minutes.");
-        return;
-      }
+if (userAttempts.lockUntil && now < userAttempts.lockUntil) {
+  // Calculate remaining seconds
+  const remainingMs = userAttempts.lockUntil - now;
+  const remainingMinutes = Math.floor(remainingMs / 60000);
+  const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
+
+  alert(`Too many failed attempts. Please try again in ${remainingMinutes}m ${remainingSeconds}s.`);
+  return;
+}
 
       // Reset attempt window if 10 minutes have passed since first failed attempt
       if (now - userAttempts.firstAttemptTime > ATTEMPT_WINDOW_MS) {

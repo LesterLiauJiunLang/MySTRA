@@ -224,36 +224,3 @@ class GovReportsModule {
     }
 }
 
-async function handleLogout(event) {
-    if (event) event.preventDefault();
-    if (!window.supabaseClient) { console.error('❌ Supabase client uninitialized'); return; }
-
-    try {
-        const currentAdmin = window.currentAdminName
-            || localStorage.getItem('current_admin_name')
-            || window.currentAdminEmail
-            || 'Executive Officer';
-
-        if (window.GovAuditLogDirectory) {
-            try {
-                await window.GovAuditLogDirectory.logAction({
-                    performerName: currentAdmin,
-                    actionDetails: 'Admin logged out',
-                    isValidPass: true,
-                    requestingOta: 'REPORTS_MODULE'
-                });
-            } catch (auditErr) {
-                console.warn('⚠️ Non-blocking logout audit log failure:', auditErr);
-            }
-        }
-
-        const { error } = await window.supabaseClient.auth.signOut();
-        if (error) { alert('Logout Failed: ' + error.message); return; }
-
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-    } catch (err) {
-        console.error('❌ Logout Exception:', err);
-    }
-}
