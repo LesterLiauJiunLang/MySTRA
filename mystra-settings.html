@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySTRA - Settings</title>
+    <link rel="stylesheet" href="control-panel.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="document.js" defer></script>
+
+    <style>
+        .badge-pending { background:#FEF3C7;color:#92400E;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-approved { background:#DCFCE7;color:#15803D;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .badge-rejected { background:#FEE2E2;color:#991B1B;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600; }
+        .settings-form input,
+        .settings-form select {
+            width: 100%; padding: 10px; border: 1px solid #E5E7EB;
+            border-radius: 8px; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <nav class="sidebar">
+            <div class="sidebar-brand">MySTRA Portal</div>
+            <ul class="nav-links">
+                <li class="nav-item" onclick="window.location.href='mystra-code-control.html';"><span class="icon">🏠</span> Home</li>
+                <li class="nav-item" onclick="window.location.href='mystra-code-control.html';"><span class="icon">🔑</span> MySTRA Code Manager</li>
+                <li class="nav-item" onclick="window.location.href='mystra-document-portal.html';"><span class="icon">📄</span> Documents</li>
+                <li class="nav-item active-nav"><span class="icon">⚙️</span> Settings</li>
+                <li id="nav-logout" class="nav-item" onclick="logoutUser()" style="margin-top:24px;color:#EF4444;cursor:pointer;border-top:1px solid #E5E7EB;padding-top:16px;">
+                    <span class="icon">🚪</span> Logout
+                </li>
+            </ul>
+            <div class="sidebar-footer" style="margin-top:auto;padding-top:20px;border-top:1px solid #E5E7EB;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                    <div id="footer-avatar" style="width:32px;height:32px;border-radius:50%;background:#2563EB;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">--</div>
+                    <div style="flex:1;min-width:0;">
+                        <div id="sidebar-username" style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+                        <div id="sidebar-userbusiness" style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+                    </div>
+                </div>
+                <div id="sidebar-userstatus" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;display:inline-block;background:#FEF3C7;color:#92400E;">⏳ Loading...</div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <div class="header-title-wrapper">
+                    <h1>⚙️ Account Settings</h1>
+                    <span id="db-status-badge" class="status-badge">🟢 SUPABASE LIVE</span>
+                </div>
+                <div style="font-size:13px;color:#6B7280;">Home / Settings</div>
+            </header>
+
+            <!-- PROFILE SECTION -->
+            <div class="widget-card">
+                <h2>👤 Profile Information</h2>
+                <p style="color:#6B7280;margin-bottom:20px;">Update your personal and business details.</p>
+                <form id="settings-form" class="settings-form" style="display:flex;flex-direction:column;gap:16px;max-width:550px;">
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Full Name</label>
+                        <input type="text" id="setting-fullname">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Business Name</label>
+                        <input type="text" id="setting-business">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Phone Number</label>
+                        <input type="text" id="setting-phone">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Email</label>
+                        <input type="email" id="setting-email" disabled style="background:#F9FAFB;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Account Status</label>
+                        <div id="setting-status" style="padding:10px;border-radius:8px;background:#F9FAFB;">
+                            <span class="badge-pending">Loading...</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="padding:12px;margin-top:8px;">💾 Save Profile</button>
+                </form>
+            </div>
+
+            <!-- PROPERTY SECTION -->
+            <div class="widget-card" style="margin-top:20px;">
+                <h2>🏠 Property Registration</h2>
+                <p style="color:#6B7280;margin-bottom:16px;">
+                    Register your short-term rental property. Required before you can upload compliance documents.
+                    <strong>Note:</strong> Property is only officially verified after your SSM Certificate is approved by the admin.
+                </p>
+
+                <div id="property-status-banner" style="margin-bottom:16px;"></div>
+
+                <form id="property-form" class="settings-form" style="display:flex;flex-direction:column;gap:16px;max-width:550px;">
+                    <input type="hidden" id="prop-id">
+
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Property Title *</label>
+                        <input type="text" id="prop-title" placeholder="e.g., Bukit Bintang City Suite" required>
+                    </div>
+
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Full Address *</label>
+                        <input type="text" id="prop-address" placeholder="e.g., Jalan Bukit Bintang, Kuala Lumpur" required>
+                        <p style="font-size:12px;color:#6B7280;margin-top:6px;">
+                            Type the full address. We'll automatically find the GPS coordinates.
+                        </p>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">City</label>
+                            <input type="text" id="prop-city" placeholder="Kuala Lumpur">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">State</label>
+                            <input type="text" id="prop-state" placeholder="WPKL">
+                        </div>
+                    </div>
+
+                    <!-- Location preview (auto-filled after saving) -->
+                    <div id="prop-location-preview" style="display:none;background:#F0FDF4;padding:12px;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;">
+                        <div style="color:#15803D;font-weight:600;margin-bottom:4px;">✅ Location Found</div>
+                        <div style="font-family:monospace;font-size:12px;color:#166534;" id="prop-coords-preview">
+                            Lat: --, Lng: --
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Description</label>
+                        <input type="text" id="prop-description" placeholder="e.g., Modern suite near KLCC">
+                    </div>
+
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Contact Info</label>
+                        <input type="text" id="prop-contact" placeholder="+60123456789">
+                    </div>
+
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">License Number (optional)</label>
+                        <input type="text" id="prop-license" placeholder="e.g., KL-2024-006">
+                    </div>
+
+                    <button type="submit" id="prop-submit-btn" class="btn-primary" style="padding:12px;margin-top:8px;">
+                        💾 Save Property
+                    </button>
+                </form>
+            </div>
+
+            <!-- NEXT STEPS -->
+            <div class="widget-card" style="margin-top:20px;background:#F8FAFC;border:1px solid #E5E7EB;">
+                <h3 style="font-size:16px;font-weight:600;margin-bottom:12px;">📋 Next Steps to Get Verified</h3>
+                <ol style="font-size:14px;color:#4B5563;line-height:1.8;padding-left:20px;">
+                    <li>Register your property above ✅</li>
+                    <li>Upload your <strong>SSM Certificate</strong> and other documents from the Documents tab</li>
+                    <li>Wait for admin verification (usually within 1-3 business days)</li>
+                    <li>Once your SSM Certificate is approved, you can generate your MySTRA Code</li>
+                </ol>
+                <a href="mystra-document-portal.html" style="display:inline-block;margin-top:12px;background:#2563EB;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+                    📤 Go to Documents →
+                </a>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

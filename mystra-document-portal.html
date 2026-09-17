@@ -17,6 +17,7 @@
     <script src="supabase-config.js"></script>
     <!-- document javascript -->
     <script src="document.js" defer></script>
+    <script src="control-panel.js"></script>
 
     <style>
         /* ==============================================================================
@@ -318,9 +319,12 @@
                 <li id="nav-docs" class="nav-item active-nav">
                     <span class="icon">📄</span> Documents
                 </li>
-                <!-- Link to Settings (in Code Control Centre) -->
-                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-code-control.html#settings';" title="Settings are managed in the Control Centre">
+                <!-- Link back to Settings  -->
+                <li id="nav-settings" class="nav-item" onclick="window.location.href='mystra-settings.html';">
                     <span class="icon">⚙️</span> Settings
+                </li>
+                <li id="nav-logout" class="nav-item" style="margin-top: 24px; color: #EF4444; cursor: pointer; border-top: 1px solid #E5E7EB; padding-top: 16px;">
+                    <span class="icon">🚪</span> Logout
                 </li>
             </ul>
             <!-- User Footer -->
@@ -382,9 +386,9 @@
                     <div style="background: #F8FAFC; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #E5E7EB;">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 14px;">
                             <span style="color: #6B7280;">Property ID:</span>
-                            <span style="font-weight: 600; font-family: monospace;" id="upload-property-id">MYSTRA-KL-2026-897F</span>
+                            <span style="font-weight: 600; font-family: monospace;" id="upload-property-id">-</span>
                             <span style="color: #6B7280;">Address:</span>
-                            <span style="font-weight: 500;" id="upload-property-address">123, Jalan Bukit Bintang, KL</span>
+                            <span style="font-weight: 500;" id="upload-property-address">Loading...</span>
                             <span style="color: #6B7280;">Status:</span>
                             <span class="badge-green">✅ Active</span>
                             <span style="color: #6B7280;">Your Status:</span>

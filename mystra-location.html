@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script src="document.js" defer></script>
+    <script src="control-panel.js"></script>
 
     <style>
         .map-visual { background:#F1F5F9;border-radius:12px;padding:20px;text-align:center;min-height:200px;display:flex;flex-direction:column;justify-content:center;align-items:center; }
@@ -31,6 +32,9 @@
                 <li class="nav-item" onclick="window.location.href='mystra-code-control.html';"><span class="icon">🔑</span> MySTRA Code Manager</li>
                 <li class="nav-item active-nav" onclick="window.location.href='mystra-document-portal.html';"><span class="icon">📄</span> Documents</li>
                 <li class="nav-item" onclick="window.location.href='mystra-settings.html';"><span class="icon">⚙️</span> Settings</li>
+                <li id="nav-logout" class="nav-item" style="margin-top: 24px; color: #EF4444; cursor: pointer; border-top: 1px solid #E5E7EB; padding-top: 16px;">
+                    <span class="icon">🚪</span> Logout
+                </li>
             </ul>
             <div class="sidebar-footer" style="margin-top:auto;padding-top:20px;border-top:1px solid #E5E7EB;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">

@@ -420,7 +420,25 @@ async getPropertyByOwner(userId) {
         .limit(1)
         .maybeSingle();
 },
-    
+    async createProperty(propertyData) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    return await supabaseClient
+        .from('properties')
+        .insert([propertyData])
+        .select()
+        .single();
+},
+
+async updateProperty(propertyId, updates) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    return await supabaseClient
+        .from('properties')
+        .update(updates)
+        .eq('id', propertyId)
+        .select()
+        .single();
+},
+
     // ==============================================================================
     // 📄 COMPLIANCE DOCUMENTS (MODULE 3 - LESTER)
     // ==============================================================================
@@ -433,14 +451,14 @@ async getPropertyByOwner(userId) {
     
     // 1. Upload file to Storage
     const { data: uploadData, error: uploadError } = await supabaseClient.storage
-        .from('compliance-documents')
+        .from('compliance-document')
         .upload(fileName, file);
     
     if (uploadError) return { data: null, error: uploadError };
     
     // 2. Get public URL
     const { data: urlData } = supabaseClient.storage
-        .from('compliance-documents')
+        .from('compliance-document')
         .getPublicUrl(fileName);
     
     // 3. Insert into DB - user_id is now REQUIRED

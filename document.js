@@ -706,7 +706,7 @@ async function handleDocumentUpload(e) {
     docTypeSelect.value = '';
     document.getElementById('document-name-container').style.display = 'none';
 
-    window.location.href = 'mystra-my-documents.html';
+    window.location.href = 'mystra-mydocuments.html';
 }
 
 // ==============================================================================
@@ -892,9 +892,258 @@ document.addEventListener('DOMContentLoaded', async () => {
     const settingsForm = document.getElementById('settings-form');
     if (settingsForm) settingsForm.addEventListener('submit', saveSettings);
 
+    const propertyForm = document.getElementById('property-form');
+    if (propertyForm) {
+        propertyForm.addEventListener('submit', handleSaveProperty);
+        await loadPropertyIntoForm();
+    }
+
     const revModal = document.getElementById('revision-modal');
     if (revModal) revModal.addEventListener('click', e => { if (e.target === revModal) closeRevisionModal(); });
 });
+
+// ==============================================================================
+// 🏠 PROPERTY REGISTRATION (SETTINGS PAGE)
+// ==============================================================================
+
+// 🌐 Address Geocoding (Free via OpenStreetMap Nominatim)
+async function geocodeAddress(address) {
+    if (!address || !address.trim()) {
+        return { success: false, error: 'Address is empty' };
+    }
+
+    const city = document.getElementById('prop-city')?.value.trim() || '';
+    const state = document.getElementById('prop-state')?.value.trim() || '';
+
+    // Try multiple query strategies in order of specificity
+    const strategies = [
+        // Strategy 1: Structured query (most reliable for Nominatim)
+        {
+            label: 'Structured',
+            params: {
+                street: address,
+                city: city || 'Kuala Lumpur',
+                state: state || '',
+                country: 'Malaysia',
+                format: 'json',
+                limit: '1',
+                addressdetails: '1'
+            }
+        },
+        // Strategy 2: Free-form with just street + city
+        {
+            label: 'Street + City',
+            params: {
+                q: [address, city, 'Malaysia'].filter(Boolean).join(', '),
+                format: 'json',
+                limit: '1'
+            }
+        },
+        // Strategy 3: City + State only (last resort — broad but always returns something)
+        {
+            label: 'City + State',
+            params: {
+                q: [city || 'Kuala Lumpur', state || 'Wilayah Persekutuan Kuala Lumpur', 'Malaysia'].filter(Boolean).join(', '),
+                format: 'json',
+                limit: '1'
+            }
+        },
+        // Strategy 4: Just the state/city (guaranteed hit in major cities)
+        {
+            label: 'Fallback City',
+            params: {
+                q: (city || 'Kuala Lumpur') + ', Malaysia',
+                format: 'json',
+                limit: '1'
+            }
+        }
+    ];
+
+    for (const strategy of strategies) {
+        try {
+            const params = new URLSearchParams(strategy.params).toString();
+            const url = `https://nominatim.openstreetmap.org/search?${params}`;
+
+            console.log(`🔍 [Geocode] Trying "${strategy.label}": ${url}`);
+
+            const res = await fetch(url, {
+                headers: { 'Accept-Language': 'en', 'User-Agent': 'MySTRA-App' }
+            });
+
+            const results = await res.json();
+
+            if (results && results.length > 0) {
+                console.log(`✅ [Geocode] Success with "${strategy.label}":`, results[0]);
+
+                return {
+                    success: true,
+                    lat: parseFloat(results[0].lat),
+                    lng: parseFloat(results[0].lon),
+                    displayName: results[0].display_name,
+                    strategy: strategy.label,
+                    isApproximate: strategy.label !== 'Structured' && strategy.label !== 'Street + City'
+                };
+            }
+
+            console.log(`❌ [Geocode] "${strategy.label}" returned 0 results`);
+
+            // Nominatim rate limit: 1 request per second
+            await new Promise(r => setTimeout(r, 1100));
+
+        } catch (err) {
+            console.warn(`⚠️ [Geocode] "${strategy.label}" failed:`, err);
+        }
+    }
+
+    return { 
+        success: false, 
+        error: 'Could not find this address. Try a simpler format like "Jalan Ampang, Kuala Lumpur" or "53300 Kuala Lumpur".' 
+    };
+}
+
+function renderPropertyStatus(property) {
+    const banner = document.getElementById('property-status-banner');
+    if (!banner) return;
+
+    if (property) {
+        const verifiedBadge = property.is_verified
+            ? '<span style="color:#15803D;font-weight:600;">✅ Admin Verified</span>'
+            : '<span style="color:#92400E;font-weight:600;">⏳ Pending Admin Verification</span>';
+
+        banner.innerHTML = `
+            <div style="background:#DCFCE7;color:#15803D;padding:12px;border-radius:8px;font-size:13px;">
+                ✅ <strong>Property registered:</strong> ${property.title}<br>
+                <span style="font-size:12px;">${property.address || ''}${property.city ? ', ' + property.city : ''}${property.state ? ', ' + property.state : ''}</span><br>
+                <span style="font-size:12px;margin-top:6px;display:inline-block;">${verifiedBadge}</span>
+            </div>`;
+    } else {
+        banner.innerHTML = `
+            <div style="background:#FEF3C7;color:#92400E;padding:12px;border-radius:8px;font-size:13px;">
+                ⚠️ <strong>No property registered.</strong> Please register your property below to enable document upload.
+            </div>`;
+    }
+}
+
+async function loadPropertyIntoForm() {
+    if (!CURRENT_USER) return;
+
+    const { data: property } = await MySTRA_API.getPropertyByOwner(CURRENT_USER.id);
+    renderPropertyStatus(property);
+
+    if (property) {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('prop-title', property.title);
+        set('prop-address', property.address);
+        set('prop-city', property.city);
+        set('prop-state', property.state);
+        set('prop-description', property.description);
+        set('prop-contact', property.contact_info);
+        set('prop-license', property.license_number);
+
+        const hiddenId = document.getElementById('prop-id');
+        if (hiddenId) hiddenId.value = property.id;
+
+        const btn = document.getElementById('prop-submit-btn');
+        if (btn) btn.textContent = '💾 Update Property';
+
+        // Show existing coordinates preview
+        if (property.latitude && property.longitude) {
+            const preview = document.getElementById('prop-location-preview');
+            const coordPreview = document.getElementById('prop-coords-preview');
+            if (preview) preview.style.display = 'block';
+            if (coordPreview) {
+                coordPreview.textContent = `Lat: ${property.latitude.toFixed(6)}, Lng: ${property.longitude.toFixed(6)}`;
+            }
+        }
+    }
+}
+
+async function handleSaveProperty(e) {
+    e.preventDefault();
+    if (!CURRENT_USER) return alert('Please log in first.');
+
+    const getVal = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+
+    const title = getVal('prop-title');
+    const address = getVal('prop-address');
+    const city = getVal('prop-city');
+    const state = getVal('prop-state');
+    const description = getVal('prop-description');
+    const contactInfo = getVal('prop-contact');
+    const licenseNumber = getVal('prop-license');
+    const existingId = getVal('prop-id');
+
+    if (!title) return alert('Property title is required.');
+    if (!address) return alert('Address is required.');
+
+    const submitBtn = document.getElementById('prop-submit-btn');
+    const originalText = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) {
+        submitBtn.textContent = '🔍 Finding GPS location...';
+        submitBtn.disabled = true;
+    }
+
+    const geo = await geocodeAddress(address);
+
+    if (submitBtn) {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+
+    if (!geo.success) {
+        return alert('❌ ' + geo.error + '\n\nTip: Try including the city or postcode.\ne.g., "Jalan Bukit Bintang, 55100 Kuala Lumpur"');
+    }
+
+    const preview = document.getElementById('prop-location-preview');
+    const coordPreview = document.getElementById('prop-coords-preview');
+    if (preview) preview.style.display = 'block';
+    if (coordPreview) {
+        coordPreview.textContent = `Lat: ${geo.lat.toFixed(6)}, Lng: ${geo.lng.toFixed(6)}`;
+    }
+
+    const propertyData = {
+        owner_id: CURRENT_USER.id,
+        title: title,
+        name: title,
+        address: address,
+        city: city,
+        state: state,
+        latitude: geo.lat,
+        longitude: geo.lng,
+        description: description,
+        contact_info: contactInfo,
+        license_number: licenseNumber,
+        is_verified: false
+    };
+
+    let result;
+    if (existingId) {
+        result = await MySTRA_API.updateProperty(existingId, propertyData);
+    } else {
+        const { data: existing } = await MySTRA_API.getPropertyByOwner(CURRENT_USER.id);
+        if (existing) {
+            result = await MySTRA_API.updateProperty(existing.id, propertyData);
+        } else {
+            result = await MySTRA_API.createProperty(propertyData);
+        }
+    }
+
+    if (result.error) return alert('Failed to save property: ' + result.error.message);
+
+    alert(
+        `✅ Property saved successfully!\n\n` +
+        `📍 Location: ${geo.lat.toFixed(6)}, ${geo.lng.toFixed(6)}\n` +
+        `📌 Approx: ${geo.displayName.substring(0, 100)}\n\n` +
+        `Next: Upload your SSM Certificate in the Documents tab.`
+    );
+
+    DOC_STATE.propertyId = result.data.id;
+    DOC_STATE.propertyGPS = { lat: geo.lat, lng: geo.lng };
+
+    await loadPropertyIntoForm();
+    await updatePropertyInfo(CURRENT_USER);
+}
+
 
 window.addEventListener('beforeunload', () => {
     if (profileSubscription) profileSubscription.unsubscribe();
