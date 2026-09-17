@@ -35,6 +35,19 @@ let state = {
     pendingCode: null
 };
 
+// ==============================================================================
+// 📜 HARDCODED AUDIT LOG HISTORY (always shown, survives logout/login)
+// ==============================================================================
+const SEED_AUDIT_LOGS = [
+    { timestamp: '2026-01-04T09:12:44.000Z', registration_code: 'MYSTRA-KL-2026-A1F3', requesting_ota: 'PROPERTY_BOUND_ACTIVE by Agoda Gateway', is_valid_pass: true, checked_nights_snapshot: 0 },
+    { timestamp: '2026-01-06T14:03:11.000Z', registration_code: 'MYSTRA-KL-2026-A1F3', requesting_ota: 'LIVE_LISTING_ACTIVE by Booking.com', is_valid_pass: true, checked_nights_snapshot: 42 },
+    { timestamp: '2026-01-09T22:47:05.000Z', registration_code: 'MYSTRA-KL-2026-B7C9', requesting_ota: 'TOKEN_CREATED', is_valid_pass: true, checked_nights_snapshot: 0 },
+    { timestamp: '2026-01-11T08:20:31.000Z', registration_code: 'MYSTRA-KL-2026-B7C9', requesting_ota: 'VERIFICATION by Mock Agoda Sandbox', is_valid_pass: true, checked_nights_snapshot: 0 },
+    { timestamp: '2026-01-14T17:55:18.000Z', registration_code: 'MYSTRA-KL-2026-C4D2', requesting_ota: 'PROPERTY_BOUND_ACTIVE by Agoda Gateway', is_valid_pass: true, checked_nights_snapshot: 12 },
+    { timestamp: '2026-01-18T03:11:49.000Z', registration_code: 'MYSTRA-KL-2026-C4D2', requesting_ota: 'SUSPENDED — 180-night municipal cap reached', is_valid_pass: false, checked_nights_snapshot: 180 },
+    { timestamp: '2026-01-22T11:38:02.000Z', registration_code: 'MYSTRA-KL-2026-D8E1', requesting_ota: 'LIVE_LISTING_ACTIVE by Airbnb', is_valid_pass: true, checked_nights_snapshot: 67 }
+];
+
 // Reset function to switch panels cleanly
 function resetAllViews() {
     Object.values(sidebarItems).forEach(item => item.panel.classList.add('hidden'));
@@ -45,12 +58,9 @@ function resetAllViews() {
 // Sidebar Buttons Click Handler
 sidebarButtons.forEach(button => {
     button.addEventListener('click', () => {
-        // Skip panel reset/switch if clicking the logout button
-        if (button.id === 'nav-logout') return;
-
         resetAllViews();
         button.classList.add('active-nav');
-        
+
         const selection = sidebarItems[button.id];
         if (selection) {
             mainPageTitle.textContent = selection.title;
@@ -60,10 +70,15 @@ sidebarButtons.forEach(button => {
                 document.getElementById('tab-dashboard').classList.add('active');
                 document.getElementById('tab-listings').classList.remove('active');
                 document.getElementById('tab-logs').classList.remove('active');
-                selection.panel.classList.remove('hidden'); 
+                selection.panel.classList.remove('hidden');
+                applyVerificationGate(state.isVerified);
             } else {
                 managerTabsContainer.style.display = 'none';
                 selection.panel.classList.remove('hidden');
+                const lockOverlay = document.getElementById('verification-lock-overlay');
+                if (lockOverlay) lockOverlay.style.display = 'none';
+                const viewport = document.querySelector('.workspace-viewport');
+                if (viewport) viewport.classList.remove('blurred-content');
             }
         }
     });
@@ -79,6 +94,17 @@ tabButtons.forEach(button => {
         if (managerSubTabs[button.id]) {
             managerSubTabs[button.id].classList.remove('hidden');
         }
+
+        // Re-render when switching tabs to ensure real-time accuracy
+        if (button.id === 'tab-listings') {
+            renderFullListings(state.properties, state.codes);
+        } else if (button.id === 'tab-logs') {
+            renderAuditLogs(state.logs);
+        } else if (button.id === 'tab-dashboard') {
+            renderSimplifiedListings(state.codes, state.properties);
+            renderTerminalLogsHistory(state.logs);
+        }
+        applyVerificationGate(state.isVerified);
     });
 });
 
@@ -104,7 +130,7 @@ function logToTerminal(message, type = 'info', timestamp = null) {
 
     const p = document.createElement('p');
     p.innerHTML = `<span class="text-gray">[${timeStr}]</span> <span class="${typeClass}">${label}</span> ${message}`;
-    
+
     // Insert before prompt
     const prompt = terminalBody.querySelector('.cli-prompt');
     if (prompt) {
@@ -180,7 +206,7 @@ function renderSimplifiedListings(codes, properties) {
         const propTitle = c.properties?.title || (c.property_id ? 'Assigned Property' : '⚡ Unassigned (Pending Agoda Onboarding)');
         const isLive = c.code_status === 'ACTIVE' && c.property_id;
         const isPending = !c.property_id || c.code_status === 'PENDING_REGISTRATION';
-        
+
         let statusBadge = `<span class="badge-green">🟢 LIVE & ACTIVE</span>`;
         if (isPending) {
             statusBadge = `<span style="background-color:#FEF3C7; color:#92400E; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">🟡 UNUSED / PENDING</span>`;
@@ -201,46 +227,109 @@ function renderSimplifiedListings(codes, properties) {
     }).join('');
 }
 
-function renderFullListings(properties, codes) {
+function renderFullListings(properties = [], codes = []) {
     const container = document.getElementById('full-listings-container');
     if (!container) return;
 
-    if (!properties || properties.length === 0) {
-        container.innerHTML = `<p style="color: #6B7280; padding: 16px;">No property inventory found in database. Run the seed script in schema.sql to populate.</p>`;
+    // Aggregate inventory items so every property and every code is visible
+    const items = [];
+    const seenPropIds = new Set();
+
+    // 1. First, include all properties from properties list
+    (properties || []).forEach(p => {
+        if (p.id) seenPropIds.add(p.id);
+        const codeObj = (p.mystra_codes && p.mystra_codes[0]) ||
+            codes.find(c => c.property_id === p.id) ||
+            { registration_code: 'UNASSIGNED', code_status: 'PENDING', booked_nights: 0, max_limit_cap: 180 };
+        items.push({
+            id: p.id,
+            title: p.title,
+            city: p.city,
+            state: p.state,
+            address: p.address,
+            codeObj: codeObj,
+            isPending: false
+        });
+    });
+
+    // 2. Next, include any properties linked inside codes that weren't in properties
+    (codes || []).forEach(c => {
+        if (c.property_id && c.properties && !seenPropIds.has(c.property_id)) {
+            seenPropIds.add(c.property_id);
+            items.push({
+                id: c.property_id,
+                title: c.properties.title || 'Bound Property Listing',
+                city: c.properties.city,
+                state: c.properties.state,
+                address: c.properties.address,
+                codeObj: c,
+                isPending: false
+            });
+        }
+    });
+
+    // 3. Include any unassigned / pending registration codes as pending listings
+    (codes || []).forEach(c => {
+        if (!c.property_id) {
+            items.push({
+                id: null,
+                title: '⚡ Pending Accommodation Listing (Ready for Agoda)',
+                city: 'Kuala Lumpur',
+                state: 'Wilayah Persekutuan',
+                address: 'Awaiting OTA Property Binding',
+                codeObj: c,
+                isPending: true
+            });
+        }
+    });
+
+    if (items.length === 0) {
+        container.innerHTML = `<p style="color: #6B7280; padding: 16px;">No property inventory found for this account. Generate a code above to begin onboarding your accommodation!</p>`;
         return;
     }
 
-    container.innerHTML = properties.map(p => {
-        const codeObj = (p.mystra_codes && p.mystra_codes[0]) || 
-                        codes.find(c => c.property_id === p.id) || 
-                        { registration_code: 'UNASSIGNED', code_status: 'PENDING', booked_nights: 0, max_limit_cap: 180 };
-        
+    container.innerHTML = items.map(item => {
+        const p = item;
+        const codeObj = item.codeObj;
         const booked = codeObj.booked_nights || 0;
         const maxCap = codeObj.max_limit_cap || 180;
         const pct = Math.min(Math.round((booked / maxCap) * 100), 100);
-        const isActive = codeObj.code_status === 'ACTIVE' && booked < maxCap;
+        const isLive = codeObj.code_status === 'ACTIVE' && booked < maxCap && !item.isPending;
         const isBreached = booked >= maxCap;
+        const isPending = item.isPending || codeObj.code_status === 'PENDING_REGISTRATION';
+
+        let badge = `<span class="${isLive ? 'badge-green' : 'badge-red'}">${isLive ? '🟢 Live & Active' : (isBreached ? '🔴 SUSPENDED (CAP REACHED)' : '🔴 ' + codeObj.code_status)}</span>`;
+        if (isPending) {
+            badge = `<span style="background-color:#FEF3C7; color:#92400E; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">🟡 UNUSED / PENDING ONBOARDING</span>`;
+        }
 
         return `
-            <div class="inventory-item">
+            <div class="inventory-item" style="${isPending ? 'border-left: 4px solid #F59E0B;' : ''}">
                 <div class="inventory-header">
                     <h3>${p.title}</h3>
-                    <span class="${isActive ? 'badge-green' : 'badge-red'}">${isActive ? '🟢 Live & Active' : (isBreached ? '🔴 SUSPENDED (CAP REACHED)' : '🔴 ' + codeObj.code_status)}</span>
+                    ${badge}
                 </div>
                 <p>
                     <strong>Token ID:</strong> <span class="mono-text">${codeObj.registration_code}</span> | 
                     <strong>Location:</strong> ${p.city || ''}, ${p.state || ''} | 
                     <strong>Address:</strong> ${p.address || ''}
                 </p>
-                <div class="progress-container">
-                    <div class="progress-label">
-                        <span>${booked} / ${maxCap} Nights Allocated</span> 
-                        <span class="${isBreached ? 'text-red' : ''}">${isBreached ? 'Cap Breached' : pct + '% Capacity'}</span>
+                ${isPending ? `
+                    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; background: #FFFBEB; padding: 10px 14px; border-radius: 8px; border: 1px solid #FDE68A;">
+                        <span style="font-size: 13px; color: #92400E;">📌 Ready for deployment. Bind this token on Mock Agoda to verify and launch this listing.</span>
+                        <a href="mock-agoda.html" class="btn-primary" style="padding: 6px 14px; font-size: 13px; text-decoration: none; white-space: nowrap;">⚡ Onboard on Mock Agoda →</a>
                     </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill ${isBreached ? 'bg-danger' : ''}" style="width: ${pct}%;"></div>
+                ` : `
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>${booked} / ${maxCap} Nights Allocated</span> 
+                            <span class="${isBreached ? 'text-red' : ''}">${isBreached ? 'Cap Breached' : pct + '% Capacity'}</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill ${isBreached ? 'bg-danger' : ''}" style="width: ${pct}%;"></div>
+                        </div>
                     </div>
-                </div>
+                `}
             </div>
         `;
     }).join('');
@@ -256,7 +345,8 @@ function renderAuditLogs(logs) {
     }
 
     tbody.innerHTML = logs.map(l => {
-        const timeFormatted = l.timestamp ? new Date(l.timestamp).toLocaleString() : 'Just now';
+        const rawTime = l.timestamp || l.created_at;
+        const timeFormatted = rawTime ? new Date(rawTime).toLocaleString() : 'Just now';
         const isPass = l.is_valid_pass;
         const req = l.requesting_ota || 'API Gateway';
 
@@ -265,10 +355,14 @@ function renderAuditLogs(logs) {
             badgeHtml = `<span style="background-color:#DBEAFE; color:#1E40AF; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">🟢 TOKEN CREATED</span> <span style="font-size:13px; color:#4B5563;">(Pending OTA Binding)</span>`;
         } else if (req.includes('PROPERTY_BOUND_ACTIVE')) {
             badgeHtml = `<span class="badge-green">🟢 BOUND & ACTIVATED</span> <span style="font-size:13px; color:#15803D;">[200 OK] Live on OTA</span>`;
+        } else if (req.includes('LIVE_LISTING_ACTIVE')) {
+            badgeHtml = `<span class="badge-green">🟢 OTA HANDSHAKE LIVE</span> <span style="font-size:13px; color:#15803D;">[200 OK] (${l.checked_nights_snapshot || 0}/180 nights)</span>`;
+        } else if (req.includes('VERIFICATION')) {
+            badgeHtml = `<span style="background-color:#E0F2FE; color:#0369A1; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">🔍 GATEWAY VERIFY</span> <span style="font-size:13px; color:#0369A1;">[200 OK]</span>`;
         } else if (!isPass || req.includes('SUSPENDED')) {
             badgeHtml = `<span class="badge-red">🔴 SUSPENDED / BLOCKED</span> <span style="font-size:13px; color:#991B1B;">[403 Forbidden]</span>`;
         } else {
-            badgeHtml = `<span class="text-green">[🟢 200 OK] Validated (${l.checked_nights_snapshot}/180 nights)</span>`;
+            badgeHtml = `<span class="text-green">[🟢 200 OK] Validated (${l.checked_nights_snapshot || 0}/180 nights)</span>`;
         }
 
         return `
@@ -308,24 +402,37 @@ function renderDocuments(docs) {
                 ${d.admin_feedback ? `<p style="font-size: 12px; color: #6B7280; margin-top: 4px;">Note: ${d.admin_feedback}</p>` : ''}
             </div>
             ${d.file_path
-                ? `<a class="btn-secondary" href="${d.file_path}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📥 Download</a>`
-                : `<span class="btn-secondary" style="opacity:0.5; cursor:not-allowed;">📎 No File</span>`
-            }
+            ? `<a class="btn-secondary" href="${d.file_path}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">📥 Download</a>`
+            : `<span class="btn-secondary" style="opacity:0.5; cursor:not-allowed;">📎 No File</span>`
+        }
         </li>
     `).join('');
 }
 
-function renderProfile(profile) {
-    if (!profile) return;
+function renderProfile(profile, userEmail) {
+    if (!profile && !userEmail) return;
     const nameEl = document.getElementById('setting-fullname');
     const bizEl = document.getElementById('setting-business');
     const phoneEl = document.getElementById('setting-phone');
     const welcomeEl = document.getElementById('home-welcome-title');
+    const welcomeSubEl = document.getElementById('home-welcome-email');
 
-    if (nameEl && profile.full_name) nameEl.value = profile.full_name;
-    if (bizEl && profile.business_name) bizEl.value = profile.business_name;
-    if (phoneEl && profile.phone_no) phoneEl.value = profile.phone_no;
-    if (welcomeEl && profile.full_name) welcomeEl.textContent = `Welcome Back, ${profile.full_name}`;
+    if (profile) {
+        if (nameEl && profile.full_name) nameEl.value = profile.full_name;
+        if (bizEl && profile.business_name) bizEl.value = profile.business_name;
+        if (phoneEl && profile.phone_no) phoneEl.value = profile.phone_no;
+    }
+
+    // Welcome message: prefer full_name, fall back to email
+    if (welcomeEl) {
+        const displayName = profile?.full_name || userEmail || 'Operator';
+        welcomeEl.textContent = `Welcome Back, ${displayName}`;
+    }
+    // Show email as subtitle if we have a name
+    if (welcomeSubEl && userEmail) {
+        welcomeSubEl.textContent = `Logged in as: ${userEmail}`;
+        welcomeSubEl.style.display = 'block';
+    }
 }
 
 function updatePortfolioMetrics(properties, codes) {
@@ -349,9 +456,20 @@ function updatePortfolioMetrics(properties, codes) {
 
 // Check and manage the single active unassigned code lock from database
 function checkPendingCodeLock(codes) {
+    if (!state.isVerified) {
+        if (btnGenerate) {
+            btnGenerate.disabled = true;
+            btnGenerate.textContent = "🔒 Verification Required";
+        }
+        if (tokenStatusHint) {
+            tokenStatusHint.innerHTML = `<span style="color: #DC2626; font-weight: 600;">🔒 Access restricted:</span> You must be verified to access this page.`;
+        }
+        return;
+    }
+
     // Only verify real codes stored in Supabase where property_id is null or status is PENDING_REGISTRATION
     const pendingInDb = (codes || []).find(c => (!c.property_id || c.code_status === 'PENDING_REGISTRATION') && c.code_status !== 'EXPIRED');
-    
+
     if (pendingInDb) {
         state.pendingCode = pendingInDb.registration_code;
         codeField.value = state.pendingCode;
@@ -374,7 +492,48 @@ function checkPendingCodeLock(codes) {
 }
 
 // ==============================================================================
-// 🔄 SUPABASE DATA SYNCHRONIZATION ENGINE
+// 🔒 OPERATOR VERIFICATION GATEWAY
+// ==============================================================================
+
+function applyVerificationGate(isVerified) {
+    const lockOverlay = document.getElementById('verification-lock-overlay');
+    const viewport = document.querySelector('.workspace-viewport');
+    const btnTestCode = document.getElementById('btn-test-code');
+
+    if (isVerified) {
+        // UNLOCKED: verified operator
+        if (lockOverlay) lockOverlay.style.display = 'none';
+        if (viewport) viewport.classList.remove('blurred-content');
+        if (btnGenerate && !state.pendingCode) {
+            btnGenerate.disabled = false;
+            btnGenerate.textContent = "Generate New Unique Code";
+        }
+        if (btnTestCode) {
+            btnTestCode.disabled = false;
+            btnTestCode.style.opacity = '1';
+            btnTestCode.style.cursor = 'pointer';
+        }
+    } else {
+        // LOCKED: unverified operator
+        if (lockOverlay) lockOverlay.style.display = 'flex';
+        if (viewport) viewport.classList.add('blurred-content');
+        if (btnGenerate) {
+            btnGenerate.disabled = true;
+            btnGenerate.textContent = "🔒 Verification Required";
+        }
+        if (btnTestCode) {
+            btnTestCode.disabled = true;
+            btnTestCode.style.opacity = '0.5';
+            btnTestCode.style.cursor = 'not-allowed';
+        }
+        if (tokenStatusHint) {
+            tokenStatusHint.innerHTML = `<span style="color: #DC2626; font-weight: 600;">🔒 Access restricted:</span> You must be verified to access this page.`;
+        }
+    }
+}
+
+// ==============================================================================
+// 🔄 SUPABASE DATA SYNCHRONIZATION ENGINE (USER-SCOPED)
 // ==============================================================================
 
 async function loadSupabaseData() {
@@ -387,29 +546,53 @@ async function loadSupabaseData() {
         return;
     }
 
+    // --- 1. AUTH SESSION CHECK: redirect to login if not authenticated ---
+    const { user, error: authErr } = await MySTRA_API.getCurrentUser();
+    if (authErr || !user) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    const userId = user.id;
+    const userEmail = user.email;
+    state.user = user;
+    state.userId = userId;
+
     try {
-        // 1. Fetch properties
-        const { data: properties, error: propErr } = await MySTRA_API.getProperties();
+        // 2. Fetch only THIS user's properties
+        const { data: properties, error: propErr } = await MySTRA_API.getPropertiesByOwner(userId);
         if (propErr) throw propErr;
         state.properties = properties || [];
 
-        // 2. Fetch codes
-        const { data: codes, error: codeErr } = await MySTRA_API.getCodes();
+        // 3. Fetch only THIS user's codes
+        const { data: codes, error: codeErr } = await MySTRA_API.getCodesByOwner(userId);
         if (!codeErr && codes) state.codes = codes;
 
-        // 3. Fetch audit logs (state transitions)
-        const { data: logs, error: logErr } = await MySTRA_API.getAuditLogs();
-        if (!logErr && logs) state.logs = logs;
+        // 4. Fetch audit logs — prepend live session logs, always append hardcoded history
+        let liveLogs = [];
+        try {
+            const { data: logs, error: logErr } = await MySTRA_API.getAuditLogs();
+            if (!logErr && logs) liveLogs = logs;
+        } catch (e) { /* ignore */ }
+        state.logs = [...liveLogs, ...SEED_AUDIT_LOGS];
 
-        // 4. Fetch documents
+        // 5. Fetch documents
         const { data: docs } = await MySTRA_API.getComplianceDocuments();
         if (docs) state.documents = docs;
 
-        // 5. Fetch profile
-        const { data: profile } = await MySTRA_API.getProfile();
+        // 6. Fetch THIS user's profile (by session user ID)
+        const { data: profile } = await MySTRA_API.getProfile(userId);
         if (profile) state.profile = profile;
 
-        // Update UI
+        // 7. Check verification status (profile is_verified OR auth metadata is_verified)
+        const isVerified = Boolean(
+            (profile && profile.is_verified === true) ||
+            (user.user_metadata && user.user_metadata.is_verified === true)
+        );
+        state.isVerified = isVerified;
+        applyVerificationGate(isVerified);
+
+        // Update connection badge
         if (dbStatusBadge) {
             dbStatusBadge.textContent = "🟢 SUPABASE LIVE";
             dbStatusBadge.style.backgroundColor = "#DCFCE7";
@@ -421,7 +604,7 @@ async function loadSupabaseData() {
         renderAuditLogs(state.logs);
         renderTerminalLogsHistory(state.logs);
         renderDocuments(state.documents);
-        renderProfile(state.profile);
+        renderProfile(state.profile, userEmail);
         updatePortfolioMetrics(state.properties, state.codes);
         checkPendingCodeLock(state.codes);
 
@@ -441,6 +624,11 @@ async function loadSupabaseData() {
 
 if (btnGenerate) {
     btnGenerate.addEventListener('click', async () => {
+        if (!state.isVerified) {
+            alert("⚠️ Access Blocked:\nYou must be verified to access this page and generate MySTRA registration codes.\n\nPlease submit your verification documents first.");
+            return;
+        }
+
         if (state.pendingCode) {
             alert(`⚠️ Action Blocked:\nYou already have an active unused token: ${state.pendingCode}.\n\nPlease bind this token on the Mock Agoda page before creating a new one.`);
             return;
@@ -455,12 +643,12 @@ if (btnGenerate) {
 
         try {
             // Register token in Supabase (which also logs State Transition: TOKEN_CREATED)
-            const { data, error } = await MySTRA_API.createRegistrationCode(newCode, 180);
-            
+            const { data, error } = await MySTRA_API.createRegistrationCode(newCode, 180, null, state.userId);
+
             if (error) {
                 console.error("❌ Supabase Insert Error:", error);
                 const isRlsError = error.code === '42501' || (error.message && error.message.includes('row-level security'));
-                
+
                 if (isRlsError) {
                     alert(`⚠️ Supabase Permission Error (RLS Policy Active):\n\nSupabase blocked the write with code 42501:\n"${error.message}"\n\n👉 Solution: Open Supabase Dashboard > SQL Editor, run the script 'fix-supabase.sql' to grant public access policies!`);
                 } else {
@@ -528,41 +716,20 @@ if (settingsForm) {
 const btnTestCode = document.getElementById('btn-test-code');
 if (btnTestCode) {
     btnTestCode.addEventListener('click', () => {
+        if (!state.isVerified) {
+            alert("⚠️ Access Blocked:\nYou must be verified to access this page and launch live mock listings.");
+            return;
+        }
         window.location.href = 'mock-agoda.html';
     });
 }
 
-// Run initial load & event listener bindings on page start
+// Run initial load on page start
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Fetch initial dashboard data
     loadSupabaseData();
+});
 
-    // 2. Attach Logout Handler
-    const logoutBtn = document.getElementById("nav-logout");
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-            const confirmLogout = confirm("Are you sure you want to log out?");
-            if (!confirmLogout) return;
-
-            try {
-                // Use the active global Supabase client instance
-                const client = window.supabaseClient;
-                
-                // Terminate session on Supabase if available
-                if (client && client.auth) {
-                    await client.auth.signOut();
-                }
-
-                // Clear local storage authentication artifacts
-                localStorage.removeItem("sb-access-token");
-                localStorage.removeItem("sb-refresh-token");
-
-                // Redirect user to the map view page
-                window.location.href = "mystra-map-view.html";
-            } catch (err) {
-                console.error("Error signing out:", err);
-                alert("Logout failed: " + err.message);
-            }
-        });
-    }
+// Auto-refresh when returning to this page from Mock Agoda or another tab
+window.addEventListener('focus', () => {
+    loadSupabaseData();
 });

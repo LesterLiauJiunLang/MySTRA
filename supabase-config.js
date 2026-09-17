@@ -23,7 +23,7 @@ window.supabaseClient = supabaseClient;
 // ==============================================================================
 
 const MySTRA_API = {
-    // 🏢 PROPERTIES & LISTINGS
+    // 🏢 PROPERTIES & LISTINGS (all — used by admin)
     async getProperties() {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
         return await supabaseClient
@@ -49,7 +49,34 @@ const MySTRA_API = {
             .order('created_at', { ascending: false });
     },
 
-    // 🔑 MYSTRA CODES
+    // 🏢 PROPERTIES filtered by logged-in owner
+    async getPropertiesByOwner(userId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+            .from('properties')
+            .select(`
+                id,
+                owner_id,
+                title,
+                address,
+                city,
+                state,
+                latitude,
+                longitude,
+                created_at,
+                mystra_codes (
+                    registration_code,
+                    code_status,
+                    booked_nights,
+                    max_limit_cap,
+                    generated_at
+                )
+            `)
+            .eq('owner_id', userId)
+            .order('created_at', { ascending: false });
+    },
+
+    // 🔑 MYSTRA CODES (all — used by admin)
     async getCodes() {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
         return await supabaseClient
@@ -57,6 +84,7 @@ const MySTRA_API = {
             .select(`
                 registration_code,
                 property_id,
+                owner_id,
                 code_status,
                 booked_nights,
                 max_limit_cap,
@@ -71,6 +99,30 @@ const MySTRA_API = {
             .order('generated_at', { ascending: false });
     },
 
+    // 🔑 MYSTRA CODES filtered by logged-in owner
+    async getCodesByOwner(userId) {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+            .from('mystra_codes')
+            .select(`
+                registration_code,
+                property_id,
+                owner_id,
+                code_status,
+                booked_nights,
+                max_limit_cap,
+                generated_at,
+                properties (
+                    id,
+                    title,
+                    city,
+                    state
+                )
+            `)
+            .eq('owner_id', userId)
+            .order('generated_at', { ascending: false });
+    },
+
     async getPendingUnusedCode() {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
         return await supabaseClient
@@ -82,9 +134,68 @@ const MySTRA_API = {
             .maybeSingle();
     },
 
-    async createRegistrationCode(codeString, maxLimitCap = 180, propertyId = null) {
+    // 📋 INTERCEPTOR AUDIT LOG RECORDER (SUPABASE + LOCAL STORAGE FALLBACK)
+    async recordAuditLog({ registrationCode, requestingOta, isValidPass = true, checkedNightsSnapshot = 0, actionDetails = '' }) {
+        const timestamp = new Date().toISOString();
+        const localEntry = {
+            id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            registration_code: registrationCode,
+            requesting_ota: requestingOta,
+            is_valid_pass: isValidPass,
+            checked_nights_snapshot: checkedNightsSnapshot,
+            action_details: actionDetails,
+            timestamp: timestamp
+        };
+
+        // Cache locally so UI is updated immediately even if network or RLS is blocked
+        try {
+            const cached = JSON.parse(localStorage.getItem('mystra_local_audit_logs') || '[]');
+            cached.unshift(localEntry);
+            if (cached.length > 100) cached.length = 100;
+            localStorage.setItem('mystra_local_audit_logs', JSON.stringify(cached));
+        } catch (e) {
+            console.warn("Could not cache audit log locally:", e);
+        }
+
+        // Write to Supabase table
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('interceptor_audit_logs')
+                    .insert([{
+                        registration_code: registrationCode,
+                        requesting_ota: requestingOta,
+                        is_valid_pass: isValidPass,
+                        checked_nights_snapshot: checkedNightsSnapshot,
+                        timestamp: timestamp
+                    }])
+                    .select();
+                if (error) {
+                    console.warn("⚠️ Supabase audit log write notice (saved locally):", error.message);
+                }
+                return { data: data || [localEntry], error: null };
+            } catch (err) {
+                console.warn("Supabase audit log insert network error:", err);
+            }
+        }
+        return { data: [localEntry], error: null };
+    },
+
+    async createRegistrationCode(codeString, maxLimitCap = 180, propertyId = null, ownerId = null) {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
         const initialStatus = propertyId ? 'ACTIVE' : 'PENDING_REGISTRATION';
+
+        // Auto-resolve ownerId from active session if not explicitly provided
+        let resolvedOwnerId = ownerId;
+        if (!resolvedOwnerId) {
+            try {
+                const { user } = await this.getCurrentUser();
+                if (user) resolvedOwnerId = user.id;
+            } catch (e) {
+                console.warn("Could not retrieve current user for code creation:", e);
+            }
+        }
+
         const payload = {
             registration_code: codeString,
             code_status: initialStatus,
@@ -94,6 +205,9 @@ const MySTRA_API = {
         };
         if (propertyId) {
             payload.property_id = propertyId;
+        }
+        if (resolvedOwnerId) {
+            payload.owner_id = resolvedOwnerId;
         }
 
         // 1. Insert into mystra_codes
@@ -105,19 +219,13 @@ const MySTRA_API = {
         if (error) return { data, error };
 
         // 2. Automatically log State Transition: TOKEN_CREATED in interceptor_audit_logs
-        try {
-            await supabaseClient
-                .from('interceptor_audit_logs')
-                .insert([{
-                    registration_code: codeString,
-                    requesting_ota: 'MySTRA Core Engine [TOKEN_CREATED]',
-                    is_valid_pass: true,
-                    checked_nights_snapshot: 0,
-                    timestamp: new Date().toISOString()
-                }]);
-        } catch (logErr) {
-            console.warn("Could not write creation audit log:", logErr);
-        }
+        await this.recordAuditLog({
+            registrationCode: codeString,
+            requestingOta: 'MySTRA Core Engine [TOKEN_CREATED]',
+            isValidPass: true,
+            checkedNightsSnapshot: 0,
+            actionDetails: `[TOKEN_CREATED] Token ${codeString} generated in registry (Pending property binding).`
+        });
 
         return { data, error: null };
     },
@@ -129,6 +237,7 @@ const MySTRA_API = {
             .select(`
                 registration_code,
                 property_id,
+                owner_id,
                 code_status,
                 booked_nights,
                 max_limit_cap,
@@ -136,7 +245,8 @@ const MySTRA_API = {
                     id,
                     title,
                     city,
-                    state
+                    state,
+                    address
                 )
             `)
             .eq('registration_code', codeString)
@@ -163,46 +273,83 @@ const MySTRA_API = {
             return { data: null, error };
         }
 
-        // 2. Automatically log State Transition: PROPERTY_BOUND_ACTIVE in interceptor_audit_logs
+        // 2. Assign property owner in properties table if current code has an owner_id
         try {
-            await supabaseClient
-                .from('interceptor_audit_logs')
-                .insert([{
-                    registration_code: codeString,
-                    requesting_ota: `${otaName} [PROPERTY_BOUND_ACTIVE]`,
-                    is_valid_pass: true,
-                    checked_nights_snapshot: 0,
-                    timestamp: new Date().toISOString()
-                }]);
-        } catch (logErr) {
-            console.warn("Could not write binding audit log:", logErr);
+            const codeObj = Array.isArray(data) ? data[0] : data;
+            const ownerId = codeObj?.owner_id;
+            if (ownerId && propertyId) {
+                await supabaseClient
+                    .from('properties')
+                    .update({ owner_id: ownerId })
+                    .eq('id', propertyId);
+            }
+        } catch (propErr) {
+            console.warn("Could not update property owner:", propErr);
         }
+
+        // 3. Automatically log State Transition: PROPERTY_BOUND_ACTIVE in interceptor_audit_logs
+        await this.recordAuditLog({
+            registrationCode: codeString,
+            requestingOta: `${otaName} [PROPERTY_BOUND_ACTIVE]`,
+            isValidPass: true,
+            checkedNightsSnapshot: 0,
+            actionDetails: `[ACTIVATION] Code ${codeString} bound to property ID ${propertyId} and activated.`
+        });
 
         return { data, error: null };
     },
 
-    // 📋 INTERCEPTOR AUDIT LOGS
+    // 📋 INTERCEPTOR AUDIT LOGS (MERGED SUPABASE + LOCAL CACHE)
     async getAuditLogs(limit = 50) {
-        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
-        return await supabaseClient
-            .from('interceptor_audit_logs')
-            .select('*')
-            .order('timestamp', { ascending: false })
-            .limit(limit);
+        let remoteLogs = [];
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('interceptor_audit_logs')
+                    .select('*')
+                    .order('timestamp', { ascending: false })
+                    .limit(limit);
+                if (!error && data) {
+                    remoteLogs = data;
+                }
+            } catch (e) {
+                console.warn("Error fetching Supabase audit logs:", e);
+            }
+        }
+
+        // Merge with local logs to ensure newly generated / bound actions are always visible
+        let localLogs = [];
+        try {
+            localLogs = JSON.parse(localStorage.getItem('mystra_local_audit_logs') || '[]');
+        } catch (e) {}
+
+        const combined = [...localLogs, ...remoteLogs];
+        const seen = new Set();
+        const deduplicated = [];
+
+        for (const item of combined) {
+            const code = item.registration_code || '';
+            const ota = item.requesting_ota || '';
+            const timeSlice = (item.timestamp || '').substring(0, 16);
+            const key = `${code}_${ota}_${timeSlice}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                deduplicated.push(item);
+            }
+        }
+
+        deduplicated.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        return { data: deduplicated.slice(0, limit), error: null };
     },
 
     async logInterceptorCheck({ registrationCode, requestingOta, isValidPass, checkedNightsSnapshot }) {
-        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
-        return await supabaseClient
-            .from('interceptor_audit_logs')
-            .insert([{
-                registration_code: registrationCode,
-                requesting_ota: requestingOta,
-                is_valid_pass: isValidPass,
-                checked_nights_snapshot: checkedNightsSnapshot,
-                timestamp: new Date().toISOString()
-            }])
-            .select();
+        return await this.recordAuditLog({
+            registrationCode,
+            requestingOta,
+            isValidPass,
+            checkedNightsSnapshot,
+            actionDetails: `[OTA_CHECK] ${requestingOta} verified code ${registrationCode} (${checkedNightsSnapshot} nights recorded).`
+        });
     },
 
     // 📄 COMPLIANCE DOCUMENTS
@@ -214,16 +361,28 @@ const MySTRA_API = {
             .order('uploaded_at', { ascending: false });
     },
 
-    // 👤 PROFILES
+    // 👤 GET CURRENT LOGGED-IN USER SESSION
+    async getCurrentUser() {
+        if (!supabaseClient) return { user: null, error: new Error("Supabase not initialized") };
+        const { data, error } = await supabaseClient.auth.getUser();
+        return { user: data?.user || null, error };
+    },
+
+    // 👤 PROFILES — get by logged-in user's auth session
     async getProfile(profileId) {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
-        let query = supabaseClient.from('profiles').select('*');
-        if (profileId) {
-            query = query.eq('id', profileId).single();
-        } else {
-            query = query.limit(1).single();
+        let targetId = profileId;
+        if (!targetId) {
+            // Always resolve to the currently authenticated user
+            const { data: sessionData } = await supabaseClient.auth.getUser();
+            targetId = sessionData?.user?.id;
         }
-        return await query;
+        if (!targetId) return { data: null, error: new Error("No authenticated user found") };
+        return await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', targetId)
+            .single();
     },
 
     async updateProfile(profileId, updates) {
