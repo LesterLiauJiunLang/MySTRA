@@ -234,43 +234,70 @@ const MySTRA_API = {
             .eq('id', profileId)
             .select();
     },
+    
+    async getAllUsers() {
+        if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        return await supabaseClient
+            .from('profiles')
+            .select('id, full_name, business_name, business_ssm, phone_no, is_verified, role, created_at')
+            .order('full_name', { ascending: true });
+    },
 
+async getUserProfile(userId) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    return await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+},
+
+async getPropertyByOwner(userId) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    return await supabaseClient
+        .from('properties')
+        .select('*')
+        .eq('owner_id', userId)
+        .limit(1)
+        .maybeSingle();
+},
+    
     // ==============================================================================
     // 📄 COMPLIANCE DOCUMENTS (MODULE 3 - LESTER)
     // ==============================================================================
 
-    async uploadDocument(file, documentType, userId, propertyId, gpsLatitude, gpsLongitude) {
-     if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    async uploadDocument(file, documentType, documentName, userId, propertyId, gpsLatitude, gpsLongitude) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
     
-     // 1. Upload file to Supabase Storage
-     const fileExt = file.name.split('.').pop();
-     const fileName = `${userId}/${Date.now()}.${fileExt}`;
-     const filePath = `${userId}/${Date.now()}.${fileExt}`; // Creates: userId/123456.pdf
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
     
-     const { data: uploadData, error: uploadError } = await supabaseClient.storage
-         .from('compliance-documents')
-         .upload(filePath, file);
-    
-     if (uploadError) return { data: null, error: uploadError };
-    
-     // 2. Get public URL
-      const { data: urlData } = supabaseClient.storage
+    // 1. Upload file to Storage
+    const { data: uploadData, error: uploadError } = await supabaseClient.storage
         .from('compliance-documents')
-        .getPublicUrl(filePath);
+        .upload(fileName, file);
     
-    // 3. Create record in compliance_documents table
+    if (uploadError) return { data: null, error: uploadError };
+    
+    // 2. Get public URL
+    const { data: urlData } = supabaseClient.storage
+        .from('compliance-documents')
+        .getPublicUrl(fileName);
+    
+    // 3. Insert into DB - user_id is now REQUIRED
     const payload = {
         user_id: userId,
         property_id: propertyId,
         document_type: documentType,
-        document_name: documentName,
+        document_name: documentName || documentType,
         file_name: file.name,
         file_path: urlData.publicUrl,
         file_size: file.size,
         file_type: file.type,
         gps_latitude: gpsLatitude,
         gps_longitude: gpsLongitude,
-        review_status: 'Pending',
+        review_status: 'PENDING',   
+        status: 'PENDING',           
         uploaded_at: new Date().toISOString()
     };
     
@@ -302,6 +329,7 @@ const MySTRA_API = {
     
     async updateDocument(documentId, updates) {
         if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+        if (updates.review_status) updates.status = updates.review_status;
         return await supabaseClient
         .from('compliance_documents')
         .update(updates)

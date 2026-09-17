@@ -295,9 +295,6 @@
 </head>
 <body>
 
-    <!-- ==========================================================================
-    🌐 GLOBAL SYSTEM CONTAINER
-    ========================================================================== -->
     <div class="portal-container">
 
         <!-- ==========================================================================
@@ -324,10 +321,16 @@
                 </li>
             </ul>
             <!-- User Footer -->
-            <div class="sidebar-footer" style="margin-top: auto; padding-top: 20px; border-top: 1px solid #E5E7EB;">
-                <span style="font-size: 13px; font-weight: 500; display: block;">John Doe</span>
-                <span style="font-size: 12px; color: #6B7280;">Property Owner ✅</span>
-            </div>
+            <div class="sidebar-footer" style="margin-top:auto;padding-top:20px;border-top:1px solid #E5E7EB;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div id="footer-avatar" style="width:32px;height:32px;border-radius:50%;background:#2563EB;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;">--</div>
+        <div style="flex:1;min-width:0;">
+            <div id="sidebar-username" style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+            <div id="sidebar-userbusiness" style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Loading...</div>
+        </div>
+    </div>
+    <div id="sidebar-userstatus" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;display:inline-block;background:#FEF3C7;color:#92400E;">⏳ Loading...</div>
+</div>
         </nav>
 
         <!-- ==========================================================================
@@ -345,16 +348,9 @@
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <span style="font-size: 13px; color: #6B7280;">Home / Documents</span>
 
-                    <select id="user-selector" style="padding: 6px 12px; border-radius: 8px; border: 1px solid #E5E7EB; font-size: 13px; background: white;">
-                         <option value="550e8400-e29b-41d4-a716-446655440000">John Doe (Verified)</option>
-                         <option value="660e8400-e29b-41d4-a716-446655440001">Jane Smith (Pending)</option>
-                         <option value="770e8400-e29b-41d4-a716-446655440002">Bob Lee (Verified)</option>
-                    </select>
 
 
-
-
-                    <button class="btn-primary" onclick="switchDocTab('upload')" style="padding: 8px 16px; font-size: 13px;">
+                    <button class="tab-btn active" onclick="window.location.href='mystra-document-portal.html'" style="padding: 8px 16px; font-size: 13px;">
                         📤 Upload
                     </button>
                 </div>
@@ -362,9 +358,9 @@
 
             <!-- ===== DOCUMENT MANAGEMENT TABS ===== -->
             <div class="segmented-control">
-                <button id="tab-doc-upload" class="tab-btn active" onclick="switchDocTab('upload')">📤 Upload</button>
-                <button id="tab-doc-status" class="tab-btn" onclick="switchDocTab('status')">📋 My Documents</button>
-                <button id="tab-doc-location" class="tab-btn" onclick="switchDocTab('location')">📍 Location</button>
+                <button class="tab-btn active" onclick="window.location.href='mystra-document-portal.html'">📤 Upload</button>
+                <button class="tab-btn" onclick="window.location.href='mystra-mydocuments.html'">📋 My Documents</button>
+                <button class="tab-btn" onclick="window.location.href='mystra-location.html'">📍 Location</button>
             </div>
 
             <!-- ==========================================================================
@@ -409,15 +405,15 @@
                             </select>
                         </div>
                         
-                        <div>
+                        <div id="document-name-container" style="display: none;">
                             <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
                                 Document Name <span style="color: #EF4444;">*</span>
                             </label>
-                            <input type="text" id="doc-name-input" placeholder="e.g., SSM Certificate 2026" 
-                               style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px;" required>
-                            <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-                                Give your document a meaningful name for easy identification.
-                            </p>
+                        <input type="text" id="doc-name-input" placeholder="e.g., Custom Document Name" 
+                                style="width: 100%; padding: 12px; border: 1px solid #D1D5DB; border-radius: 8px; font-size: 14px;">
+                        <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+                                Give your custom document a meaningful name for easy identification.
+                        </p>
                         </div>
 
                         <!-- File Input -->
@@ -454,109 +450,7 @@
                 </div>
             </div>
 
-            <!-- ==========================================================================
-            📋 TAB 2: MY DOCUMENTS STATUS (UC-M3-03)
-            ========================================================================== -->
-            <div id="doc-status-panel" class="tab-panel hidden">
-                <div class="widget-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-                        <h2>📋 My Documents</h2>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn-secondary" onclick="switchDocTab('upload')">+ Upload New</button>
-                            <button class="btn-secondary" onclick="loadDocumentData()">🔄 Refresh</button>
-                        </div>
-                    </div>
-
-                    <div id="doc-status-summary" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-            <div style="background: #F8FAFC; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #E5E7EB;">
-                <div style="font-size: 24px; font-weight: 700;" id="stat-total">0</div>
-                <div style="font-size: 12px; color: #6B7280;">Total</div>
-            </div>
-            <div style="background: #FEF3C7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #FDE68A;">
-                <div style="font-size: 24px; font-weight: 700; color: #92400E;" id="stat-pending">0</div>
-                <div style="font-size: 12px; color: #92400E;">Pending</div>
-            </div>
-            <div style="background: #DCFCE7; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #BBF7D0;">
-                <div style="font-size: 24px; font-weight: 700; color: #15803D;" id="stat-approved">0</div>
-                <div style="font-size: 12px; color: #15803D;">Approved</div>
-            </div>
-            <div style="background: #FEE2E2; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #FECACA;">
-                <div style="font-size: 24px; font-weight: 700; color: #991B1B;" id="stat-rejected">0</div>
-                <div style="font-size: 12px; color: #991B1B;">Rejected</div>
-            </div>
-        </div>
-
-                    <div id="documents-status-container">
-                        <p style="color: #6B7280; text-align: center; padding: 20px;">Loading your documents...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ==========================================================================
-            📍 TAB 3: LOCATION REGISTRY (UC-M3-05)
-            ========================================================================== -->
-            <div id="doc-location-panel" class="tab-panel hidden">
-                <div id="location-registry-container">
-                    <p style="color: #6B7280; text-align: center; padding: 20px;">Loading location data...</p>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <!-- ==========================================================================
-    🗂️ REVISION MODAL (UC-M3-04)
-    ========================================================================== -->
-    <div id="revision-modal" class="modal-overlay">
-        <div class="modal-content">
-            <!-- Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-size: 20px;">✏️ Revise Document</h2>
-                <button onclick="closeRevisionModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6B7280;">✕</button>
-            </div>
-
-            <!-- Document Info -->
-            <div style="margin-bottom: 20px;">
-                <p><strong>Document:</strong> <span id="revision-doc-type">--</span></p>
-                <p><strong>Previous File:</strong> <span id="revision-previous-file">--</span></p>
-                <div style="background: #FEE2E2; padding: 12px; border-radius: 8px; margin-top: 12px;">
-                    <p style="font-size: 13px; color: #991B1B;"><strong>🔴 Rejection Reason:</strong></p>
-                    <p id="revision-rejection-reason" style="font-size: 13px; color: #991B1B; margin: 0;">No specific reason provided.</p>
-                </div>
-            </div>
-
-            <!-- New File Upload -->
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px;">
-                    New File <span style="color: #EF4444;">*</span>
-                </label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="revision-file-input" accept=".pdf,.jpg,.jpeg,.png">
-                </div>
-                <p style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-                    Supported: PDF, JPEG, PNG • Max size: 10MB<br>
-                    Please ensure the document is clear and legible.
-                </p>
-            </div>
-
-            <!-- Revision GPS Check -->
-            <div id="revision-gps-status" style="padding: 12px; border-radius: 8px; background: #F8FAFC; margin-bottom: 20px; border: 1px solid #E5E7EB;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>📍 Location Check</span>
-                    <span id="revision-gps-badge" class="badge-pending">⏳ Detecting...</span>
-                </div>
-                <div id="revision-gps-details" style="font-size: 13px; color: #6B7280; margin-top: 4px;">
-                    Distance: --
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div style="display: flex; gap: 12px;">
-                <button onclick="submitRevision()" class="btn-primary" style="flex: 1; padding: 12px;">📤 Submit Revision</button>
-                <button onclick="closeRevisionModal()" class="btn-secondary" style="padding: 12px 24px;">Cancel</button>
-            </div>
-        </div>
-    </div>
+           
 
 
 </body>
