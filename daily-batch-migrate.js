@@ -5,8 +5,12 @@ const https = require('https');
 // ==============================================================================
 // 1. CONFIGURATION & CREDENTIALS
 // ==============================================================================
-const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co'; 
-const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SUPABASE_SERVICE_ROLE_KEY';
+// ⚠️  NOTE: This script runs in Node.js (server-side), NOT in the browser.
+//     SUPABASE_URL must match your project. SUPABASE_SERVICE_ROLE_KEY is the
+//     secret SERVICE ROLE key (not the anon key) — find it in:
+//     Supabase Dashboard → Project Settings → API → service_role (secret)
+const SUPABASE_URL = 'https://lpovahpueihltaclwzzy.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY_HERE'; // ← Replace with your service_role key from Supabase Dashboard
 
 // Target columns in your Supabase legacy_accounts table
 const TARGET_DB_COLUMNS = ['legacy_email', 'license_no', 'business_ssm'];

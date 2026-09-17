@@ -15,9 +15,6 @@ class GovVerifiedDirectory {
         await this.loadVerifiedOperators();
     }
 
-    /**
-     * Sanitizes user-supplied strings to protect against XSS injections
-     */
     escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -39,7 +36,6 @@ class GovVerifiedDirectory {
             otaSelect.addEventListener('change', () => this.filterTable());
         }
 
-        // Modal Close Listener
         const closeBtn = document.getElementById('btn-close-license-modal');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => this.closeLicenseModal());
@@ -58,7 +54,7 @@ class GovVerifiedDirectory {
         }
 
         try {
-            // 1. Fetch verified operator profiles
+            // 1. Fetch verified operator profiles only
             const { data: profiles, error: profErr } = await window.supabaseClient
                 .from('profiles')
                 .select('id, full_name, phone_no, business_name, business_ssm, is_verified, role, created_at')
@@ -67,10 +63,11 @@ class GovVerifiedDirectory {
 
             if (profErr) throw profErr;
 
-            // 2. Fetch properties independently to avoid relational join errors
+            // 2. Fetch ONLY verified properties (this is the fix)
             const { data: properties, error: propErr } = await window.supabaseClient
                 .from('properties')
-                .select('id, owner_id, title, name, address, city, state, license_number, created_at');
+                .select('id, owner_id, title, name, address, city, state, license_number, created_at')
+                .eq('is_verified', true);
 
             if (propErr) console.warn('Could not fetch properties:', propErr);
 
@@ -104,7 +101,7 @@ class GovVerifiedDirectory {
             // 4. Assemble operator records
             this.rawOperators = (profiles || []).map(p => {
                 const userProperties = propertyMap[p.id] || [];
-                
+
                 const accommodations = userProperties.map(prop => {
                     const code = codeMap[prop.id] || prop.license_number || `MYS-${prop.id.toString().substring(0, 6).toUpperCase()}`;
                     return {
@@ -118,8 +115,8 @@ class GovVerifiedDirectory {
                     };
                 });
 
-                const primaryCode = accommodations.length > 0 
-                    ? accommodations[0].code 
+                const primaryCode = accommodations.length > 0
+                    ? accommodations[0].code
                     : `MYS-${p.id.substring(0, 6).toUpperCase()}`;
 
                 return {
@@ -171,8 +168,8 @@ class GovVerifiedDirectory {
                 const rawPlatforms = Array.from(r.ota_platforms).join(' / ');
                 const rawPrimaryCode = Array.from(r.mystra_codes)[0] || 'MYS-VERIFIED';
                 const formattedDate = r.latest_date ? new Date(r.latest_date).toLocaleDateString() : 'N/A';
-                
-                const accomListRaw = accomCount > 0 
+
+                const accomListRaw = accomCount > 0
                     ? r.accommodations.map(a => `• ${a.property_name} (${a.state}) [${a.code}]`).join('\n')
                     : 'No accommodation listings linked yet.';
 
@@ -239,7 +236,7 @@ class GovVerifiedDirectory {
             const account = (r.account_name || '').toLowerCase();
             const platforms = Array.from(r.ota_platforms).join(' ').toLowerCase();
 
-            const matchesAccom = r.accommodations.some(a => 
+            const matchesAccom = r.accommodations.some(a =>
                 (a.property_name || '').toLowerCase().includes(rawQuery) ||
                 (a.code || '').toLowerCase().includes(rawQuery) ||
                 (a.state || '').toLowerCase().includes(rawQuery)
@@ -272,7 +269,7 @@ class GovVerifiedDirectory {
             titleEl.innerText = `🏢 Verified Operator: ${record.operator_name} (SSM: ${record.ssm_number})`;
         }
 
-        const accomCards = record.accommodations.length > 0 
+        const accomCards = record.accommodations.length > 0
             ? record.accommodations.map((a, idx) => {
                 const propName = this.escapeHtml(a.property_name);
                 const stateStr = this.escapeHtml(a.state);
@@ -330,40 +327,5 @@ class GovVerifiedDirectory {
         const bodyEl = document.getElementById('modalPreviewBody');
         if (modal) modal.style.display = 'none';
         if (bodyEl) bodyEl.innerHTML = '';
-    }
-}
-
-/**
- * Global Admin Logout Handler
- */
-async function handleLogout(event) {
-    if (event) event.preventDefault();
-
-    if (!window.supabaseClient) {
-        console.error('❌ Supabase client uninitialized');
-        return;
-    }
-
-    try {
-        if (window.GovAuditLogDirectory) {
-            await window.GovAuditLogDirectory.logAction({
-                actionDetails: 'Admin logged out',
-                isValidPass: true
-            });
-        }
-
-        const { error } = await window.supabaseClient.auth.signOut();
-
-        if (error) {
-            alert('Logout Failed: ' + error.message);
-            return;
-        }
-
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-
-    } catch (err) {
-        console.error('❌ Logout Exception:', err);
     }
 }

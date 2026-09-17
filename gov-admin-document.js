@@ -7,10 +7,7 @@ class GovAdminDocumentModule {
         this.adminId = window.currentAdminEmail || "GOV_ADMIN";
 
         // ----------------------------------------------------------------
-        // FIX: Read the default filter from the currently-active tab in HTML.
-        //      Previously hardcoded to 'ALL', which caused a mismatch with the
-        //      'PENDING' tab that is marked active in the HTML — the queue
-        //      showed all documents on first load instead of only pending ones.
+        // Read the default filter from the currently-active tab in HTML.
         // ----------------------------------------------------------------
         const activeTab = document.querySelector('.gov-filter-btn.active');
         this.currentFilter = activeTab?.getAttribute('data-filter') || 'PENDING';
@@ -323,43 +320,28 @@ class GovAdminDocumentModule {
 
             // ================================================================
             // STEP 2: Cascading verification updates upon approval
+            //
+            //   SCOPE NOTE: Property verification is NOT performed here.
+            //   Property's `is_verified` flag is set to true in Module 4 when
+            //   the operator generates a MySTRA code and binds it to the
+            //   property via the Mock Agoda onboarding page.
+            //
+            //   Module 5's responsibility is limited to verifying the
+            //   OPERATOR's identity (via SSM/Business document approval).
             // ================================================================
             if (statusValue === 'APPROVED' || statusValue === 'VERIFIED') {
-                const targetPropertyId = this.selectedDocData?.property_id;
                 const targetUserId = this.selectedDocData?.user_id || this.selectedDocData?.operator_id;
                 const rawDocType = this.selectedDocData?.document_type || this.selectedDocData?.document_name || '';
                 const docType = rawDocType.toUpperCase();
                 const ssmNumber = this.selectedDocData?.ssm_number;
 
-                // ---- DEBUG LOG -----------------------------------------
                 console.log('🔍 [Cascade] ===== Approval Cascade Start =====');
-                console.log('🔍 [Cascade] targetPropertyId:', targetPropertyId);
                 console.log('🔍 [Cascade] targetUserId:', targetUserId);
                 console.log('🔍 [Cascade] raw document_type:', rawDocType);
                 console.log('🔍 [Cascade] docType (upper):', docType);
                 console.log('🔍 [Cascade] ssmNumber:', ssmNumber);
-                // --------------------------------------------------------
 
-                // ---- Cascade 2a: Update property verification ----
-                if (targetPropertyId) {
-                    const { data: propRows, error: propErr } = await window.supabaseClient
-                        .from('properties')
-                        .update({ is_verified: true })
-                        .eq('id', targetPropertyId)
-                        .select();
-
-                    if (propErr) {
-                        console.error('❌ [Cascade] Property update FAILED:', propErr);
-                    } else if (!propRows || propRows.length === 0) {
-                        console.warn('⚠️ [Cascade] No property matched id =', targetPropertyId);
-                    } else {
-                        console.log('✅ [Cascade] Property verified:', propRows);
-                    }
-                } else {
-                    console.log('ℹ️ [Cascade] Skipped property update — no property_id on this document.');
-                }
-
-                // ---- Cascade 2b: Update profile (SSM/Business only) ----
+                // ---- Update profile (SSM/Business only) ----
                 const isBusinessDoc =
                     docType.includes('SSM') ||
                     docType.includes('BUSINESS') ||
@@ -387,12 +369,11 @@ class GovAdminDocumentModule {
                         console.error('   Code:', profErr.code);
                         console.error('   Hint:', profErr.hint);
 
-                        // Show alert so admin knows the profile update failed
                         if (profErr.code === '42501') {
                             alert(
                                 '⚠️ Document approved, but operator profile verification FAILED.\n\n' +
                                 'Reason: Row-Level Security (RLS) policy blocked the update.\n\n' +
-                                'Please ask your Supabase admin to run the fix-supabase.sql script to allow admins to update the profiles table.'
+                                'Please contact your Supabase admin to review the profiles table RLS policies.'
                             );
                         } else {
                             alert(`⚠️ Document approved, but profile verification failed: ${profErr.message}`);
@@ -412,12 +393,6 @@ class GovAdminDocumentModule {
 
             // ================================================================
             // STEP 3: Write the audit log entry.
-            //         Preferred path: delegate to the shared GovAuditLogDirectory
-            //         which resolves the officer's identity from the live session.
-            //
-            //         IMPORTANT: We do NOT pass `performerName` here.
-            //         The logAction() method will resolve it from the profiles
-            //         table using the authenticated user's UUID.
             // ================================================================
             try {
                 if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
@@ -429,7 +404,6 @@ class GovAdminDocumentModule {
                         requestingOta: 'GOV_ADMIN'
                     });
                 } else {
-                    // FALLBACK: Direct insert with best-effort name resolution
                     let fallbackName = window.currentAdminName;
                     if (!fallbackName) {
                         try {
@@ -501,45 +475,5 @@ class GovAdminDocumentModule {
 
         if (actionRow) actionRow.classList.remove('hidden');
         if (lockedNotice) lockedNotice.classList.add('hidden');
-    }
-}
-
-/**
- * Global Admin Logout Handler (Document Module)
- */
-async function handleLogout(event) {
-    if (event) event.preventDefault();
-
-    if (!window.supabaseClient) {
-        console.error('❌ Supabase client uninitialized');
-        return;
-    }
-
-    try {
-        if (window.GovAuditLogDirectory && typeof window.GovAuditLogDirectory.logAction === 'function') {
-            try {
-                await window.GovAuditLogDirectory.logAction({
-                    actionDetails: 'Admin user logged out successfully',
-                    isValidPass: true,
-                    requestingOta: 'DOCUMENT_MODULE'
-                });
-            } catch (auditErr) {
-                console.warn('⚠️ Non-blocking logout audit log failure:', auditErr);
-            }
-        }
-
-        const { error } = await window.supabaseClient.auth.signOut();
-
-        if (error) {
-            alert('Logout Failed: ' + error.message);
-            return;
-        }
-
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-
-    } catch (err) {
-        console.error('❌ Logout Exception:', err);
     }
 }

@@ -37,7 +37,7 @@ class GovAdminDashboardModule {
         return (doc.review_status || doc.status || 'PENDING').toUpperCase();
     }
 
-    async loadDashboardMetrics() {
+     async loadDashboardMetrics() {
         try {
             const { data: docs, error: docError } = await window.supabaseClient
                 .from('compliance_documents')
@@ -65,14 +65,17 @@ class GovAdminDashboardModule {
             const verifiedCount = verifiedOperators.length;
             const verifiedOperatorIds = new Set(verifiedOperators.map(p => p.id));
 
+            // ⚠️ FIX: Only count properties that are THEMSELVES verified
             const { data: properties, error: propErr } = await window.supabaseClient
                 .from('properties')
-                .select('id, owner_id, state');
+                .select('id, owner_id, state')
+                .eq('is_verified', true);
 
             if (propErr) console.error("Error fetching properties for state stats:", propErr.message);
 
             let stateCounts = {};
             (properties || []).forEach(prop => {
+                // Double protection: property must be verified AND owned by a verified operator
                 if (prop.owner_id && verifiedOperatorIds.has(prop.owner_id)) {
                     const stateName = prop.state || 'WPKL';
                     stateCounts[stateName] = (stateCounts[stateName] || 0) + 1;
@@ -210,34 +213,5 @@ class GovAdminDashboardModule {
                 scales: isDoughnut ? {} : { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } } }
             }
         });
-    }
-}
-
-async function handleLogout(event) {
-    if (event) event.preventDefault();
-    if (!window.supabaseClient) { console.error('❌ Supabase client uninitialized'); return; }
-
-    try {
-        if (window.GovAuditLogDirectory) {
-            try {
-                await window.GovAuditLogDirectory.logAction({
-                    performerName: window.currentAdminName || window.currentAdminEmail || 'Executive Officer',
-                    actionDetails: 'Admin logged out',
-                    isValidPass: true,
-                    requestingOta: 'DASHBOARD_MODULE'
-                });
-            } catch (auditErr) {
-                console.warn('⚠️ Non-blocking logout audit failure:', auditErr);
-            }
-        }
-
-        const { error } = await window.supabaseClient.auth.signOut();
-        if (error) { alert('Logout Failed: ' + error.message); return; }
-
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-    } catch (err) {
-        console.error('❌ Logout Exception:', err);
     }
 }
