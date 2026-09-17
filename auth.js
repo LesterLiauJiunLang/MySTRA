@@ -663,7 +663,7 @@ if (updateMockErr) {
   }
 
   // ==============================================================================
-  // 3. LOGIN HANDLER & REMEMBER ME PERSISTENCE 
+  // 3. MySTRA LOGIN AUTHENTICATION & CLIENT-SIDE LOCKOUT ENGINE
   // ==============================================================================
   if (loginForm) {
     const emailInput = document.getElementById("email");
