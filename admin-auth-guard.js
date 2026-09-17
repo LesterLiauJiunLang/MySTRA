@@ -72,7 +72,61 @@
         window.currentAdminName = officerName;
 
         // ----------------------------------------------------------------
-        // STEP 7: Inject officer name into the header element
+        // STEP 7: 📝 LOGIN AUDIT — write a "logged in" entry once per session
+        //
+        //   Why "once per session"?
+        //   The guard runs on every admin page (Dashboard, Documents,
+        //   Reports, Verified, Audit). If we logged on every run, the
+        //   audit trail would show dozens of "logged in" rows for a
+        //   single admin session — one per page navigation — which is
+        //   not what "logged in" means.
+        //
+        //   We use sessionStorage as the "already audited" flag. It:
+        //     • Persists across page navigations in the same tab
+        //     • Clears automatically on logout (sessionStorage.clear())
+        //     • Is per-tab — a new tab = a new session = a new entry
+        //
+        //   Result: exactly one "Admin logged in" entry per real login.
+        // ----------------------------------------------------------------
+        const LOGIN_FLAG_KEY = 'mystra_admin_login_audited';
+
+        if (sessionStorage.getItem(LOGIN_FLAG_KEY) !== '1') {
+            try {
+                if (window.GovAuditLogDirectory
+                    && typeof window.GovAuditLogDirectory.logAction === 'function') {
+                    // Preferred path — uses the shared audit writer
+                    await window.GovAuditLogDirectory.logAction({
+                        actionDetails: 'Admin user logged in successfully',
+                        isValidPass: true,
+                        requestingOta: 'ADMIN_PORTAL'
+                    });
+                } else {
+                    // Fallback — direct insert with an explicit actor tag
+                    await window.supabaseClient
+                        .from('interceptor_audit_logs')
+                        .insert([{
+                            action_details: `[Actor: ${officerName}] Admin user logged in successfully`,
+                            requesting_ota: 'ADMIN_PORTAL',
+                            is_valid_pass: true,
+                            checked_nights_snapshot: 0,
+                            officer_id: session.user.id,
+                            timestamp: new Date().toISOString()
+                        }]);
+                }
+                console.log('✅ Login audit entry written.');
+
+                // Mark this session as audited so subsequent page loads skip it
+                sessionStorage.setItem(LOGIN_FLAG_KEY, '1');
+            } catch (auditErr) {
+                // Non-blocking: a failed login audit must not lock the admin out
+                console.warn('⚠️ Non-blocking login audit failure:', auditErr);
+            }
+        } else {
+            console.log('ℹ️ Login already audited for this session — skipping.');
+        }
+
+        // ----------------------------------------------------------------
+        // STEP 8: Inject officer name into the header element
         // ----------------------------------------------------------------
         updateOfficerBadgeDisplay(officerName);
 
@@ -84,7 +138,6 @@
 
 /**
  * Injects the officer's display name into the header session badge.
- * Waits for DOMContentLoaded if the page is still loading.
  */
 function updateOfficerBadgeDisplay(name) {
     const update = () => {
@@ -103,28 +156,8 @@ function updateOfficerBadgeDisplay(name) {
  * ================================================================
  * CONSOLIDATED ADMIN LOGOUT HANDLER
  * ================================================================
- *
- * This is the SINGLE source of truth for admin logout across all
- * admin pages. It replaces the five conflicting `handleLogout`
- * functions that previously lived in:
- *
- *   - gov-admin-audit.js
- *   - gov-admin-document.js
- *   - gov-admin-dashboard.js
- *   - gov-admin-verified.js
- *   - gov-admin-reports.js
- *
- * Those files MUST NOT define their own `handleLogout` — otherwise
- * the load order determines which version runs, causing unpredictable
- * behaviour (different audit logging, different redirect targets).
- *
- * Design notes:
- *   - Writes an audit log entry FIRST (while the session is alive)
- *   - Uses `GovAuditLogDirectory.logAction` if loaded on the page;
- *     otherwise falls back to a direct insert into interceptor_audit_logs
- *   - Never blocks logout on a failed audit write (best-effort)
- *   - performerName is omitted — logAction() resolves the officer's
- *     real name from the profiles table via the live session
+ * Clears the login flag when signing out, so the next login
+ * produces a fresh "Admin logged in" entry.
  */
 async function handleLogout(event) {
     if (event) event.preventDefault();
@@ -135,11 +168,6 @@ async function handleLogout(event) {
         return;
     }
 
-    // ----------------------------------------------------------------
-    // STEP 1: Best-effort audit log write, BEFORE the session is
-    //         destroyed. Uses the shared GovAuditLogDirectory if
-    //         present; otherwise falls back to a direct insert.
-    // ----------------------------------------------------------------
     try {
         if (window.GovAuditLogDirectory
             && typeof window.GovAuditLogDirectory.logAction === 'function') {
@@ -149,7 +177,6 @@ async function handleLogout(event) {
                 requestingOta: 'ADMIN_PORTAL'
             });
         } else {
-            // Fallback — same pattern used in document decisions
             let performerName = window.currentAdminName;
             if (!performerName) {
                 try {
@@ -160,7 +187,6 @@ async function handleLogout(event) {
                             .select('full_name, business_name')
                             .eq('id', user.id)
                             .maybeSingle();
-
                         performerName = profile?.full_name
                             || profile?.business_name
                             || user.user_metadata?.full_name
@@ -184,27 +210,19 @@ async function handleLogout(event) {
                 }]);
         }
     } catch (auditErr) {
-        // A failed audit write must NOT prevent the user from logging out.
         console.warn('⚠️ Non-blocking logout audit log failure:', auditErr);
     }
 
-    // ----------------------------------------------------------------
-    // STEP 2: Perform Supabase sign-out
-    // ----------------------------------------------------------------
     try {
         const { error } = await window.supabaseClient.auth.signOut();
-        if (error) {
-            console.warn('Sign-out warning:', error.message);
-            // Continue anyway — clear local state and redirect
-        }
+        if (error) console.warn('Sign-out warning:', error.message);
     } catch (signOutErr) {
         console.warn('Sign-out exception:', signOutErr);
     }
 
-    // ----------------------------------------------------------------
-    // STEP 3: Clear local + session storage and redirect to login
-    // ----------------------------------------------------------------
     try {
+        // ⚠️ sessionStorage.clear() also removes the login audit flag
+        // — this is what makes the next login produce a new entry.
         localStorage.clear();
         sessionStorage.clear();
     } catch (storageErr) {
