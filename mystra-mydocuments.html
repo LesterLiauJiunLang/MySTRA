@@ -50,6 +50,98 @@
         }
         .modal-overlay.show { display:flex; }
         .modal-content { background:white;border-radius:16px;padding:32px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto; }
+
+/* Action Button Row */
+.action-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* Icon buttons */
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s ease;
+    position: relative;
+    padding: 0;
+    line-height: 1;
+}
+
+.icon-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.icon-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.icon-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+/* Color variants */
+.icon-btn.view {
+    background: #EFF6FF;
+    color: #1E40AF;
+}
+.icon-btn.view:hover:not(:disabled) {
+    background: #DBEAFE;
+}
+
+.icon-btn.revise {
+    background: #FEF3C7;
+    color: #92400E;
+}
+.icon-btn.revise:hover:not(:disabled) {
+    background: #FDE68A;
+}
+
+.icon-btn.delete {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+.icon-btn.delete:hover:not(:disabled) {
+    background: #FECACA;
+}
+
+/* Tooltip on hover */
+.icon-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: #1E293B;
+    color: white;
+    font-size: 11px;
+    white-space: nowrap;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Pending state text */
+.pending-text {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+
     </style>
 </head>
 <body>
@@ -97,6 +189,68 @@
                 <button class="tab-btn" onclick="window.location.href='mystra-location.html'">📍 Location</button>
             </div>
 
+
+            <!-- REFERENCE / SAMPLE DOCUMENTS (Always Visible) -->
+<div class="widget-card" style="background:#F8FAFC;border:1px solid #E5E7EB;margin-bottom:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+        <div>
+            <h2 style="margin-bottom:4px;">📚 Sample & Reference Documents</h2>
+            <p style="color:#6B7280;font-size:13px;margin:0;">
+                Not sure what a valid document looks like? Download these samples before you upload.
+            </p>
+        </div>
+    </div>
+
+    <ul id="reference-docs-list" style="list-style:none;display:flex;flex-direction:column;gap:10px;padding:0;margin:0;">
+        
+        <!-- Sample SSM Certificate -->
+        <li style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:white;border:1px solid #E5E7EB;border-radius:8px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:22px;">📜</span>
+                <div>
+                    <div style="font-weight:600;font-size:13px;color:#1E293B;">Sample SSM Certificate</div>
+                    <div style="font-size:11px;color:#6B7280;">Example of a valid business registration document</div>
+                </div>
+            </div>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 14px;"
+                    onclick="downloadReference('ssm')">
+                📥 Download
+            </button>
+        </li>
+
+        <!-- Sample Tax Information File -->
+        <li style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:white;border:1px solid #E5E7EB;border-radius:8px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:22px;">💲</span>
+                <div>
+                    <div style="font-weight:600;font-size:13px;color:#1E293B;">Sample Tax Information File</div>
+                    <div style="font-size:11px;color:#6B7280;">LHDN tax registration example</div>
+                </div>
+            </div>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 14px;"
+                    onclick="downloadReference('tax')">
+                📥 Download
+            </button>
+        </li>
+
+        <!-- Sample Safety Certificate -->
+        <li style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:white;border:1px solid #E5E7EB;border-radius:8px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:22px;">🛡️</span>
+                <div>
+                    <div style="font-weight:600;font-size:13px;color:#1E293B;">Sample Safety Certificate</div>
+                    <div style="font-size:11px;color:#6B7280;">Fire safety inspection certificate example</div>
+                </div>
+            </div>
+            <button class="btn-secondary" style="font-size:12px;padding:6px 14px;"
+                    onclick="downloadReference('safety')">
+                📥 Download
+            </button>
+        </li>
+
+
+    </ul>
+</div>
             <!-- MY DOCUMENTS CONTENT -->
             <div class="widget-card">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
@@ -181,5 +335,34 @@
             </div>
         </div>
     </div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:440px;">
+        <div style="text-align:center;padding:8px;">
+            <div style="font-size:44px;margin-bottom:12px;">🗑️</div>
+            <h2 style="font-size:18px;font-weight:700;color:#1E293B;margin-bottom:8px;">
+                Delete Document?
+            </h2>
+            <p style="font-size:14px;color:#6B7280;margin-bottom:20px;line-height:1.5;">
+                You're about to delete <strong id="delete-doc-name">document.pdf</strong>.<br>
+                This action cannot be undone.
+            </p>
+            <div style="display:flex;gap:10px;justify-content:center;">
+                <button id="btn-confirm-delete"
+                        style="padding:10px 24px;background:#DC2626;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">
+                    Delete
+                </button>
+                <button onclick="closeDeleteModal()"
+                        style="padding:10px 24px;background:#E5E7EB;color:#374151;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 </body>
 </html>
