@@ -741,60 +741,6 @@
             resize: vertical;
         }
 
-        .upload-dropzone {
-            padding: 18px;
-
-            text-align: center;
-
-            border: 2px dashed #D1D5DB;
-            border-radius: 8px;
-
-            background: #F9FAFB;
-
-            cursor: pointer;
-        }
-
-        .upload-dropzone:hover {
-            border-color: #2563EB;
-
-            background: #EFF6FF;
-        }
-
-        .upload-dropzone .icon {
-            font-size: 30px;
-        }
-
-        .upload-dropzone .text {
-            color: #6B7280;
-
-            font-size: 13px;
-
-            margin-top: 5px;
-        }
-
-        .upload-dropzone .hint {
-            color: #9CA3AF;
-
-            font-size: 11px;
-
-            margin-top: 3px;
-        }
-
-        .file-name {
-            display: block;
-
-            color: #2563EB;
-
-            font-size: 12px;
-            font-weight: 500;
-
-            margin-top: 6px;
-        }
-
-        .upload-dropzone input {
-            display: none;
-        }
-
         .btn-submit {
             width: 100%;
 
@@ -1393,55 +1339,6 @@
                     placeholder="Describe the issue or property you want to suggest..."
                     required
                 ></textarea>
-
-            </div>
-
-
-
-            <!-- Image -->
-
-            <div class="form-group">
-
-                <label>
-                    Upload Image
-                </label>
-
-
-                <div
-                    class="upload-dropzone"
-                    onclick="
-                        document
-                            .getElementById('contactImage')
-                            .click()
-                    "
-                >
-
-                    <div class="icon">
-                        📸
-                    </div>
-
-                    <div class="text">
-                        Click to upload
-                    </div>
-
-                    <div class="hint">
-                        JPG, PNG or PDF
-                    </div>
-
-
-                    <input
-                        type="file"
-                        id="contactImage"
-                        accept=".jpg,.jpeg,.png,.pdf"
-                    >
-
-
-                    <span
-                        id="imageFileName"
-                        class="file-name"
-                    ></span>
-
-                </div>
 
             </div>
 
@@ -3052,20 +2949,6 @@ const successMessage =
         "contactSuccess"
     );
 
-
-const imageInput =
-    document.getElementById(
-        "contactImage"
-    );
-
-
-const fileNameDisplay =
-    document.getElementById(
-        "imageFileName"
-    );
-
-
-
 /* Open Modal */
 
 openContactButton.addEventListener(
@@ -3113,10 +2996,6 @@ function closeContactModal() {
 
 
     contactForm.reset();
-
-
-    fileNameDisplay.textContent =
-        "";
 
 }
 
@@ -3187,100 +3066,45 @@ document.addEventListener(
 );
 
 
-
-/* =============================================
-   DISPLAY UPLOADED FILE NAME
-   ============================================= */
-
-imageInput.addEventListener(
-
-    "change",
-
-    function () {
-
-        if (
-            this.files &&
-            this.files[0]
-        ) {
-
-            fileNameDisplay.textContent =
-                "📎 " +
-                this.files[0].name;
-
-        }
-
-        else {
-
-            fileNameDisplay.textContent =
-                "";
-
-        }
-
-    }
-
-);
-
-
-
 /* =============================================
    CONTACT FORM
-   CURRENTLY FRONT-END ONLY
+   SAVE TO SUPABASE
    ============================================= */
 
 contactForm.addEventListener(
-
     "submit",
 
-    function (event) {
+    async function (event) {
 
         event.preventDefault();
 
 
-
         const name =
             document
-                .getElementById(
-                    "contactName"
-                )
+                .getElementById("contactName")
                 .value
                 .trim();
-
 
 
         const description =
             document
-                .getElementById(
-                    "contactDescription"
-                )
+                .getElementById("contactDescription")
                 .value
                 .trim();
 
 
-
         const category =
             document
-                .getElementById(
-                    "contactCategory"
-                )
+                .getElementById("contactCategory")
                 .value;
 
 
-
-        const image =
-            document
-                .getElementById(
-                    "contactImage"
-                )
-                .files[0];
-
-
+        /* Validate required fields */
 
         if (
-
             !name ||
             !description ||
             !category
-
         ) {
 
             alert(
@@ -3288,62 +3112,112 @@ contactForm.addEventListener(
             );
 
             return;
-
         }
 
 
+        /* Submit button */
 
-        /*
-           Current Contact Us feature
-           is NOT saved in Supabase yet.
-        */
-
-        const submission = {
-
-            name:
-                name,
-
-            description:
-                description,
-
-            category:
-                category,
-
-            image:
-                image
-                    ? image.name
-                    : "No image uploaded",
-
-            timestamp:
-                new Date()
-                    .toISOString()
-
-        };
+        const submitButton =
+            contactForm.querySelector(
+                ".btn-submit"
+            );
 
 
-
-        console.log(
-            "📬 Contact Form Submission:",
-            submission
-        );
+        submitButton.disabled =
+            true;
 
 
-
-        /* Show Success */
-
-        contactForm.style.display =
-            "none";
+        submitButton.textContent =
+            "⏳ Submitting...";
 
 
-        successMessage.style.display =
-            "block";
+        try {
+
+            const client =
+                window.supabaseClient ||
+                supabase;
 
 
-        fileNameDisplay.textContent =
-            "";
+            /* Save feedback to Supabase */
+
+            const { error } =
+                await client
+                    .from("public_feedback")
+                    .insert([
+                        {
+                            submitter_name:
+                                name,
+
+                            description:
+                                description,
+
+                            category:
+                                category
+                        }
+                    ]);
+
+
+            /* Supabase error */
+
+            if (error) {
+
+                console.error(
+                    "❌ Feedback insert error:",
+                    error
+                );
+
+
+                alert(
+                    "Unable to submit feedback. Please try again."
+                );
+
+
+                return;
+            }
+
+
+            console.log(
+                "✅ Feedback successfully saved to Supabase"
+            );
+
+
+            /* Show success only after save */
+
+            contactForm.style.display =
+                "none";
+
+
+            successMessage.style.display =
+                "block";
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "❌ Unexpected feedback error:",
+                error
+            );
+
+
+            alert(
+                "Something went wrong. Please try again."
+            );
+
+        }
+
+        finally {
+
+            submitButton.disabled =
+                false;
+
+
+            submitButton.textContent =
+                "📤 Submit Feedback";
+
+        }
 
     }
-
 );
 
 
