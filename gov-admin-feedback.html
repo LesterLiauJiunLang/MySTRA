@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MySTRA - Public Feedback</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="gov-admin-styles.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- Existing Admin Guard -->
+    <script src="admin-auth-guard.js"></script>
+
+    <style>
+        .feedback-toolbar {
+            background: #FFFFFF;
+            padding: 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .feedback-toolbar input {
+            flex: 2;
+            width: 100%;
+        }
+
+        .feedback-toolbar select {
+            flex: 1;
+        }
+
+        .feedback-count {
+            font-size: 13px;
+            color: #64748B;
+            margin-bottom: 14px;
+        }
+
+        .feedback-preview {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #64748B;
+            line-height: 1.5;
+        }
+
+        .feedback-meta {
+            margin-top: 7px;
+            font-size: 11px;
+            color: #94A3B8;
+        }
+
+        .category-badge {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .feedback-detail-box {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .feedback-detail-box label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748B;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .feedback-detail-value {
+            font-size: 13px;
+            color: #1E293B;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+
+        .feedback-empty {
+            text-align: center;
+            padding: 40px 15px;
+            color: #64748B;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="portal-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="app-sidebar">
+
+        <div class="sidebar-brand">
+            <span class="brand-icon">🏛️</span>
+            <span class="brand-name">MySTRA Admin</span>
+        </div>
+
+        <ul class="nav-menu">
+
+            <a href="gov-admin-dashboard.html" class="nav-link">
+                <li class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Dashboard</span>
+                </li>
+            </a>
+
+            <a href="gov-admin-document.html" class="nav-link">
+                <li class="nav-item">
+                    <span class="nav-icon">📄</span>
+                    <span class="nav-label">Documents</span>
+                </li>
+            </a>
+
+            <a href="gov-admin-reports.html" class="nav-link">
+                <li class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-label">Generate Reports</span>
+                </li>
+            </a>
+
+            <a href="gov-admin-verified.html" class="nav-link">
+                <li class="nav-item">
+                    <span class="nav-icon">🏢</span>
+                    <span class="nav-label">Verified Operators</span>
+                </li>
+            </a>
+
+            <a href="gov-admin-feedback.html" class="nav-link">
+                <li class="nav-item active">
+                    <span class="nav-icon">📬</span>
+                    <span class="nav-label">Public Feedback</span>
+                </li>
+            </a>
+
+            <a href="gov-admin-audit.html" class="nav-link">
+                <li class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label">Audit Log</span>
+                </li>
+            </a>
+
+            <a
+                href="#"
+                class="nav-link"
+                id="btn-logout"
+                onclick="handleLogout(event)"
+            >
+                <li class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-label">Logout</span>
+                </li>
+            </a>
+
+        </ul>
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main-workspace">
+
+        <header class="top-bar">
+
+            <button
+                id="btn-toggle-sidebar"
+                class="btn-sidebar-toggle"
+            >
+                ☰ Menu
+            </button>
+
+            <div class="session-badge">
+                🟢 Officer Session: ACTIVE
+                [<span id="lbl-admin-name">Loading...</span>]
+            </div>
+
+        </header>
+
+
+        <div class="gov-workspace-container">
+
+            <div class="gov-header">
+                <div>
+                    <h1 class="gov-title">
+                        Public Feedback
+                    </h1>
+
+                    <p class="gov-subtitle">
+                        View complaints, suggestions and enquiries
+                        submitted through the public MySTRA directory.
+                    </p>
+                </div>
+            </div>
+
+
+            <!-- SEARCH / FILTER -->
+            <div class="feedback-toolbar">
+
+                <input
+                    type="text"
+                    id="feedback-search"
+                    class="gov-dropdown"
+                    placeholder="🔍 Search name, category or description..."
+                >
+
+                <select
+                    id="feedback-category-filter"
+                    class="gov-dropdown"
+                >
+                    <option value="ALL">All Categories</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="suggestion">Suggestion</option>
+                    <option value="new-property">New Property</option>
+                    <option value="bug">Bug Report</option>
+                    <option value="inquiry">General Inquiry</option>
+                    <option value="other">Other</option>
+                </select>
+
+            </div>
+
+
+            <div class="feedback-count">
+                Showing
+                <strong id="feedback-count">0</strong>
+                feedback record(s)
+            </div>
+
+
+            <div class="gov-grid">
+
+                <!-- LEFT -->
+                <div class="gov-card">
+
+                    <h3>Feedback Submissions</h3>
+
+                    <div
+                        id="feedback-list"
+                        class="gov-queue-list"
+                    >
+                        <div class="feedback-empty">
+                            Loading feedback...
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- RIGHT -->
+                <div class="gov-card">
+
+                    <h3>Feedback Details</h3>
+
+                    <div id="feedback-details">
+
+                        <div class="feedback-empty">
+                            📬
+                            <br><br>
+                            Select a feedback record
+                            to view its details.
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script src="gov-admin-feedback.js"></script>
+
+</body>
+</html>
