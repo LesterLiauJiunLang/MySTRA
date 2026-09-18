@@ -185,482 +185,514 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ==============================================================================
-  // 0. RESET PASSWORD FLOW (EMAILJS OTP -> NEW PASSWORD)
-  // ==============================================================================
-  const stepForgotReq = document.getElementById("step-forgot-request");
-  const stepForgotOtp = document.getElementById("step-forgot-otp");
-  const stepForgotPass = document.getElementById("step-forgot-password");
+// ==============================================================================
+// 0. RESET PASSWORD FLOW (EMAILJS OTP -> SECURE DB RPC FUNCTION)
+// ==============================================================================
+const stepForgotReq = document.getElementById("step-forgot-request");
+const stepForgotOtp = document.getElementById("step-forgot-otp");
+const stepForgotPass = document.getElementById("step-forgot-password");
 
-  const forgotReqForm = document.getElementById("forgot-request-form");
-  const forgotOtpForm = document.getElementById("forgot-otp-form");
-  const resetForm = document.getElementById("reset-password-form");
+const forgotReqForm = document.getElementById("forgot-request-form");
+const forgotOtpForm = document.getElementById("forgot-otp-form");
+const resetForm = document.getElementById("reset-password-form");
 
-  const resetPassInput = document.getElementById("reset-password");
-  const resetConfirmInput = document.getElementById("reset-confirm-password");
+const resetPassInput = document.getElementById("reset-password");
+const resetConfirmInput = document.getElementById("reset-confirm-password");
 
-  let recoveryEmail = "";
+let recoveryEmail = "";
+currentGeneratedOTP = null;
 
-  if (forgotReqForm) {
-    forgotReqForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      recoveryEmail = document.getElementById("forgot-email").value.trim();
+if (forgotReqForm) {
+  forgotReqForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    recoveryEmail = document.getElementById("forgot-email").value.trim().toLowerCase();
 
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-
-      try {
-        await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
-
-        stepForgotReq.classList.add("hidden");
-        stepForgotOtp.classList.remove("hidden");
-        setupOtpInputs("forgot-otp-container");
-        alert("✅ A 6-digit verification code has been sent to " + recoveryEmail);
-      } catch (err) {
-        alert("❌ Error sending email: " + (err.text || JSON.stringify(err)));
-      }
-    });
-  }
-
-  if (forgotOtpForm) {
-    forgotOtpForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const token = getEnteredOtp("forgot-otp-container");
-
-      if (token !== currentGeneratedOTP) {
-        alert("❌ Invalid or incorrect verification code.");
-        return;
-      }
-
-      stepForgotOtp.classList.add("hidden");
-      stepForgotPass.classList.remove("hidden");
-    });
-  }
-
-  if (resetPassInput && resetConfirmInput) {
-    const resetRules = {
-      length: document.getElementById("reset-rule-length"),
-      uppercase: document.getElementById("reset-rule-uppercase"),
-      number: document.getElementById("reset-rule-number"),
-      special: document.getElementById("reset-rule-special"),
-      match: document.getElementById("reset-rule-match")
-    };
-
-    function validateResetPassword() {
-      const val = resetPassInput.value;
-      const confirmVal = resetConfirmInput.value;
-
-      const checks = {
-        length: val.length >= 8,
-        uppercase: /[A-Z]/.test(val),
-        number: /[0-9]/.test(val),
-        special: /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(val),
-        match: val.length > 0 && val === confirmVal
-      };
-
-      if (resetRules.length) {
-        resetRules.length.textContent = checks.length ? "✔ Minimum 8 characters long" : "❌ Minimum 8 characters long";
-        resetRules.length.style.color = checks.length ? "green" : "red";
-      }
-      if (resetRules.uppercase) {
-        resetRules.uppercase.textContent = checks.uppercase ? "✔ Includes at least one uppercase letter (A–Z)" : "❌ Includes at least one uppercase letter (A–Z)";
-        resetRules.uppercase.style.color = checks.uppercase ? "green" : "red";
-      }
-      if (resetRules.number) {
-        resetRules.number.textContent = checks.number ? "✔ Includes at least one number (0–9)" : "❌ Includes at least one number (0–9)";
-        resetRules.number.style.color = checks.number ? "green" : "red";
-      }
-      if (resetRules.special) {
-        resetRules.special.textContent = checks.special ? "✔ Includes at least one special character (@, #, $, etc.)" : "❌ Includes at least one special character (@, #, $, etc.)";
-        resetRules.special.style.color = checks.special ? "green" : "red";
-      }
-      if (resetRules.match) {
-        resetRules.match.textContent = checks.match ? "✔ Passwords match" : "❌ Passwords match";
-        resetRules.match.style.color = checks.match ? "green" : "red";
-      }
+    if (!recoveryEmail) {
+      alert("Please enter a valid email address.");
+      return;
     }
 
-    resetPassInput.addEventListener("input", validateResetPassword);
-    resetConfirmInput.addEventListener("input", validateResetPassword);
+    const client = getSupabaseClient();
+    if (!client) {
+      alert("❌ Supabase client unavailable.");
+      return;
+    }
+
+    // 1. Generate 6-digit OTP locally
+    currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+    try {
+      // 2. Save OTP to public.password_resets table (expires in 10 minutes)
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      const { error: dbError } = await client
+        .from("password_resets")
+        .upsert(
+          { email: recoveryEmail, otp_code: currentGeneratedOTP, expires_at: expiresAt },
+          { onConflict: "email" }
+        );
+
+      if (dbError) {
+        alert("❌ Failed to register reset request: " + dbError.message);
+        return;
+      }
+
+      // 3. Send OTP code via EmailJS
+      await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
+
+      stepForgotReq.classList.add("hidden");
+      stepForgotOtp.classList.remove("hidden");
+      setupOtpInputs("forgot-otp-container");
+      alert("✅ A 6-digit verification code has been sent to " + recoveryEmail);
+    } catch (err) {
+      alert("❌ Error sending OTP email: " + (err.text || err.message));
+    }
+  });
+}
+
+if (forgotOtpForm) {
+  forgotOtpForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const enteredOtp = getEnteredOtp("forgot-otp-container");
+
+    if (enteredOtp !== currentGeneratedOTP) {
+      alert("❌ Invalid verification code. Please try again.");
+      return;
+    }
+
+    alert("✅ Code verified successfully!");
+    stepForgotOtp.classList.add("hidden");
+    stepForgotPass.classList.remove("hidden");
+  });
+}
+
+if (resetPassInput && resetConfirmInput) {
+  const resetRules = {
+    length: document.getElementById("reset-rule-length"),
+    uppercase: document.getElementById("reset-rule-uppercase"),
+    number: document.getElementById("reset-rule-number"),
+    special: document.getElementById("reset-rule-special"),
+    match: document.getElementById("reset-rule-match")
+  };
+
+  function validateResetPassword() {
+    const val = resetPassInput.value;
+    const confirmVal = resetConfirmInput.value;
+
+    const checks = {
+      length: val.length >= 8,
+      uppercase: /[A-Z]/.test(val),
+      number: /[0-9]/.test(val),
+      special: /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(val),
+      match: val.length > 0 && val === confirmVal
+    };
+
+    if (resetRules.length) {
+      resetRules.length.textContent = checks.length ? "✔ Minimum 8 characters long" : "❌ Minimum 8 characters long";
+      resetRules.length.style.color = checks.length ? "green" : "red";
+    }
+    if (resetRules.uppercase) {
+      resetRules.uppercase.textContent = checks.uppercase ? "✔ Includes at least one uppercase letter (A–Z)" : "❌ Includes at least one uppercase letter (A–Z)";
+      resetRules.uppercase.style.color = checks.uppercase ? "green" : "red";
+    }
+    if (resetRules.number) {
+      resetRules.number.textContent = checks.number ? "✔ Includes at least one number (0–9)" : "❌ Includes at least one number (0–9)";
+      resetRules.number.style.color = checks.number ? "green" : "red";
+    }
+    if (resetRules.special) {
+      resetRules.special.textContent = checks.special ? "✔ Includes at least one special character (@, #, $, etc.)" : "❌ Includes at least one special character (@, #, $, etc.)";
+      resetRules.special.style.color = checks.special ? "green" : "red";
+    }
+    if (resetRules.match) {
+      resetRules.match.textContent = checks.match ? "✔ Passwords match" : "❌ Passwords match";
+      resetRules.match.style.color = checks.match ? "green" : "red";
+    }
   }
 
-  if (resetForm) {
-    resetForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+  resetPassInput.addEventListener("input", validateResetPassword);
+  resetConfirmInput.addEventListener("input", validateResetPassword);
+}
 
-      const newPassword = resetPassInput.value;
-      const confirmPassword = resetConfirmInput.value;
+if (resetForm) {
+  resetForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-      if (newPassword !== confirmPassword || !isPasswordSecure(newPassword)) {
-        alert("❌ Please ensure all password requirements are met.");
+    const newPassword = resetPassInput.value;
+    const confirmPassword = resetConfirmInput.value;
+    const enteredOtp = getEnteredOtp("forgot-otp-container");
+
+    if (newPassword !== confirmPassword || !isPasswordSecure(newPassword)) {
+      alert("❌ Please ensure all password requirements are met.");
+      return;
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      alert("❌ Supabase client unavailable.");
+      return;
+    }
+
+    try {
+      // 4. Call SQL RPC Function to perform secure password update
+      const { data, error } = await client.rpc("reset_user_password", {
+        target_email: recoveryEmail,
+        entered_otp: enteredOtp,
+        new_password: newPassword
+      });
+
+      if (error) {
+        alert("❌ Password Reset Failed: " + error.message);
+      } else {
+        alert("✅ Password updated successfully! Please log in with your new password.");
+        window.location.href = "login.html";
+      }
+    } catch (err) {
+      alert("❌ Error: " + err.message);
+    }
+  });
+}
+// ==============================================================================
+// RESEND FORGOT PASSWORD CODE
+// ==============================================================================
+const resendForgotBtn = document.getElementById("link-resend-forgot-otp");
+
+if (resendForgotBtn) {
+  resendForgotBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!recoveryEmail) {
+      alert("❌ Email address missing. Please request a new code.");
+      return;
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      alert("❌ Supabase client unavailable.");
+      return;
+    }
+
+    // Generate fresh OTP code and 10-minute expiration
+    currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    try {
+      // Upsert fresh OTP in Supabase DB
+      const { error: dbError } = await client
+        .from("password_resets")
+        .upsert(
+          { email: recoveryEmail, otp_code: currentGeneratedOTP, expires_at: expiresAt },
+          { onConflict: "email" }
+        );
+
+      if (dbError) {
+        alert("❌ Failed to refresh code: " + dbError.message);
         return;
       }
 
-      const client = getSupabaseClient();
-      if (!client) {
-        alert("❌ Supabase client unavailable.");
+      // Re-send EmailJS notification
+      await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
+      alert("✅ A fresh 6-digit code has been sent to " + recoveryEmail);
+    } catch (err) {
+      alert("❌ Error resending OTP email: " + (err.text || err.message));
+    }
+  });
+}
+// ==============================================================================
+// 1. MIGRATE LEGACY ACCOUNT HANDLERS (MOCK DB -> PROFILES & COMPLIANCE)
+// ==============================================================================
+const migPassInput = document.getElementById("mig-password");
+const migConfirmInput = document.getElementById("mig-confirm-password");
+
+// Helper function to validate password security criteria directly
+function checkPasswordStrength(password) {
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[0-9]/.test(password) &&
+    /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(password)
+  );
+}
+
+if (migPassInput && migConfirmInput) {
+  const migRules = {
+    length: document.getElementById("mig-rule-length"),
+    uppercase: document.getElementById("mig-rule-uppercase"),
+    number: document.getElementById("mig-rule-number"),
+    special: document.getElementById("mig-rule-special"),
+    match: document.getElementById("mig-rule-match")
+  };
+
+  function validateMigPassword() {
+    const val = migPassInput.value;
+    const confirmVal = migConfirmInput.value;
+
+    const checks = {
+      length: val.length >= 8,
+      uppercase: /[A-Z]/.test(val),
+      number: /[0-9]/.test(val),
+      special: /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(val),
+      match: val.length > 0 && val === confirmVal
+    };
+
+    if (migRules.length) {
+      migRules.length.textContent = checks.length ? "✔ Minimum 8 characters long" : "❌ Minimum 8 characters long";
+      migRules.length.style.color = checks.length ? "green" : "red";
+    }
+    if (migRules.uppercase) {
+      migRules.uppercase.textContent = checks.uppercase ? "✔ Includes at least one uppercase letter (A–Z)" : "❌ Includes at least one uppercase letter (A–Z)";
+      migRules.uppercase.style.color = checks.uppercase ? "green" : "red";
+    }
+    if (migRules.number) {
+      migRules.number.textContent = checks.number ? "✔ Includes at least one number (0–9)" : "❌ Includes at least one number (0–9)";
+      migRules.number.style.color = checks.number ? "green" : "red";
+    }
+    if (migRules.special) {
+      migRules.special.textContent = checks.special ? "✔ Includes at least one special character (@, #, $, etc.)" : "❌ Includes at least one special character (@, #, $, etc.)";
+      migRules.special.style.color = checks.special ? "green" : "red";
+    }
+    if (migRules.match) {
+      migRules.match.textContent = checks.match ? "✔ Passwords match" : "❌ Passwords match";
+      migRules.match.style.color = checks.match ? "green" : "red";
+    }
+  }
+
+  migPassInput.addEventListener("input", validateMigPassword);
+  migConfirmInput.addEventListener("input", validateMigPassword);
+}
+
+if (legacyMigrateForm) {
+  legacyMigrateForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("legacy-email")?.value.trim().toLowerCase() || "";
+    const licenseNo = document.getElementById("legacy-license")?.value.trim() || "";
+    const ssm = document.getElementById("legacy-ssm")?.value.trim() || "";
+
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    // 1. Fetch internal legacy account details
+    const { data: legacyRecord, error: legacyErr } = await client
+      .from("legacy_accounts")
+      .select("*")
+      .ilike("legacy_email", email)
+      .ilike("license_no", licenseNo)
+      .eq("business_ssm", ssm)
+      .single();
+
+    if (legacyErr || !legacyRecord) {
+      alert("❌ No legacy account found matching these details.");
+      return;
+    }
+
+    if (legacyRecord.is_migrated) {
+      alert("❌ This legacy account has already been migrated. Please log in.");
+      return;
+    }
+
+    // 2. Extract full Legacy Property record from External DB (ETL Extract)
+    const { data: extRecord } = await client
+      .from("mock_legacy_external_db")
+      .select("*")
+      .ilike("operator_email", email)
+      .single();
+
+    // 3. Store extracted property & user data into temporary memory
+    tempLegacyData = {
+      email: legacyRecord.legacy_email,
+      licenseNo: legacyRecord.license_no || extRecord?.licence_no_code || "",
+      ssm: legacyRecord.business_ssm || extRecord?.ssm_reg_number || "",
+      fullName: legacyRecord.operator_name || extRecord?.operator_name || "Legacy Operator",
+      businessName: legacyRecord.business_name || extRecord?.operator_business_name || "Legacy Property",
+      phone: legacyRecord.phone_number || extRecord?.phone_number || "",
+      documentUrl: legacyRecord.document_url || extRecord?.document_url || "",
+      // Physical legacy property location data:
+      state: extRecord?.legacy_state || "Kuala Lumpur",
+      district: extRecord?.legacy_district || "Central Business District"
+    };
+
+    currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+    try {
+      await sendOtpEmail(email, currentGeneratedOTP);
+      stepMigrateCreds.classList.add("hidden");
+      stepMigrateOtp.classList.remove("hidden");
+      alert("✅ Verification OTP code sent to " + email);
+    } catch (err) {
+      alert("❌ Error sending OTP: " + (err.text || JSON.stringify(err)));
+    }
+  });
+}
+
+if (legacyOtpForm) {
+  legacyOtpForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const enteredOtp = getEnteredOtp("legacy-otp-container");
+
+    if (enteredOtp !== currentGeneratedOTP) {
+      alert("❌ Invalid or expired verification code. Please try again.");
+      return;
+    }
+
+    stepMigrateOtp.classList.add("hidden");
+    stepMigratePass.classList.remove("hidden");
+  });
+}
+
+if (resendLegacyBtn) {
+  resendLegacyBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!tempLegacyData.email) return;
+
+    currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+      await sendOtpEmail(tempLegacyData.email, currentGeneratedOTP);
+      alert("✅ A fresh OTP code has been sent to " + tempLegacyData.email);
+    } catch (err) {
+      alert("❌ Error resending code: " + (err.text || JSON.stringify(err)));
+    }
+  });
+}
+
+if (legacyPasswordForm) {
+  legacyPasswordForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const newPassword = document.getElementById("mig-password")?.value || "";
+    const confirmPassword = document.getElementById("mig-confirm-password")?.value || "";
+
+    if (newPassword !== confirmPassword || !checkPasswordStrength(newPassword)) {
+      alert("❌ Password does not meet required security criteria.");
+      return;
+    }
+
+    const client = getSupabaseClient();
+    try {
+      // 1. Create Supabase Auth User
+      const { data: authData, error: signUpError } = await client.auth.signUp({
+        email: tempLegacyData.email,
+        password: newPassword,
+        options: {
+          data: {
+            full_name: tempLegacyData.fullName,
+            business_name: tempLegacyData.businessName,
+            business_ssm: tempLegacyData.ssm,
+            phone_no: tempLegacyData.phone,
+            is_verified: true
+          }
+        }
+      });
+
+      if (signUpError) {
+        alert("❌ Migration Error: " + signUpError.message);
         return;
       }
 
-      try {
-        const { data, error } = await client.auth.updateUser({
+      const userId = authData?.user?.id;
+      if (!userId) {
+        alert("❌ Failed to resolve user ID during registration.");
+        return;
+      }
+
+      // Establish session for RLS policies
+      if (!authData.session) {
+        await client.auth.signInWithPassword({
+          email: tempLegacyData.email,
           password: newPassword
         });
-
-        if (error) {
-          alert("❌ Password Reset Failed: " + error.message);
-        } else {
-          alert("✅ Password updated successfully! Please log in with your new password.");
-          window.location.href = "login.html";
-        }
-      } catch (err) {
-        alert("❌ Error: " + err.message);
       }
-    });
-  }
 
-  // ==============================================================================
-  // 1. MIGRATE LEGACY ACCOUNT HANDLERS (MOCK DB -> PROFILES & COMPLIANCE)
-  // ==============================================================================
-  const migPassInput = document.getElementById("mig-password");
-  const migConfirmInput = document.getElementById("mig-confirm-password");
+      // 2. Create Profile
+      await client
+        .from("profiles")
+        .upsert([
+          {
+            id: userId,
+            full_name: tempLegacyData.fullName,
+            business_name: tempLegacyData.businessName,
+            business_ssm: tempLegacyData.ssm,
+            phone_no: tempLegacyData.phone,
+            role: "operator"
+          }
+        ]);
 
-  if (migPassInput && migConfirmInput) {
-    const migRules = {
-      length: document.getElementById("mig-rule-length"),
-      uppercase: document.getElementById("mig-rule-uppercase"),
-      number: document.getElementById("mig-rule-number"),
-      special: document.getElementById("mig-rule-special"),
-      match: document.getElementById("mig-rule-match")
-    };
+      // 3. ETL LOAD: Transfer the existing legacy property into public.properties
+      const migratedPropertyId = crypto.randomUUID();
 
-    function validateMigPassword() {
-      const val = migPassInput.value;
-      const confirmVal = migConfirmInput.value;
+      const { error: propErr } = await client
+        .from("properties")
+        .insert([
+          {
+            id: migratedPropertyId,
+            owner_id: userId, // Attach owner to transformed property
+            title: tempLegacyData.businessName,
+            name: tempLegacyData.businessName,
+            address: `${tempLegacyData.district}, ${tempLegacyData.state}`,
+            city: tempLegacyData.district,
+            state: tempLegacyData.state,
+            latitude: 3.1390,  // Standard regional coordinate default
+            longitude: 101.6869,
+            contact_info: tempLegacyData.phone,
+            license_number: tempLegacyData.licenseNo,
+            is_verified: true
+          }
+        ]);
 
-      const checks = {
-        length: val.length >= 8,
-        uppercase: /[A-Z]/.test(val),
-        number: /[0-9]/.test(val),
-        special: /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(val),
-        match: val.length > 0 && val === confirmVal
-      };
-
-      if (migRules.length) {
-        migRules.length.textContent = checks.length ? "✔ Minimum 8 characters long" : "❌ Minimum 8 characters long";
-        migRules.length.style.color = checks.length ? "green" : "red";
+      if (propErr) {
+        console.error("❌ Property Migration Error Details:", propErr);
+        alert("❌ Migration halted on Property Transfer: " + propErr.message);
+        return;
       }
-      if (migRules.uppercase) {
-        migRules.uppercase.textContent = checks.uppercase ? "✔ Includes at least one uppercase letter (A–Z)" : "❌ Includes at least one uppercase letter (A–Z)";
-        migRules.uppercase.style.color = checks.uppercase ? "green" : "red";
+
+      // 4. Ingest compliance document linked to the migrated property
+      const rawFileName = tempLegacyData.documentUrl
+        ? tempLegacyData.documentUrl.split('/').pop().split('?')[0]
+        : `SSM_Certificate_${tempLegacyData.ssm}.pdf`;
+
+      const { error: complianceErr } = await client
+        .from("compliance_documents")
+        .insert([
+          {
+            user_id: userId,
+            property_id: migratedPropertyId,
+            document_type: "SSM Certificate",
+            document_name: `SSM Certificate - ${tempLegacyData.businessName}`,
+            file_name: rawFileName,
+            file_path: tempLegacyData.documentUrl || `documents/ssm/${rawFileName}`,
+            file_type: "application/pdf",
+            file_size: 0,
+            status: "APPROVED",
+            review_status: "APPROVED",
+            ssm_number: tempLegacyData.ssm,
+            operator_name: tempLegacyData.fullName,
+            admin_feedback: "SSM License automatically verified and approved during migration.",
+            uploaded_at: new Date().toISOString()
+          }
+        ]);
+
+      if (complianceErr) {
+        console.error("❌ Compliance Ingestion Error Details:", complianceErr);
+        alert("⚠️ Property migrated, but document insertion failed: " + complianceErr.message);
       }
-      if (migRules.number) {
-        migRules.number.textContent = checks.number ? "✔ Includes at least one number (0–9)" : "❌ Includes at least one number (0–9)";
-        migRules.number.style.color = checks.number ? "green" : "red";
-      }
-      if (migRules.special) {
-        migRules.special.textContent = checks.special ? "✔ Includes at least one special character (@, #, $, etc.)" : "❌ Includes at least one special character (@, #, $, etc.)";
-        migRules.special.style.color = checks.special ? "green" : "red";
-      }
-      if (migRules.match) {
-        migRules.match.textContent = checks.match ? "✔ Passwords match" : "❌ Passwords match";
-        migRules.match.style.color = checks.match ? "green" : "red";
-      }
-    }
 
-    migPassInput.addEventListener("input", validateMigPassword);
-    migConfirmInput.addEventListener("input", validateMigPassword);
-  }
-
-  if (legacyMigrateForm) {
-    legacyMigrateForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const email = document.getElementById("legacy-email")?.value.trim().toLowerCase() || "";
-      const licenseNo = document.getElementById("legacy-license")?.value.trim() || "";
-      const ssm = document.getElementById("legacy-ssm")?.value.trim() || "";
-
-      const client = getSupabaseClient();
-      if (!client) return;
-
-      // 1. Query internal legacy_accounts table using its precise schema
-      const { data: legacyRecord, error: legacyErr } = await client
+      // 5. Update Migration Status on legacy source tables
+      await client
         .from("legacy_accounts")
-        .select("*")
-        .ilike("legacy_email", email)
-        .ilike("license_no", licenseNo)
-        .eq("business_ssm", ssm)
-        .single();
+        .update({ is_migrated: true })
+        .ilike("legacy_email", tempLegacyData.email);
 
-      if (legacyErr || !legacyRecord) {
-        alert("❌ No legacy account found matching these details.");
-        return;
-      }
+      await client
+        .from("mock_legacy_external_db")
+        .update({ system_status: "MIGRATED" })
+        .ilike("operator_email", tempLegacyData.email);
 
-      if (legacyRecord.is_migrated) {
-        alert("❌ This legacy account has already been migrated. Please log in with your credentials.");
-        return;
-      }
+      alert("✅ Existing legacy property and account successfully migrated into the platform!");
+      window.location.href = "login.html";
 
-      // 2. Map legacy_accounts schema to tempLegacyData structure
-      tempLegacyData = {
-        email: legacyRecord.legacy_email,
-        licenseNo: legacyRecord.license_no,
-        ssm: legacyRecord.business_ssm,
-        fullName: legacyRecord.operator_name || "Legacy Operator",
-        businessName: legacyRecord.business_name || "Legacy Business",
-        phone: legacyRecord.phone_number || "",
-        documentUrl: legacyRecord.document_url || ""
-      };
-
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-
-      try {
-        await sendOtpEmail(email, currentGeneratedOTP);
-        stepMigrateCreds.classList.add("hidden");
-        stepMigrateOtp.classList.remove("hidden");
-        alert("✅ Verification OTP code sent to " + email);
-      } catch (err) {
-        alert("❌ Error sending OTP: " + (err.text || JSON.stringify(err)));
-      }
-    });
-  }
-
-  if (legacyOtpForm) {
-    legacyOtpForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const enteredOtp = getEnteredOtp("legacy-otp-container");
-
-      if (enteredOtp !== currentGeneratedOTP) {
-        alert("❌ Invalid or expired verification code. Please try again.");
-        return;
-      }
-
-      stepMigrateOtp.classList.add("hidden");
-      stepMigratePass.classList.remove("hidden");
-    });
-  }
-
-  if (resendLegacyBtn) {
-    resendLegacyBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      if (!tempLegacyData.email) return;
-
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-      try {
-        await sendOtpEmail(tempLegacyData.email, currentGeneratedOTP);
-        alert("✅ A fresh OTP code has been sent to " + tempLegacyData.email);
-      } catch (err) {
-        alert("❌ Error resending code: " + (err.text || JSON.stringify(err)));
-      }
-    });
-  }
-
-  if (legacyPasswordForm) {
-    legacyPasswordForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const newPassword = document.getElementById("mig-password")?.value || "";
-      const confirmPassword = document.getElementById("mig-confirm-password")?.value || "";
-
-      if (newPassword !== confirmPassword || !isPasswordSecure(newPassword)) {
-        alert("❌ Password does not meet required security criteria.");
-        return;
-      }
-
-      const client = getSupabaseClient();
-      try {
-        // 1. Create Supabase Auth User with metadata
-        const { data: authData, error: signUpError } = await client.auth.signUp({
-          email: tempLegacyData.email,
-          password: newPassword,
-          options: {
-            data: {
-              full_name: tempLegacyData.fullName,
-              business_name: tempLegacyData.businessName,
-              business_ssm: tempLegacyData.ssm,
-              phone_no: tempLegacyData.phone,
-              is_verified: true
-            }
-          }
-        });
-
-        if (signUpError) {
-          alert("❌ Migration Error: " + signUpError.message);
-          return;
-        }
-
-        // 2. Load transformed profile into clean public.profiles
-        if (authData?.user) {
-          const { error: profileError } = await client
-            .from("profiles")
-            .insert([
-              {
-                id: authData.user.id,
-                full_name: tempLegacyData.fullName,
-                business_name: tempLegacyData.businessName,
-                business_ssm: tempLegacyData.ssm,
-                phone_no: tempLegacyData.phone,
-                role: "operator"
-              }
-            ]);
-
-          if (profileError) {
-            console.warn("Profile Insert Notice:", profileError.message);
-          }
-
-          // 3. Ingest legacy document into document compliance pipeline ONLY upon successful migration
-          if (tempLegacyData.documentUrl) {
-            const { error: complianceErr } = await client
-              .from("document_compliance")
-              .insert([
-                {
-                  profile_id: authData.user.id,
-                  document_url: tempLegacyData.documentUrl,
-                  status: "PENDING_REVIEW",
-                  submitted_at: new Date().toISOString()
-                }
-              ]);
-
-            if (complianceErr) {
-              console.warn("Compliance Ingestion Notice:", complianceErr.message);
-            }
-          }
-        }
-
-        
-        // 4. Update status in legacy_accounts table to migrated
-  // 4a. Update status in your internal tracking table (legacy_accounts)
-const { error: updateLegacyErr } = await client
-  .from("legacy_accounts")
-  .update({ is_migrated: true })
-  .ilike("legacy_email", tempLegacyData.email);
-
-if (updateLegacyErr) {
-  console.warn("Internal Legacy Table Update Notice:", updateLegacyErr.message);
+    } catch (err) {
+      alert("❌ Migration Failed: " + err.message);
+    }
+  });
 }
-
-// 4b. Sync status back to mock legacy system to block re-migration lookups
-const { error: updateMockErr } = await client
-  .from("mock_legacy_external_db")
-  .update({ system_status: "MIGRATED" })
-  .ilike("operator_email", tempLegacyData.email);
-
-if (updateMockErr) {
-  console.warn("Mock Legacy System Update Notice:", updateMockErr.message);
-}
-
-        alert("✅ Legacy account migrated successfully! Document ingested for compliance review.");
-        window.location.href = "login.html";
-
-      } catch (err) {
-        alert("❌ Migration Failed: " + err.message);
-      }
-    });
-  }
-
-  // ==============================================================================
-  // 2. REGISTRATION HANDLERS
-  // ==============================================================================
-  if (registerForm) {
-    registerForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const email = document.getElementById("reg-email")?.value.trim() || "";
-      const password = document.getElementById("reg-password")?.value || "";
-      const confirmPassword = document.getElementById("reg-confirm-password")?.value || "";
-      const fullName = document.getElementById("reg-fullname")?.value.trim() || "";
-      const businessName = document.getElementById("reg-business-name")?.value.trim() || "";
-      const phone = document.getElementById("reg-phone")?.value.trim() || "";
-
-      if (!email || !password || !confirmPassword || !fullName || !businessName || !phone) {
-        alert("❌ Please complete all required fields.");
-        return;
-      }
-
-      if (!isPasswordSecure(password) || password !== confirmPassword) {
-        alert("❌ Password check failed.");
-        return;
-      }
-
-      tempUserData = { email, password, fullName, businessName, phone };
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-
-      try {
-        await sendOtpEmail(email, currentGeneratedOTP);
-        if (stepRegister) stepRegister.classList.add("hidden");
-        if (stepOtp) stepOtp.classList.remove("hidden");
-        alert("✅ 6-Digit OTP code sent to " + email);
-      } catch (err) {
-        alert("❌ Error sending OTP email: " + (err.text || JSON.stringify(err)));
-      }
-    });
-  }
-
-  if (resendBtn) {
-    resendBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      if (!tempUserData.email) return;
-
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-      try {
-        await sendOtpEmail(tempUserData.email, currentGeneratedOTP);
-        alert("✅ A fresh OTP code has been sent to " + tempUserData.email);
-      } catch (err) {
-        alert("❌ Error resending code: " + (err.text || JSON.stringify(err)));
-      }
-    });
-  }
-
-  if (otpForm) {
-    otpForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const client = getSupabaseClient();
-      const token = getEnteredOtp("otp-container");
-
-      if (token !== currentGeneratedOTP) {
-        alert("❌ Invalid verification code.");
-        return;
-      }
-
-      try {
-        // Create Supabase Auth User (Database trigger automatically builds the profile)
-        const { data: authData, error: signUpError } = await client.auth.signUp({
-          email: tempUserData.email,
-          password: tempUserData.password,
-          options: {
-            data: {
-              full_name: tempUserData.fullName,
-              business_name: tempUserData.businessName,
-              phone_no: tempUserData.phone
-            }
-          }
-        });
-
-        // Gracefully handle existing user states or database trigger conflicts
-        if (signUpError) {
-          if (
-            signUpError.message.includes("Database error saving new user") ||
-            signUpError.message.includes("User already registered") ||
-            signUpError.status === 422
-          ) {
-            alert("✅ Account already created! Redirecting to login...");
-            window.location.href = "login.html";
-            return;
-          }
-
-          alert("❌ Registration Error: " + signUpError.message);
-          return;
-        }
-
-        alert("✅ Account created successfully! Redirecting to login...");
-        window.location.href = "login.html";
-
-      } catch (err) {
-        alert("❌ Registration Exception: " + err.message);
-      }
-    });
-  }
 
   // ==============================================================================
   // 3. MySTRA LOGIN AUTHENTICATION & CLIENT-SIDE LOCKOUT ENGINE

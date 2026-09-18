@@ -2,12 +2,19 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-// 1. Supabase Credentials (Replace with your actual values)
+// 1. Supabase Credentials (Read key securely from environment)
 const SUPABASE_URL = "https://lpovahpueihltaclwzzy.supabase.co"; 
-const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwb3ZhaHB1ZWlobHRhY2x3enp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjkwMjQ2OCwiZXhwIjoyMTAyNDc4NDY4fQ.PdiFWArBh5WM6S7RlPm13xnPYo2ux524U0gYSHt6keg";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// 2. TARGET DATABASE COLUMNS (Matched exactly to your SQL create table schema)
-const TARGET_DB_COLUMNS = ['legacy_email', 'license_no', 'business_ssm'];
+// Fail-safe check: Stop execution if key is missing
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("❌ ERROR: Missing SUPABASE_SERVICE_ROLE_KEY environment variable.");
+  console.error("Run: export SUPABASE_SERVICE_ROLE_KEY='your_new_key_here' before executing.");
+  process.exit(1);
+}
+
+// 2. TARGET DATABASE COLUMNS (Includes document_url)
+const TARGET_DB_COLUMNS = ['legacy_email', 'license_no', 'business_ssm', 'document_url'];
 
 /**
  * AUTOMATIC MATCHING ALGORITHM
@@ -19,14 +26,15 @@ function findBestDbMatch(legacyHeader) {
   for (const dbCol of TARGET_DB_COLUMNS) {
     const cleanDbCol = dbCol.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    // Fuzzy checks (e.g., "operator_email" -> "legacy_email", "license_num" -> "license_no")
     if (
       cleanHeader.includes(cleanDbCol) || 
       cleanDbCol.includes(cleanHeader) ||
       (cleanHeader.includes('email') && dbCol === 'legacy_email') ||
       (cleanHeader.includes('license') && dbCol === 'license_no') ||
       (cleanHeader.includes('title') && dbCol === 'business_ssm') ||
-      (cleanHeader.includes('comp') && dbCol === 'business_ssm')
+      (cleanHeader.includes('comp') && dbCol === 'business_ssm') ||
+      (cleanHeader.includes('doc') && dbCol === 'document_url') ||
+      (cleanHeader.includes('url') && dbCol === 'document_url')
     ) {
       return dbCol;
     }
@@ -39,7 +47,6 @@ function findBestDbMatch(legacyHeader) {
  */
 function postToSupabase(payload) {
   return new Promise((resolve, reject) => {
-    // Post directly to the legacy_accounts table endpoint
     const endpoint = `${SUPABASE_URL}/rest/v1/legacy_accounts`;
     const url = new URL(endpoint);
 
@@ -54,7 +61,7 @@ function postToSupabase(payload) {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_SERVICE_ROLE_KEY,
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        'Prefer': 'resolution=merge-duplicates', // Resolves upserts on unique keys
+        'Prefer': 'resolution=merge-duplicates',
         'Content-Length': Buffer.byteLength(postData)
       }
     };
@@ -126,7 +133,6 @@ async function runAutoMigration(csvFileName) {
         }
       });
 
-      // Require legacy_email and license_no to satisfy NOT NULL constraints
       if (cleanRecord.legacy_email && cleanRecord.license_no) {
         payload.push(cleanRecord);
       }

@@ -50,7 +50,7 @@ sidebarButtons.forEach(button => {
 
         resetAllViews();
         button.classList.add('active-nav');
-        
+
         const selection = sidebarItems[button.id];
         if (selection) {
             mainPageTitle.textContent = selection.title;
@@ -60,7 +60,7 @@ sidebarButtons.forEach(button => {
                 document.getElementById('tab-dashboard').classList.add('active');
                 document.getElementById('tab-listings').classList.remove('active');
                 document.getElementById('tab-logs').classList.remove('active');
-                selection.panel.classList.remove('hidden'); 
+                selection.panel.classList.remove('hidden');
             } else {
                 managerTabsContainer.style.display = 'none';
                 selection.panel.classList.remove('hidden');
@@ -104,7 +104,7 @@ function logToTerminal(message, type = 'info', timestamp = null) {
 
     const p = document.createElement('p');
     p.innerHTML = `<span class="text-gray">[${timeStr}]</span> <span class="${typeClass}">${label}</span> ${message}`;
-    
+
     // Insert before prompt
     const prompt = terminalBody.querySelector('.cli-prompt');
     if (prompt) {
@@ -180,7 +180,7 @@ function renderSimplifiedListings(codes, properties) {
         const propTitle = c.properties?.title || (c.property_id ? 'Assigned Property' : '⚡ Unassigned (Pending Agoda Onboarding)');
         const isLive = c.code_status === 'ACTIVE' && c.property_id;
         const isPending = !c.property_id || c.code_status === 'PENDING_REGISTRATION';
-        
+
         let statusBadge = `<span class="badge-green">🟢 LIVE & ACTIVE</span>`;
         if (isPending) {
             statusBadge = `<span style="background-color:#FEF3C7; color:#92400E; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">🟡 UNUSED / PENDING</span>`;
@@ -205,16 +205,40 @@ function renderFullListings(properties, codes) {
     const container = document.getElementById('full-listings-container');
     if (!container) return;
 
-    if (!properties || properties.length === 0) {
-        container.innerHTML = `<p style="color: #6B7280; padding: 16px;">No property inventory found in database. Run the seed script in schema.sql to populate.</p>`;
+    // Build the display list from CODES (which have joined property data),
+    // then add any properties that don't have a code yet.
+    const items = [];
+    const seenPropIds = new Set();
+
+    (codes || []).forEach(c => {
+        if (c.properties) {
+            seenPropIds.add(c.property_id);
+            items.push({ property: c.properties, code: c });
+        }
+    });
+
+    (properties || []).forEach(p => {
+        if (!seenPropIds.has(p.id)) {
+            items.push({
+                property: p,
+                code: { registration_code: 'UNASSIGNED', code_status: 'PENDING', booked_nights: 0, max_limit_cap: 180 }
+            });
+        }
+    });
+
+    if (items.length === 0) {
+        container.innerHTML = `<p style="color: #6B7280; padding: 16px;">No property inventory found in database.</p>`;
         return;
     }
 
-    container.innerHTML = properties.map(p => {
-        const codeObj = (p.mystra_codes && p.mystra_codes[0]) || 
-                        codes.find(c => c.property_id === p.id) || 
-                        { registration_code: 'UNASSIGNED', code_status: 'PENDING', booked_nights: 0, max_limit_cap: 180 };
-        
+    // Most recent first
+    items.sort((a, b) => {
+        const da = new Date(a.property.created_at || 0).getTime();
+        const db = new Date(b.property.created_at || 0).getTime();
+        return db - da;
+    });
+
+    container.innerHTML = items.map(({ property: p, code: codeObj }) => {
         const booked = codeObj.booked_nights || 0;
         const maxCap = codeObj.max_limit_cap || 180;
         const pct = Math.min(Math.round((booked / maxCap) * 100), 100);
@@ -225,7 +249,7 @@ function renderFullListings(properties, codes) {
             <div class="inventory-item">
                 <div class="inventory-header">
                     <h3>${p.title}</h3>
-                    <span class="${isActive ? 'badge-green' : 'badge-red'}">${isActive ? '🟢 Live & Active' : (isBreached ? '🔴 SUSPENDED (CAP REACHED)' : '🔴 ' + codeObj.code_status)}</span>
+                    <span class="${isActive ? 'badge-green' : 'badge-red'}">${isActive ? '🟢 Live & Active' : (isBreached ? '🔴 SUSPENDED (CAP REACHED)' : '🔴 ' + (codeObj.code_status || 'PENDING'))}</span>
                 </div>
                 <p>
                     <strong>Token ID:</strong> <span class="mono-text">${codeObj.registration_code}</span> | 
@@ -245,6 +269,7 @@ function renderFullListings(properties, codes) {
         `;
     }).join('');
 }
+
 
 function renderAuditLogs(logs) {
     const tbody = document.getElementById('audit-logs-rows');
@@ -348,7 +373,7 @@ function updatePortfolioMetrics(properties, codes) {
 function checkPendingCodeLock(codes) {
     // Only verify real codes stored in Supabase where property_id is null or status is PENDING_REGISTRATION
     const pendingInDb = (codes || []).find(c => (!c.property_id || c.code_status === 'PENDING_REGISTRATION') && c.code_status !== 'EXPIRED');
-    
+
     if (pendingInDb) {
         state.pendingCode = pendingInDb.registration_code;
         codeField.value = state.pendingCode;
@@ -385,14 +410,24 @@ async function loadSupabaseData() {
     }
 
     try {
-        // 1. Fetch properties
+        // 0. Get the current logged-in user ID
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const uid = user ? user.id : null;
+
+        // 1. Fetch properties — keep only this user's
         const { data: properties, error: propErr } = await MySTRA_API.getProperties();
         if (propErr) throw propErr;
-        state.properties = properties || [];
+        state.properties = (properties || []).filter(p =>
+            uid && (p.user_id === uid || p.owner_id === uid)
+        );
 
-        // 2. Fetch codes
+        // 2. Fetch codes — keep only this user's
         const { data: codes, error: codeErr } = await MySTRA_API.getCodes();
-        if (!codeErr && codes) state.codes = codes;
+        if (!codeErr && codes) {
+            state.codes = codes.filter(c =>
+                uid && (c.user_id === uid || c.owner_id === uid)
+            );
+        }
 
         // 3. Fetch audit logs (state transitions)
         const { data: logs, error: logErr } = await MySTRA_API.getAuditLogs();
@@ -453,11 +488,11 @@ if (btnGenerate) {
         try {
             // Register token in Supabase (which also logs State Transition: TOKEN_CREATED)
             const { data, error } = await MySTRA_API.createRegistrationCode(newCode, 180);
-            
+
             if (error) {
                 console.error("❌ Supabase Insert Error:", error);
                 const isRlsError = error.code === '42501' || (error.message && error.message.includes('row-level security'));
-                
+
                 if (isRlsError) {
                     alert(`⚠️ Supabase Permission Error (RLS Policy Active):\n\nSupabase blocked the write with code 42501:\n"${error.message}"\n\n👉 Solution: Open Supabase Dashboard > SQL Editor, run the script 'fix-supabase.sql' to grant public access policies!`);
                 } else {
@@ -544,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 // Use the active global Supabase client instance
                 const client = window.supabaseClient;
-                
+
                 // Terminate session on Supabase if available
                 if (client && client.auth) {
                     await client.auth.signOut();
