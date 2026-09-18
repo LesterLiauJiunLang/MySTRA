@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <script src="auth.js" defer></script>
+  <script src="login.js" defer></script>
 </head>
 <body class="auth-body">
   
@@ -35,14 +36,23 @@
         </div>
 
         <div class="form-group-inline">
-          <label for="password">Password:</label>
-          <div class="password-wrapper">
-            <div class="input-with-eye">
-              <input type="password" id="password" required placeholder="Enter password" />
-              <button type="button" class="toggle-eye" id="toggle-login-password">👁️</button>
-            </div>
-          </div>
-        </div>
+  <label for="password">Password:</label>
+  <div style="position: relative; width: 100%; display: flex; align-items: center;">
+    <input 
+      type="password" 
+      id="password" 
+      required 
+      placeholder="Enter password" 
+      style="width: 100%; padding-right: 45px; box-sizing: border-box;" 
+    />
+    <button 
+      type="button" 
+      id="toggle-login-password" 
+      style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; font-size: 1.2rem; z-index: 10; padding: 0 5px;"
+      aria-label="Toggle password visibility"
+    >👁️</button>
+  </div>
+</div>
 
         <div class="form-group-inline" style="justify-content: space-between; margin-top: 0.5rem;">
           <div style="display: flex; align-items: center; gap: 6px;">
