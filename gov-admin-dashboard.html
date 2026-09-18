@@ -3,21 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>MySTRA - Admin Dashboard</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="gov-admin-styles.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="gov-admin-styles.css"
+    >
 
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+
+    <!-- Admin Security -->
     <script src="admin-auth-guard.js"></script>
-    <script src="gov-admin-audit.js"></script>   
-    <!-- Chart.js Engine -->
+
+    <!-- Audit -->
+    <script src="gov-admin-audit.js"></script>
+
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Dashboard Logic -->
     <script src="gov-admin-dashboard.js"></script>
-    
+
+
     <style>
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -25,13 +42,18 @@
             margin-bottom: 24px;
         }
 
+
         .metric-card {
             background: #ffffff;
             border: 1px solid #E2E8F0;
             border-radius: 10px;
+
             padding: 16px 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+            box-shadow:
+                0 1px 3px rgba(0,0,0,0.05);
         }
+
 
         .metric-card .title {
             font-size: 12px;
@@ -40,6 +62,7 @@
             text-transform: uppercase;
         }
 
+
         .metric-card .value {
             font-size: 26px;
             font-weight: 700;
@@ -47,197 +70,645 @@
             margin-top: 6px;
         }
 
+
         .charts-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
 
+
         .chart-card {
             background: #ffffff;
+
             border: 1px solid #E2E8F0;
             border-radius: 12px;
+
             padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+            box-shadow:
+                0 1px 3px rgba(0,0,0,0.05);
+
             display: flex;
             flex-direction: column;
+
             min-height: 380px;
         }
+
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+
             margin-bottom: 6px;
         }
 
+
         .chart-card h3 {
             margin: 0;
+
             font-size: 15px;
             font-weight: 600;
+
             color: #1E293B;
         }
 
+
         .chart-card p {
             margin: 0 0 16px 0;
+
             font-size: 12px;
             color: #64748B;
         }
 
+
         .chart-wrapper {
             position: relative;
+
             flex: 1;
+
             width: 100%;
             height: 280px;
         }
 
+
         .btn-chart-toggle {
             padding: 4px 10px;
+
             font-size: 12px;
             font-weight: 500;
+
             color: #475569;
+
             background: #F1F5F9;
+
             border: 1px solid #CBD5E1;
             border-radius: 6px;
+
             cursor: pointer;
+
             transition: all 0.2s ease;
         }
+
 
         .btn-chart-toggle:hover {
             background: #E2E8F0;
             color: #0F172A;
         }
+
     </style>
+
 </head>
+
+
 <body>
 
-    <div class="portal-layout">
-        <!-- SIDEBAR NAVIGATION -->
-        <aside class="sidebar" id="app-sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-icon">🏛️</span>
-                <span class="brand-name">MySTRA Admin</span>
+
+<div class="portal-layout">
+
+
+    <!-- ==========================================
+         SIDEBAR
+         ========================================== -->
+
+    <aside
+        class="sidebar"
+        id="app-sidebar"
+    >
+
+
+        <div class="sidebar-brand">
+
+            <span class="brand-icon">
+                🏛️
+            </span>
+
+            <span class="brand-name">
+                MySTRA Admin
+            </span>
+
+        </div>
+
+
+
+        <ul class="nav-menu">
+
+
+            <!-- Dashboard -->
+
+            <a
+                href="gov-admin-dashboard.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item active">
+
+                    <span class="nav-icon">
+                        📊
+                    </span>
+
+                    <span class="nav-label">
+                        Dashboard
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- Documents -->
+
+            <a
+                href="gov-admin-document.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📄
+                    </span>
+
+                    <span class="nav-label">
+                        Documents
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- Reports -->
+
+            <a
+                href="gov-admin-reports.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📈
+                    </span>
+
+                    <span class="nav-label">
+                        Generate Reports
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- Verified Operators -->
+
+            <a
+                href="gov-admin-verified.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        🏢
+                    </span>
+
+                    <span class="nav-label">
+                        Verified Operators
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- NEW: Public Feedback -->
+
+            <a
+                href="gov-admin-feedback.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📬
+                    </span>
+
+                    <span class="nav-label">
+                        Public Feedback
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- Audit Log -->
+
+            <a
+                href="gov-admin-audit.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📋
+                    </span>
+
+                    <span class="nav-label">
+                        Audit Log
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- Logout -->
+
+            <a
+                href="#"
+                class="nav-link"
+                id="btn-logout"
+                onclick="handleLogout(event)"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        🚪
+                    </span>
+
+                    <span class="nav-label">
+                        Logout
+                    </span>
+
+                </li>
+
+            </a>
+
+
+        </ul>
+
+
+    </aside>
+
+
+
+    <!-- ==========================================
+         MAIN WORKSPACE
+         ========================================== -->
+
+    <main class="main-workspace">
+
+
+        <header class="top-bar">
+
+            <button
+                id="btn-toggle-sidebar"
+                class="btn-sidebar-toggle"
+            >
+                ☰ Menu
+            </button>
+
+
+            <div class="session-badge">
+
+                🟢 Officer Session:
+                ACTIVE
+
+                [
+
+                <span id="lbl-admin-name">
+                    Loading...
+                </span>
+
+                ]
+
             </div>
 
-            <ul class="nav-menu">
-                <a href="gov-admin-dashboard.html" class="nav-link">
-                    <li class="nav-item active">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-label">Dashboard</span>
-                    </li>
-                </a>
-                <a href="gov-admin-document.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📄</span>
-                        <span class="nav-label">Documents</span>
-                    </li>
-                </a>
-                <a href="gov-admin-reports.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📈</span>
-                        <span class="nav-label">Generate Reports</span>
-                    </li>
-                </a>
-                <a href="gov-admin-verified.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">🏢</span>
-                        <span class="nav-label">Verified Operators</span>
-                    </li>
-                </a>
-                <a href="gov-admin-audit.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📋</span>
-                        <span class="nav-label">Audit Log</span>
-                    </li>
-                </a>
-                <a href="#" class="nav-link" id="btn-logout" onclick="handleLogout(event)">
-    <li class="nav-item">
-        <span class="nav-icon">🚪</span>
-        <span class="nav-label">Logout</span>
-    </li>
-</a>
-            </ul>
-        </aside>
+        </header>
 
-        <!-- MAIN WORKSPACE -->
-        <main class="main-workspace">
-            <header class="top-bar">
-                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
-                <div class="session-badge">
-                     🟢 Officer Session: ACTIVE [<span id="lbl-admin-name">Loading...</span>]
-                </div>
-            </header>
 
-            <div class="gov-workspace-container">
-                <div class="gov-header">
-                    <div>
-                        <h1 class="gov-title">Executive Compliance Analytics</h1>
-                        <p class="gov-subtitle">Real-time oversight of short-term rental compliance status and verified operator growth.</p>
-                    </div>
+
+        <div class="gov-workspace-container">
+
+
+            <div class="gov-header">
+
+                <div>
+
+                    <h1 class="gov-title">
+                        Executive Compliance Analytics
+                    </h1>
+
+
+                    <p class="gov-subtitle">
+
+                        Real-time oversight of
+                        short-term rental compliance
+                        status and verified operator
+                        growth.
+
+                    </p>
+
                 </div>
 
-                <!-- TOP METRIC CARDS (6-CARD GRID) -->
-                <div class="dashboard-grid">
-                    <div class="metric-card" style="border-left: 4px solid #64748B;">
-                        <div class="title">Total Submissions</div>
-                        <div class="value" id="metric-total">0</div>
-                    </div>
-                    <div class="metric-card" style="border-left: 4px solid #F59E0B;">
-                        <div class="title">Pending Review</div>
-                        <div class="value" id="metric-pending" style="color: #D97706;">0</div>
-                    </div>
-                    <div class="metric-card" style="border-left: 4px solid #10B981;">
-                        <div class="title">Approved Docs</div>
-                        <div class="value" id="metric-approved" style="color: #059669;">0</div>
-                    </div>
-                    <div class="metric-card" style="border-left: 4px solid #EF4444;">
-                        <div class="title">Rejected Docs</div>
-                        <div class="value" id="metric-rejected" style="color: #DC2626;">0</div>
-                    </div>
-                    <div class="metric-card" style="border-left: 4px solid #6366F1;">
-                        <div class="title">Revision Needed</div>
-                        <div class="value" id="metric-revision" style="color: #4F46E5;">0</div>
-                    </div>
-                    <div class="metric-card" style="border-left: 4px solid #2563EB;">
-                        <div class="title">Verified Operators</div>
-                        <div class="value" id="metric-verified" style="color: #2563EB;">0</div>
-                    </div>
-                </div>
-
-                <!-- CHARTS SECTION -->
-                <div class="charts-container">
-                    <!-- CHART 1: Document Audit Overview (UC-M5-01) -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>Document Audit Overview</h3>
-                            <button class="btn-chart-toggle" onclick="window.govAdminDashboardModule.toggleStatusChartType()">
-                                📊 Switch Chart Type
-                            </button>
-                        </div>
-                        <p>Distribution of all submitted compliance documents across evaluation stages.</p>
-                        <div class="chart-wrapper">
-                            <canvas id="statusDoughnutChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- CHART 2: State Accommodation Statistics (UC-M5-03) -->
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <h3>State Accommodation Statistics</h3>
-                            <button class="btn-chart-toggle" onclick="window.govAdminDashboardModule.toggleStateChartType()">
-                                📊 Switch Chart Type
-                            </button>
-                        </div>
-                        <p>Regional distribution and property density of registered operators across Malaysian states.</p>
-                        <div class="chart-wrapper">
-                            <canvas id="stateBarChart"></canvas>
-                        </div>
-                    </div>
-                </div>
             </div>
-        </main>
-    </div>
 
-    
+
+
+            <!-- ======================================
+                 METRIC CARDS
+                 ====================================== -->
+
+            <div class="dashboard-grid">
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #64748B;
+                    "
+                >
+
+                    <div class="title">
+                        Total Submissions
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-total"
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #F59E0B;
+                    "
+                >
+
+                    <div class="title">
+                        Pending Review
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-pending"
+                        style="
+                            color:#D97706;
+                        "
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #10B981;
+                    "
+                >
+
+                    <div class="title">
+                        Approved Docs
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-approved"
+                        style="
+                            color:#059669;
+                        "
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #EF4444;
+                    "
+                >
+
+                    <div class="title">
+                        Rejected Docs
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-rejected"
+                        style="
+                            color:#DC2626;
+                        "
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #6366F1;
+                    "
+                >
+
+                    <div class="title">
+                        Revision Needed
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-revision"
+                        style="
+                            color:#4F46E5;
+                        "
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+
+                <div
+                    class="metric-card"
+                    style="
+                        border-left:
+                        4px solid #2563EB;
+                    "
+                >
+
+                    <div class="title">
+                        Verified Operators
+                    </div>
+
+                    <div
+                        class="value"
+                        id="metric-verified"
+                        style="
+                            color:#2563EB;
+                        "
+                    >
+                        0
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+
+            <!-- ======================================
+                 CHARTS
+                 ====================================== -->
+
+            <div class="charts-container">
+
+
+                <!-- Document Audit Chart -->
+
+                <div class="chart-card">
+
+
+                    <div class="chart-header">
+
+                        <h3>
+                            Document Audit Overview
+                        </h3>
+
+
+                        <button
+                            class="btn-chart-toggle"
+
+                            onclick="
+                                window
+                                    .govAdminDashboardModule
+                                    .toggleStatusChartType()
+                            "
+                        >
+
+                            📊 Switch Chart Type
+
+                        </button>
+
+                    </div>
+
+
+                    <p>
+
+                        Distribution of all submitted
+                        compliance documents across
+                        evaluation stages.
+
+                    </p>
+
+
+                    <div class="chart-wrapper">
+
+                        <canvas
+                            id="statusDoughnutChart"
+                        ></canvas>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <!-- State Chart -->
+
+                <div class="chart-card">
+
+
+                    <div class="chart-header">
+
+                        <h3>
+                            State Accommodation Statistics
+                        </h3>
+
+
+                        <button
+                            class="btn-chart-toggle"
+
+                            onclick="
+                                window
+                                    .govAdminDashboardModule
+                                    .toggleStateChartType()
+                            "
+                        >
+
+                            📊 Switch Chart Type
+
+                        </button>
+
+                    </div>
+
+
+                    <p>
+
+                        Regional distribution and
+                        property density of registered
+                        operators across Malaysian states.
+
+                    </p>
+
+
+                    <div class="chart-wrapper">
+
+                        <canvas
+                            id="stateBarChart"
+                        ></canvas>
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+    </main>
+
+
+</div>
+
+
 </body>
 </html>
