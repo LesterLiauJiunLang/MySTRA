@@ -1,268 +1,911 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySTRA - Documents (Gov Admin)</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="gov-admin-styles.css">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>
+        MySTRA - Documents (Gov Admin)
+    </title>
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="gov-admin-styles.css"
+    >
+
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
     <script src="supabase-config.js"></script>
+
     <script src="admin-auth-guard.js"></script>
 
+
     <style>
-        /* Floating Popup Overlay Backdrop */
+
         .modal-overlay {
             position: fixed;
+
             top: 0;
             left: 0;
+
             width: 100vw;
             height: 100vh;
-            background-color: rgba(15, 23, 42, 0.65);
-            backdrop-filter: blur(4px);
+
+            background-color:
+                rgba(15,23,42,0.65);
+
+            backdrop-filter:
+                blur(4px);
+
             display: flex;
+
             align-items: center;
             justify-content: center;
+
             z-index: 9999;
         }
 
-        /* Hide elements when inactive */
-        .modal-overlay.hidden, .hidden {
+
+        .modal-overlay.hidden,
+        .hidden {
             display: none !important;
         }
 
-        /* Floating Center Window Container */
+
         .modal-content {
             background: #ffffff;
+
             width: 90%;
+
             max-width: 850px;
             max-height: 85vh;
+
             border-radius: 12px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+
+            box-shadow:
+                0 20px 25px -5px rgba(0,0,0,0.3),
+                0 10px 10px -5px rgba(0,0,0,0.2);
+
             display: flex;
             flex-direction: column;
+
             overflow: hidden;
-            animation: modalPopIn 0.2s ease-out;
+
+            animation:
+                modalPopIn 0.2s ease-out;
         }
+
 
         @keyframes modalPopIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+
+            from {
+                opacity: 0;
+                transform:
+                    scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform:
+                    scale(1);
+            }
+
         }
 
-        /* Modal Top Header Bar */
+
         .modal-header {
             display: flex;
-            justify-content: space-between;
+
+            justify-content:
+                space-between;
+
             align-items: center;
+
             padding: 16px 20px;
+
             background: #F8FAFC;
-            border-bottom: 1px solid #E2E8F0;
+
+            border-bottom:
+                1px solid #E2E8F0;
         }
+
 
         .modal-header h3 {
             margin: 0;
+
             font-size: 16px;
             font-weight: 600;
+
             color: #0F172A;
         }
 
+
         .modal-close-btn {
-            background: transparent;
+            background:
+                transparent;
+
             border: none;
+
             font-size: 18px;
+
             color: #64748B;
+
             cursor: pointer;
+
             padding: 4px 10px;
+
             border-radius: 6px;
         }
+
 
         .modal-close-btn:hover {
             background: #E2E8F0;
             color: #0F172A;
         }
 
-        /* Modal Inner Body */
+
         .modal-body {
             padding: 20px;
+
             overflow-y: auto;
         }
 
-        /* Search Toolbar Custom Styles */
+
         .filter-panel-card {
             background: #ffffff;
+
             padding: 12px;
+
             border-radius: 8px;
-            border: 1px solid #E2E8F0;
+
+            border:
+                1px solid #E2E8F0;
+
             display: flex;
+
             gap: 12px;
+
             margin-bottom: 20px;
+
             align-items: center;
         }
+
     </style>
+
 </head>
+
+
 <body>
 
-    <div class="portal-layout">
-        <!-- SIDEBAR NAVIGATION -->
-        <aside class="sidebar" id="app-sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-icon">🏛️</span>
-                <span class="brand-name">MySTRA Admin</span>
-            </div>
 
-            <ul class="nav-menu">
-                <a href="gov-admin-dashboard.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-label">Dashboard</span>
-                    </li>
-                </a>
-                <a href="gov-admin-document.html" class="nav-link">
-                    <li class="nav-item active">
-                        <span class="nav-icon">📄</span>
-                        <span class="nav-label">Documents</span>
-                    </li>
-                </a>
-                <a href="gov-admin-reports.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📈</span>
-                        <span class="nav-label">Generate Reports</span>
-                    </li>
-                </a>
-                <a href="gov-admin-verified.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">🏢</span>
-                        <span class="nav-label">Verified Operators</span>
-                    </li>
-                </a>
-                <a href="gov-admin-audit.html" class="nav-link">
-                    <li class="nav-item">
-                        <span class="nav-icon">📋</span>
-                        <span class="nav-label">Audit Log</span>
-                    </li>
-                </a>
-                <a href="#" class="nav-link" id="btn-logout" onclick="handleLogout(event)">
-                    <li class="nav-item">
-                        <span class="nav-icon">🚪</span>
-                         <span class="nav-label">Logout</span>
-                     </li>
-                </a>
-            </ul>
-        </aside>
+<div class="portal-layout">
 
-        <!-- MAIN WORKSPACE -->
-        <main class="main-workspace">
-            <header class="top-bar">
-                <button id="btn-toggle-sidebar" class="btn-sidebar-toggle">☰ Menu</button>
-                <div class="session-badge">
-                     🟢 Officer Session: ACTIVE [<span id="lbl-admin-name">Loading...</span>]
-                </div>
-            </header>
 
-            <div id="gov-admin-module" class="gov-workspace-container">
-                <div class="gov-header">
-                    <div>
-                        <h1 class="gov-title">Government Compliance & Enforcement Panel</h1>
-                        <p class="gov-subtitle">Review operator regulatory documents, SSM registrations, and local council permits.</p>
-                    </div>
-                </div>
+    <!-- ==========================================
+         SIDEBAR
+         ========================================== -->
 
-                <!-- FILTER TABS -->
-                <div class="gov-filter-bar">
-                    <button class="gov-filter-btn active" data-filter="PENDING">⏳ Pending Review</button>
-                    <button class="gov-filter-btn" data-filter="APPROVED">✅ Approved</button>
-                    <button class="gov-filter-btn" data-filter="REJECTED">❌ Rejected</button>
-                    <button class="gov-filter-btn" data-filter="REUPLOAD_REQUESTED">⚠️ Revision Requested</button>
-                    <button class="gov-filter-btn" data-filter="ALL">📁 All Submissions</button>
-                </div>
+    <aside
+        class="sidebar"
+        id="app-sidebar"
+    >
 
-                <!-- SEARCH & REGIONAL FILTER TOOLBAR -->
-                <div class="filter-panel-card">
-                    <div style="flex: 2;">
-                        <input type="text" id="gov-search-input" class="gov-dropdown" placeholder="🔍 Search Operator, SSM #, or Ref ID..." style="width: 100%;">
-                    </div>
-                    <div style="flex: 1;">
-                        <select id="gov-state-filter" class="gov-dropdown" style="width: 100%;">
-                            <option value="ALL">All States (Nationwide)</option>
-                            <option value="Penang">Penang</option>
-                            <option value="Selangor">Selangor</option>
-                            <option value="Kuala Lumpur">Kuala Lumpur</option>
-                            <option value="Sabah">Sabah</option>
-                            <option value="Johor">Johor</option>
-                        </select>
-                    </div>
-                </div>
 
-                <div class="gov-grid">
-                    <!-- LEFT: Queue -->
-                    <div class="gov-card">
-                        <h3>Document Submissions Queue</h3>
-                        <div id="gov-doc-queue" class="gov-queue-list">
-                            <div class="gov-loading">Loading pending verifications...</div>
-                        </div>
-                    </div>
+        <div class="sidebar-brand">
 
-                    <!-- RIGHT: Inspector Evaluation Desk -->
-                    <div class="gov-card">
-                        <h3>Inspector Evaluation Desk</h3>
-                        <form id="gov-evaluation-form">
-                            <input type="hidden" id="gov-selected-doc-id" value="">
-                            
-                            <div class="gov-form-group">
-                                <label>Selected Application Reference</label>
-                                <input type="text" id="gov-doc-ref-display" placeholder="Select a document from queue" readonly class="gov-input-disabled">
-                            </div>
+            <span class="brand-icon">
+                🏛️
+            </span>
 
-                            <div class="gov-form-group">
-                                <label>Document Category</label>
-                                <input type="text" id="gov-doc-category-display" placeholder="N/A" readonly class="gov-input-disabled">
-                            </div>
+            <span class="brand-name">
+                MySTRA Admin
+            </span>
 
-                            <div class="gov-form-group">
-                                <label>Uploaded Compliance File</label>
-                                <button type="button" class="gov-btn btn-secondary" id="btn-open-preview" disabled>
-                                    🔍 Preview Document (SSM / Permit / LHDN)
-                                </button>
-                            </div>
-
-                            <div class="gov-form-group">
-                                <label>Evaluation Notes & Decision Comments <span class="required-star">*</span></label>
-                                <textarea id="gov-official-remarks" rows="4" class="gov-textarea" placeholder="State reason for approval or failure notice..."></textarea>
-                            </div>
-
-                            <!-- LOCKED / STATUS NOTICE BANNER (SHOWN WHEN NOT PENDING) -->
-                            <div id="gov-locked-notice" class="hidden" style="padding: 12px; border-radius: 6px; text-align: center; font-weight: 600; font-size: 13px; margin-bottom: 15px;"></div>
-
-                            <!-- ACTION BUTTONS (VISIBLE ONLY WHEN ITEM IS PENDING) -->
-                            <div class="gov-action-row" id="gov-action-row">
-                                <button type="button" id="btn-action-approve" class="gov-btn btn-approve">✅ Approve Application</button>
-                                <button type="button" id="btn-action-reject" class="gov-btn btn-reject">❌ Reject Application</button>
-                                <button type="button" id="btn-action-reupload" class="gov-btn btn-reupload">⚠️ Request Re-upload</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Floating Document Preview Popup -->
-    <div id="document-preview-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Document File Preview</h3>
-                <button class="modal-close-btn" id="btn-close-modal">✕</button>
-            </div>
-            <div class="modal-body" id="modal-file-container">
-                <!-- Dynamic PDF/Image content loads here -->
-            </div>
         </div>
+
+
+
+        <ul class="nav-menu">
+
+
+            <a
+                href="gov-admin-dashboard.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📊
+                    </span>
+
+                    <span class="nav-label">
+                        Dashboard
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <a
+                href="gov-admin-document.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item active">
+
+                    <span class="nav-icon">
+                        📄
+                    </span>
+
+                    <span class="nav-label">
+                        Documents
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <a
+                href="gov-admin-reports.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📈
+                    </span>
+
+                    <span class="nav-label">
+                        Generate Reports
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <a
+                href="gov-admin-verified.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        🏢
+                    </span>
+
+                    <span class="nav-label">
+                        Verified Operators
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <!-- NEW: Public Feedback -->
+
+            <a
+                href="gov-admin-feedback.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📬
+                    </span>
+
+                    <span class="nav-label">
+                        Public Feedback
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <a
+                href="gov-admin-audit.html"
+                class="nav-link"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        📋
+                    </span>
+
+                    <span class="nav-label">
+                        Audit Log
+                    </span>
+
+                </li>
+
+            </a>
+
+
+
+            <a
+                href="#"
+                class="nav-link"
+                id="btn-logout"
+                onclick="handleLogout(event)"
+            >
+
+                <li class="nav-item">
+
+                    <span class="nav-icon">
+                        🚪
+                    </span>
+
+                    <span class="nav-label">
+                        Logout
+                    </span>
+
+                </li>
+
+            </a>
+
+
+        </ul>
+
+
+    </aside>
+
+
+
+    <!-- ==========================================
+         MAIN WORKSPACE
+         ========================================== -->
+
+    <main class="main-workspace">
+
+
+        <header class="top-bar">
+
+
+            <button
+                id="btn-toggle-sidebar"
+                class="btn-sidebar-toggle"
+            >
+                ☰ Menu
+            </button>
+
+
+            <div class="session-badge">
+
+                🟢 Officer Session:
+                ACTIVE
+
+                [
+
+                <span id="lbl-admin-name">
+                    Loading...
+                </span>
+
+                ]
+
+            </div>
+
+
+        </header>
+
+
+
+        <div
+            id="gov-admin-module"
+            class="gov-workspace-container"
+        >
+
+
+            <div class="gov-header">
+
+                <div>
+
+                    <h1 class="gov-title">
+                        Government Compliance &
+                        Enforcement Panel
+                    </h1>
+
+
+                    <p class="gov-subtitle">
+
+                        Review operator regulatory
+                        documents, SSM registrations,
+                        and local council permits.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ======================================
+                 FILTER TABS
+                 ====================================== -->
+
+            <div class="gov-filter-bar">
+
+
+                <button
+                    class="gov-filter-btn active"
+                    data-filter="PENDING"
+                >
+                    ⏳ Pending Review
+                </button>
+
+
+                <button
+                    class="gov-filter-btn"
+                    data-filter="APPROVED"
+                >
+                    ✅ Approved
+                </button>
+
+
+                <button
+                    class="gov-filter-btn"
+                    data-filter="REJECTED"
+                >
+                    ❌ Rejected
+                </button>
+
+
+                <button
+                    class="gov-filter-btn"
+                    data-filter="REUPLOAD_REQUESTED"
+                >
+                    ⚠️ Revision Requested
+                </button>
+
+
+                <button
+                    class="gov-filter-btn"
+                    data-filter="ALL"
+                >
+                    📁 All Submissions
+                </button>
+
+
+            </div>
+
+
+
+            <!-- ======================================
+                 SEARCH
+                 ====================================== -->
+
+            <div class="filter-panel-card">
+
+
+                <div style="flex:2;">
+
+
+                    <input
+                        type="text"
+
+                        id="gov-search-input"
+
+                        class="gov-dropdown"
+
+                        placeholder="
+                        🔍 Search Operator,
+                        SSM #, or Ref ID...
+                        "
+
+                        style="
+                            width:100%;
+                        "
+                    >
+
+
+                </div>
+
+
+
+                <div style="flex:1;">
+
+
+                    <select
+                        id="gov-state-filter"
+
+                        class="gov-dropdown"
+
+                        style="
+                            width:100%;
+                        "
+                    >
+
+
+                        <option value="ALL">
+                            All States (Nationwide)
+                        </option>
+
+                        <option value="Penang">
+                            Penang
+                        </option>
+
+                        <option value="Selangor">
+                            Selangor
+                        </option>
+
+                        <option value="Kuala Lumpur">
+                            Kuala Lumpur
+                        </option>
+
+                        <option value="Sabah">
+                            Sabah
+                        </option>
+
+                        <option value="Johor">
+                            Johor
+                        </option>
+
+
+                    </select>
+
+
+                </div>
+
+
+            </div>
+
+
+
+            <!-- ======================================
+                 DOCUMENT GRID
+                 ====================================== -->
+
+            <div class="gov-grid">
+
+
+                <!-- LEFT -->
+
+                <div class="gov-card">
+
+
+                    <h3>
+                        Document Submissions Queue
+                    </h3>
+
+
+                    <div
+                        id="gov-doc-queue"
+                        class="gov-queue-list"
+                    >
+
+                        <div class="gov-loading">
+
+                            Loading pending
+                            verifications...
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <!-- RIGHT -->
+
+                <div class="gov-card">
+
+
+                    <h3>
+                        Inspector Evaluation Desk
+                    </h3>
+
+
+                    <form id="gov-evaluation-form">
+
+
+                        <input
+                            type="hidden"
+                            id="gov-selected-doc-id"
+                            value=""
+                        >
+
+
+
+                        <div class="gov-form-group">
+
+
+                            <label>
+                                Selected Application
+                                Reference
+                            </label>
+
+
+                            <input
+                                type="text"
+
+                                id="gov-doc-ref-display"
+
+                                placeholder="
+                                    Select a document
+                                    from queue
+                                "
+
+                                readonly
+
+                                class="gov-input-disabled"
+                            >
+
+
+                        </div>
+
+
+
+                        <div class="gov-form-group">
+
+
+                            <label>
+                                Document Category
+                            </label>
+
+
+                            <input
+                                type="text"
+
+                                id="gov-doc-category-display"
+
+                                placeholder="N/A"
+
+                                readonly
+
+                                class="gov-input-disabled"
+                            >
+
+
+                        </div>
+
+
+
+                        <div class="gov-form-group">
+
+
+                            <label>
+                                Uploaded Compliance File
+                            </label>
+
+
+                            <button
+                                type="button"
+
+                                class="
+                                    gov-btn
+                                    btn-secondary
+                                "
+
+                                id="btn-open-preview"
+
+                                disabled
+                            >
+
+                                🔍 Preview Document
+                                (SSM / Permit / LHDN)
+
+                            </button>
+
+
+                        </div>
+
+
+
+                        <div class="gov-form-group">
+
+
+                            <label>
+
+                                Evaluation Notes &
+                                Decision Comments
+
+                                <span
+                                    class="required-star"
+                                >
+                                    *
+                                </span>
+
+                            </label>
+
+
+                            <textarea
+                                id="gov-official-remarks"
+
+                                rows="4"
+
+                                class="gov-textarea"
+
+                                placeholder="
+                                State reason for approval
+                                or failure notice...
+                                "
+                            ></textarea>
+
+
+                        </div>
+
+
+
+                        <div
+                            id="gov-locked-notice"
+
+                            class="hidden"
+
+                            style="
+                                padding:12px;
+                                border-radius:6px;
+                                text-align:center;
+                                font-weight:600;
+                                font-size:13px;
+                                margin-bottom:15px;
+                            "
+                        ></div>
+
+
+
+                        <div
+                            class="gov-action-row"
+                            id="gov-action-row"
+                        >
+
+
+                            <button
+                                type="button"
+
+                                id="btn-action-approve"
+
+                                class="
+                                    gov-btn
+                                    btn-approve
+                                "
+                            >
+
+                                ✅ Approve Application
+
+                            </button>
+
+
+
+                            <button
+                                type="button"
+
+                                id="btn-action-reject"
+
+                                class="
+                                    gov-btn
+                                    btn-reject
+                                "
+                            >
+
+                                ❌ Reject Application
+
+                            </button>
+
+
+
+                            <button
+                                type="button"
+
+                                id="btn-action-reupload"
+
+                                class="
+                                    gov-btn
+                                    btn-reupload
+                                "
+                            >
+
+                                ⚠️ Request Re-upload
+
+                            </button>
+
+
+                        </div>
+
+
+                    </form>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+    </main>
+
+
+</div>
+
+
+
+<!-- ==========================================
+     DOCUMENT PREVIEW
+     ========================================== -->
+
+<div
+    id="document-preview-modal"
+    class="modal-overlay hidden"
+>
+
+
+    <div class="modal-content">
+
+
+        <div class="modal-header">
+
+
+            <h3>
+                Document File Preview
+            </h3>
+
+
+            <button
+                class="modal-close-btn"
+                id="btn-close-modal"
+            >
+                ✕
+            </button>
+
+
+        </div>
+
+
+
+        <div
+            class="modal-body"
+            id="modal-file-container"
+        >
+
+            <!-- Dynamic preview -->
+
+        </div>
+
+
     </div>
 
-    <script src="gov-admin-audit.js"></script>
-    <script src="gov-admin-document.js"></script>
+
+</div>
+
+
+
+<script src="gov-admin-audit.js"></script>
+
+<script src="gov-admin-document.js"></script>
+
+
 </body>
 </html>
