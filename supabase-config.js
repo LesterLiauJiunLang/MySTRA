@@ -439,6 +439,14 @@ async updateProperty(propertyId, updates) {
         .single();
 },
 
+async deleteProperty(propertyId) {
+    if (!supabaseClient) return { data: null, error: new Error("Supabase not initialized") };
+    return await supabaseClient
+        .from('properties')
+        .delete()
+        .eq('id', propertyId);
+},
+
     // ==============================================================================
     // 📄 COMPLIANCE DOCUMENTS (MODULE 3 - LESTER)
     // ==============================================================================

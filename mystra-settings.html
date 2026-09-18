@@ -73,10 +73,6 @@
                         <input type="text" id="setting-phone">
                     </div>
                     <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Email</label>
-                        <input type="email" id="setting-email" disabled style="background:#F9FAFB;">
-                    </div>
-                    <div>
                         <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Account Status</label>
                         <div id="setting-status" style="padding:10px;border-radius:8px;background:#F9FAFB;">
                             <span class="badge-pending">Loading...</span>
@@ -87,70 +83,106 @@
             </div>
 
             <!-- PROPERTY SECTION -->
-            <div class="widget-card" style="margin-top:20px;">
-                <h2>🏠 Property Registration</h2>
-                <p style="color:#6B7280;margin-bottom:16px;">
-                    Register your short-term rental property. Required before you can upload compliance documents.
-                    <strong>Note:</strong> Property is only officially verified after your SSM Certificate is approved by the admin.
-                </p>
+            <!-- PROPERTY MANAGEMENT SECTION -->
+<div class="widget-card" style="margin-top:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+        <div>
+            <h2 style="margin-bottom:4px;">🏠 My Properties</h2>
+            <p style="color:#6B7280;font-size:13px;margin:0;">
+                Manage all your short-term rental properties. Add as many as you need.
+            </p>
+        </div>
+        <button type="button" id="btn-add-new-property" class="btn-primary"
+            style="padding:10px 20px;font-size:13px;">
+            + Add New Property
+        </button>
+    </div>
 
-                <div id="property-status-banner" style="margin-bottom:16px;"></div>
+    <!-- PROPERTY LIST -->
+    <div id="properties-list-container">
+        <div id="properties-list">
+            <p style="color:#6B7280;font-size:13px;text-align:center;padding:16px;">Loading properties...</p>
+        </div>
+    </div>
 
-                <form id="property-form" class="settings-form" style="display:flex;flex-direction:column;gap:16px;max-width:550px;">
-                    <input type="hidden" id="prop-id">
+    <!-- PROPERTY FORM (hidden by default, shown via Add/Edit) -->
+    <div id="property-form-wrapper" style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid #E5E7EB;">
+        <h3 id="property-form-title" style="font-size:16px;font-weight:600;color:#1E293B;margin-bottom:16px;">
+            🏠 Register New Property
+        </h3>
 
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Property Title *</label>
-                        <input type="text" id="prop-title" placeholder="e.g., Bukit Bintang City Suite" required>
-                    </div>
+        <form id="property-form" class="settings-form" style="display:flex;flex-direction:column;gap:16px;max-width:550px;">
+            <input type="hidden" id="prop-id">
+            <input type="hidden" id="prop-lat">
+            <input type="hidden" id="prop-lng">
 
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Full Address *</label>
-                        <input type="text" id="prop-address" placeholder="e.g., Jalan Bukit Bintang, Kuala Lumpur" required>
-                        <p style="font-size:12px;color:#6B7280;margin-top:6px;">
-                            Type the full address. We'll automatically find the GPS coordinates.
-                        </p>
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div>
-                            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">City</label>
-                            <input type="text" id="prop-city" placeholder="Kuala Lumpur">
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">State</label>
-                            <input type="text" id="prop-state" placeholder="WPKL">
-                        </div>
-                    </div>
-
-                    <!-- Location preview (auto-filled after saving) -->
-                    <div id="prop-location-preview" style="display:none;background:#F0FDF4;padding:12px;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;">
-                        <div style="color:#15803D;font-weight:600;margin-bottom:4px;">✅ Location Found</div>
-                        <div style="font-family:monospace;font-size:12px;color:#166534;" id="prop-coords-preview">
-                            Lat: --, Lng: --
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Description</label>
-                        <input type="text" id="prop-description" placeholder="e.g., Modern suite near KLCC">
-                    </div>
-
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Contact Info</label>
-                        <input type="text" id="prop-contact" placeholder="+60123456789">
-                    </div>
-
-                    <div>
-                        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">License Number (optional)</label>
-                        <input type="text" id="prop-license" placeholder="e.g., KL-2024-006">
-                    </div>
-
-                    <button type="submit" id="prop-submit-btn" class="btn-primary" style="padding:12px;margin-top:8px;">
-                        💾 Save Property
-                    </button>
-                </form>
+            <div>
+                <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">
+                    Property Title *
+                </label>
+                <input type="text" id="prop-title" placeholder="e.g., Bukit Bintang City Suite" required>
             </div>
+
+          
+
+            <!-- Full Address -->
+    <div>
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Full Address *</label>
+        <input type="text" id="prop-address" placeholder="e.g., Jalan Bukit Bintang, Kuala Lumpur" required>
+        <p style="font-size:12px;color:#6B7280;margin-top:6px;">
+            Type the full address. We'll automatically find the GPS coordinates.
+        </p>
+    </div>
+
+    <!-- City + State -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">City</label>
+            <input type="text" id="prop-city" placeholder="Kuala Lumpur">
+        </div>
+        <div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">State</label>
+            <input type="text" id="prop-state" placeholder="WPKL">
+        </div>
+    </div>
+
+    <!-- Preview -->
+    <div id="prop-location-preview" style="display:none;background:#F0FDF4;padding:12px;border-radius:8px;border:1px solid #BBF7D0;font-size:13px;">
+        <div style="color:#15803D;font-weight:600;margin-bottom:4px;">✅ Location Found</div>
+        <div style="font-family:monospace;font-size:12px;color:#166534;" id="prop-coords-preview">
+            Lat: --, Lng: --
+        </div>
+    </div>
+
+    <!-- Description / Contact / License -->
+    <div>
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Description</label>
+        <input type="text" id="prop-description" placeholder="e.g., Modern suite near KLCC">
+    </div>
+
+    <div>
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Contact Info</label>
+        <input type="text" id="prop-contact" placeholder="+60123456789">
+    </div>
+
+    <div>
+        <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">License Number (optional)</label>
+        <input type="text" id="prop-license" placeholder="e.g., KL-2024-006">
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex;gap:12px;margin-top:8px;">
+        <button type="submit" id="prop-submit-btn" class="btn-primary" style="flex:1;padding:12px;">
+            💾 Save New Property
+        </button>
+        <button type="button" class="btn-secondary" style="padding:12px 20px;"
+                onclick="document.getElementById('property-form-wrapper').style.display='none';">
+            Cancel
+        </button>
+    </div>
+</form>
+    </div>
+</div>
 
             <!-- NEXT STEPS -->
             <div class="widget-card" style="margin-top:20px;background:#F8FAFC;border:1px solid #E5E7EB;">

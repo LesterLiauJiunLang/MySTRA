@@ -7,7 +7,9 @@ const DOC_STATE = {
     selectedDocument: null,
     userId: null,
     propertyId: null,
-    propertyGPS: null
+    propertyGPS: null,
+    myProperties: [],           // User's properties (from DB)
+    selectedPropertyId: null    // Currently active for uploads
 };
 
 let currentGPS = null;
@@ -43,27 +45,19 @@ function getStatusBadge(status) {
 // ==============================================================================
 
 async function getSessionUser() {
-    // 1. Try real Supabase Auth session
-    if (window.supabaseClient) {
-        try {
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
-            if (user) {
-                const profile = await fetchProfileById(user.id);
-                if (profile) return profile;
-            }
-        } catch (e) { /* no session */ }
-    }
+    if (!window.supabaseClient) return null;
 
-    // 2. Try localStorage (set by your login page after successful login)
-    const storedId = localStorage.getItem('mystra_user_id');
-    if (storedId) {
-        const profile = await fetchProfileById(storedId);
+    try {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        if (!user) return null;
+
+        const profile = await fetchProfileById(user.id);
         if (profile) return profile;
-        // Stale ID — clear it
-        localStorage.removeItem('mystra_user_id');
+    } catch (e) {
+        console.warn('Session lookup failed:', e);
     }
 
-    // 3. No session — return null (causes redirect)
+    // No valid session — redirect to login
     return null;
 }
 
@@ -171,17 +165,35 @@ async function initializeUserSession() {
 
 async function updatePropertyInfo(profile) {
     try {
-        const { data: property } = await MySTRA_API.getPropertyByOwner(profile.id);
-        if (property) {
-            DOC_STATE.propertyId = property.id;
-            DOC_STATE.propertyGPS = { lat: property.latitude, lng: property.longitude };
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setTxt('upload-operator-name', profile.full_name || 'N/A');
 
-            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-            setTxt('upload-operator-name', profile.full_name || 'N/A');
-            setTxt('upload-property-id', property.title || property.id);
-            setTxt('upload-property-address', property.address || 'N/A');
+        if (!DOC_STATE.selectedPropertyId) {
+            setTxt('upload-property-id', 'No property selected');
+            setTxt('upload-property-address', 'Go to Settings to add a property');
+            DOC_STATE.propertyGPS = null;
+            DOC_STATE.propertyId = null;
+            return;
         }
-    } catch (err) { console.warn('Property error:', err); }
+
+        // Find the active property from the loaded list
+        const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+
+        if (!property) {
+            setTxt('upload-property-id', 'Property not found');
+            setTxt('upload-property-address', 'Please select another property');
+            DOC_STATE.propertyGPS = null;
+            return;
+        }
+
+        DOC_STATE.propertyId = property.id;
+        DOC_STATE.propertyGPS = { lat: property.latitude, lng: property.longitude };
+
+        setTxt('upload-property-id', property.title || property.id);
+        setTxt('upload-property-address', property.address || 'N/A');
+    } catch (err) {
+        console.warn('Property info error:', err);
+    }
 }
 
 function updateUserVerificationStatus() {
@@ -292,6 +304,46 @@ function startProfilePolling() {
     if (profilePollInterval) return;
     profilePollInterval = setInterval(refreshUserFooter, 15000);
 }
+// ==============================================================================
+// 📥 REFERENCE DOCUMENTS DOWNLOAD
+// ==============================================================================
+
+const REFERENCE_DOCS = {
+    ssm: {
+        label: 'Sample SSM Certificate',
+        url: 'samples/ssm-certificate-sample.pdf'
+    },
+    tax: {
+        label: 'Sample Tax Information File',
+        url: 'samples/tax-info-sample.pdf'
+    },
+    safety: {
+        label: 'Sample Safety Certificate',
+        url: 'samples/safety-cert-sample.doc'
+    },
+};
+
+function downloadReference(docKey) {
+    const doc = REFERENCE_DOCS[docKey];
+    if (!doc) {
+        alert('Reference document not found.');
+        return;
+    }
+
+    // If you have the actual file, this triggers the download
+    // If the file doesn't exist yet, you'll get a 404 — that's fine for now
+    const link = document.createElement('a');
+    link.href = doc.url;
+    link.download = doc.url.split('/').pop();
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log(`📥 Downloading: ${doc.label}`);
+}
+
+window.downloadReference = downloadReference;
 
 // ==============================================================================
 // 📍 GPS
@@ -404,16 +456,41 @@ function renderDocumentStatus(documents) {
                             : `<span style="font-size:13px;">${doc.file_name}</span>`;
 
                         let actionBtn = '';
-                        if (isRejected) {
-                            actionBtn = `<button class="action-btn revise" onclick="openRevisionModal('${doc.id}')">✏️ Revise</button>`;
-                        } else if (isPending) {
-                            actionBtn = `<div style="display:flex;gap:4px;align-items:center;">
-                                <span style="font-size:12px;color:#6B7280;">⏳ Awaiting</span>
-                                <button class="action-btn" onclick="deleteDocument('${doc.id}')" style="background:#FEE2E2;color:#991B1B;">🗑️</button>
-                            </div>`;
-                        } else {
-                            actionBtn = `<button class="action-btn" onclick="viewDocument('${doc.id}')">👁️ View</button>`;
-                        }
+                       if (isRejected) {
+    // Rejected → Revise + Delete + (View if file exists)
+    actionBtn = `
+        <div class="action-row">
+            ${fileLink !== '<span style="font-size:13px;">' ? `
+                <button class="icon-btn view" title="View document"
+                        onclick="viewDocument('${doc.id}')">👁️</button>` : ''}
+            <button class="icon-btn revise" title="Revise & resubmit"
+                    onclick="openRevisionModal('${doc.id}')">✏️</button>
+            <button class="icon-btn delete" title="Delete document"
+                    onclick="deleteDocument('${doc.id}')">🗑️</button>
+        </div>
+    `;
+} else if (isPending) {
+    // Pending → View + Delete (can't revise a pending doc)
+    actionBtn = `
+        <div class="action-row">
+            <span class="pending-text">⏳ Awaiting</span>
+            ${fileLink !== '<span style="font-size:13px;">' ? `
+                <button class="icon-btn view" title="View document"
+                        onclick="viewDocument('${doc.id}')">👁️</button>` : ''}
+            <button class="icon-btn delete" title="Delete pending document"
+                    onclick="deleteDocument('${doc.id}')">🗑️</button>
+        </div>
+    `;
+} else {
+    // Approved / Replaced → View only
+    actionBtn = `
+        <div class="action-row">
+            <button class="icon-btn view" title="View document"
+                    onclick="viewDocument('${doc.id}')">👁️</button>
+        </div>
+    `;
+}
+                                        
 
                         return `
                             <tr>
@@ -455,17 +532,59 @@ function viewDocument(id) {
     else alert(`📄 ${doc.document_type}\n${doc.file_name}`);
 }
 
-async function deleteDocument(id) {
-    const doc = DOC_STATE.documents.find(d => d.id === id);
-    if (!doc) return alert('Not found.');
-    if (doc.review_status !== 'PENDING') return alert('Only PENDING documents can be deleted.');
-    if (!confirm(`Delete "${doc.file_name}"?`)) return;
+let docToDelete = null;
 
-    const { error } = await MySTRA_API.deleteDocument(id);
-    if (error) return alert('Failed: ' + error.message);
-    alert('✅ Deleted.');
+function deleteDocument(id) {
+    const doc = DOC_STATE.documents.find(d => d.id === id);
+    if (!doc) return alert('Document not found.');
+    if (doc.review_status !== 'PENDING') {
+        return alert('Only PENDING documents can be deleted.');
+    }
+
+    docToDelete = doc;
+
+    const modal = document.getElementById('delete-modal');
+    const nameEl = document.getElementById('delete-doc-name');
+    if (nameEl) nameEl.textContent = doc.file_name || 'Untitled';
+
+    if (modal) modal.classList.add('show');
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('delete-modal');
+    if (modal) modal.classList.remove('show');
+    docToDelete = null;
+}
+
+async function confirmDelete() {
+    if (!docToDelete) return;
+
+    const { error } = await MySTRA_API.deleteDocument(docToDelete.id);
+    if (error) {
+        alert('Failed: ' + error.message);
+        return;
+    }
+
+    alert('✅ Document deleted.');
+    closeDeleteModal();
     await loadDocumentData();
 }
+
+// Wire up in DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmBtn = document.getElementById('btn-confirm-delete');
+    if (confirmBtn) confirmBtn.addEventListener('click', confirmDelete);
+
+    const deleteModal = document.getElementById('delete-modal');
+    if (deleteModal) {
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) closeDeleteModal();
+        });
+    }
+});
+
+window.deleteDocument = deleteDocument;
+window.closeDeleteModal = closeDeleteModal;
 
 // ==============================================================================
 // ✏️ REVISION
@@ -509,17 +628,25 @@ async function checkRevisionGPS() {
         return;
     }
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(DOC_STATE.userId);
-    if (property) {
-        const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
-        if (details) details.textContent = `Distance: ${Math.round(dist)}m`;
-        if (dist <= 500) {
-            badge.textContent = '✅ Within 500m';
-            badge.className = 'badge-approved';
-        } else {
-            badge.textContent = '❌ Outside 500m';
-            badge.className = 'badge-rejected';
-        }
+    // ✅ Use selected property
+    const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+
+    if (!property) {
+        badge.textContent = '❌ No Property Selected';
+        badge.className = 'badge-rejected';
+        if (details) details.textContent = 'Pick a property in Settings first.';
+        return;
+    }
+
+    const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+    if (details) details.textContent = `Distance to ${property.title || 'property'}: ${Math.round(dist)}m`;
+
+    if (dist <= 500) {
+        badge.textContent = '✅ Within 500m';
+        badge.className = 'badge-approved';
+    } else {
+        badge.textContent = '❌ Outside 500m';
+        badge.className = 'badge-rejected';
     }
 }
 
@@ -535,22 +662,22 @@ async function submitRevision() {
     const gps = await getCurrentGPS();
     if (!gps) return alert('GPS required.');
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(DOC_STATE.userId);
-    if (property) {
-        const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
-        if (dist > 500) return alert('Must be within 500m of property.');
-    }
+    // ✅ Use selected property
+    const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+    if (!property) return alert('No property selected. Pick one in Settings.');
+
+    const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
+    if (dist > 500) return alert(`Must be within 500m of "${property.title}".\nCurrent distance: ${Math.round(dist)}m`);
 
     const doc = DOC_STATE.selectedDocument;
     const { data, error } = await uploadDocument(
         file, doc.document_type, doc.document_name || doc.document_type,
-        doc.user_id, doc.property_id, gps.lat, gps.lng
+        doc.user_id, property.id, gps.lat, gps.lng
     );
 
     if (error) return alert('Upload failed: ' + error.message);
 
     if (data && data[0]) {
-        // Old doc → REPLACED
         await updateDocument(doc.id, {
             review_status: 'REPLACED',
             status: 'REPLACED',
@@ -573,15 +700,42 @@ async function loadLocationData() {
     if (!container) return;
     container.innerHTML = '<p style="color:#6B7280;text-align:center;padding:20px;">Loading location...</p>';
 
+    // ✅ Load user's properties FIRST, then restore active selection
+    await loadUserProperties();
+
+    if (CURRENT_USER) {
+        const storedActive = localStorage.getItem(`mystra_active_property_${CURRENT_USER.id}`);
+        const props = DOC_STATE.myProperties || [];
+
+        if (storedActive && props.some(p => p.id === storedActive)) {
+            DOC_STATE.selectedPropertyId = storedActive;
+        } else if (props.length > 0) {
+            DOC_STATE.selectedPropertyId = props[0].id;
+            localStorage.setItem(`mystra_active_property_${CURRENT_USER.id}`, DOC_STATE.selectedPropertyId);
+        }
+
+        DOC_STATE.propertyId = DOC_STATE.selectedPropertyId;
+    }
+
     const gps = await getCurrentGPS();
     if (!gps) {
         container.innerHTML = `<div class="widget-card" style="text-align:center;color:#6B7280;"><p style="font-size:40px;">📍</p><h3>GPS Unavailable</h3></div>`;
         return;
     }
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(DOC_STATE.userId);
+    // ✅ Use the SELECTED property (not the first one from DB)
+    const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+
     if (!property) {
-        container.innerHTML = `<div class="widget-card" style="text-align:center;color:#6B7280;"><p style="font-size:40px;">🏠</p><h3>No Property</h3></div>`;
+        container.innerHTML = `
+            <div class="widget-card" style="text-align:center;color:#6B7280;">
+                <p style="font-size:40px;">🏠</p>
+                <h3>No Property Selected</h3>
+                <p style="font-size:14px;">Go to Settings to add or select a property.</p>
+                <a href="mystra-settings.html" style="display:inline-block;margin-top:12px;background:#2563EB;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+                    ⚙️ Go to Settings
+                </a>
+            </div>`;
         return;
     }
 
@@ -591,6 +745,9 @@ async function loadLocationData() {
     container.innerHTML = `
         <div class="widget-card">
             <h2>📍 Location Registry</h2>
+            <p style="color:#6B7280;font-size:13px;margin-bottom:16px;">
+                Checking your distance to <strong>${property.title || 'your property'}</strong>
+            </p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;">
                 <div class="map-visual">
                     <div class="geofence-container">
@@ -602,10 +759,20 @@ async function loadLocationData() {
                 </div>
                 <div style="font-size:14px;">
                     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F1F5F9;">
-                        <span style="color:#6B7280;">Address</span><span style="font-weight:500;">${property.address || 'N/A'}</span>
+                        <span style="color:#6B7280;">Property</span>
+                        <span style="font-weight:500;">${property.title || 'N/A'}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F1F5F9;">
-                        <span style="color:#6B7280;">Distance</span><span style="font-weight:600;">${Math.round(dist)}m</span>
+                        <span style="color:#6B7280;">Address</span>
+                        <span style="font-weight:500;text-align:right;">${property.address || 'N/A'}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F1F5F9;">
+                        <span style="color:#6B7280;">Your GPS</span>
+                        <span style="font-family:monospace;">${gps.lat.toFixed(4)}°, ${gps.lng.toFixed(4)}°</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F1F5F9;">
+                        <span style="color:#6B7280;">Distance</span>
+                        <span style="font-weight:600;">${Math.round(dist)}m</span>
                     </div>
                     <div style="padding:16px;border-radius:8px;text-align:center;margin-top:8px;background:${within ? '#DCFCE7' : '#FEE2E2'};color:${within ? '#15803D' : '#991B1B'};">
                         ${within ? '✅ Within 500m Zone' : '❌ Outside 500m Zone'}
@@ -637,9 +804,12 @@ async function initGPSDetection() {
     currentGPS = gps;
     if (coords) coords.textContent = `Lat: ${gps.lat.toFixed(4)}°, Lng: ${gps.lng.toFixed(4)}°`;
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(DOC_STATE.userId);
+    // Use the SELECTED property (not the first one)
+    const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+
     if (!property) {
-        if (distEl) distEl.textContent = 'No property';
+        if (distEl) distEl.textContent = 'No property selected';
+        if (msg) msg.textContent = 'Please pick a property in Settings first.';
         return;
     }
 
@@ -688,10 +858,12 @@ async function handleDocumentUpload(e) {
     const gps = await getCurrentGPS();
     if (!gps) return alert('GPS required.');
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(DOC_STATE.userId);
-    if (!property) return alert('No property found.');
+    // ✅ Use the selected property
+    const property = (DOC_STATE.myProperties || []).find(p => p.id === DOC_STATE.selectedPropertyId);
+    if (!property) return alert('No property selected. Please pick one in Settings.');
+
     const dist = calculateDistance(gps.lat, gps.lng, property.latitude, property.longitude);
-    if (dist > 500) return alert('Must be within 500m of property.');
+    if (dist > 500) return alert(`Must be within 500m of "${property.title}".\nCurrent distance: ${Math.round(dist)}m`);
 
     const { error } = await uploadDocument(
         file, docType, documentName,
@@ -830,10 +1002,19 @@ async function saveSettings(e) {
     e.preventDefault();
     if (!CURRENT_USER) return alert('Please log in first.');
 
+    const getVal = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+
+    const fullName = getVal('setting-fullname');
+    const businessName = getVal('setting-business');
+    const phoneNo = getVal('setting-phone');
+
+    if (!fullName) return alert('Full name cannot be empty.');
+    if (!businessName) return alert('Business name cannot be empty.');
+
     const updates = {
-        full_name: document.getElementById('setting-fullname').value,
-        business_name: document.getElementById('setting-business').value,
-        phone_no: document.getElementById('setting-phone').value
+        full_name: fullName,
+        business_name: businessName,
+        phone_no: phoneNo
     };
 
     const { error } = await MySTRA_API.updateProfile(CURRENT_USER.id, updates);
@@ -879,34 +1060,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (document.getElementById('gps-status')) {
-        initGPSDetection();
+    // Load user's properties + restore active choice BEFORE GPS detection
+    await loadUserProperties();
+
+    if (CURRENT_USER) {
+        const storedActive = localStorage.getItem(`mystra_active_property_${CURRENT_USER.id}`);
+        const props = DOC_STATE.myProperties || [];
+
+        if (storedActive && props.some(p => p.id === storedActive)) {
+            DOC_STATE.selectedPropertyId = storedActive;
+        } else if (props.length > 0) {
+            DOC_STATE.selectedPropertyId = props[0].id;
+            localStorage.setItem(`mystra_active_property_${CURRENT_USER.id}`, DOC_STATE.selectedPropertyId);
+        }
+
+        DOC_STATE.propertyId = DOC_STATE.selectedPropertyId;
     }
 
+    await updatePropertyInfo(CURRENT_USER);
+    initGPSDetection();
+}
+
     if (document.getElementById('location-registry-container')) {
-        loadLocationData();
+        await loadLocationData();
     }
 
     const form = document.getElementById('document-upload-form');
     if (form) form.addEventListener('submit', handleDocumentUpload);
 
     const settingsForm = document.getElementById('settings-form');
-    if (settingsForm) settingsForm.addEventListener('submit', saveSettings);
+if (settingsForm) {
+    settingsForm.addEventListener('submit', saveSettings);
+    populateSettingsForm();   
+}
 
-    const propertyForm = document.getElementById('property-form');
-    if (propertyForm) {
-        propertyForm.addEventListener('submit', handleSaveProperty);
-        await loadPropertyIntoForm();
-    }
+const propertyForm = document.getElementById('property-form');
+if (propertyForm) {
+    propertyForm.addEventListener('submit', handleSaveProperty);
+    await loadPropertyIntoForm();
+
+    const addBtn = document.getElementById('btn-add-new-property');
+    if (addBtn) addBtn.addEventListener('click', resetPropertyForm);
+}
 
     const revModal = document.getElementById('revision-modal');
     if (revModal) revModal.addEventListener('click', e => { if (e.target === revModal) closeRevisionModal(); });
 });
 
 // ==============================================================================
-// 🏠 PROPERTY REGISTRATION (SETTINGS PAGE)
+// 🏠 MULTI-PROPERTY REGISTRATION (DB-backed)
 // ==============================================================================
 
-// 🌐 Address Geocoding (Free via OpenStreetMap Nominatim)
+// ==============================================================================
+// 🌐 ADDRESS GEOCODING — MULTI-STRATEGY FALLBACK
+// ==============================================================================
+
 async function geocodeAddress(address) {
     if (!address || !address.trim()) {
         return { success: false, error: 'Address is empty' };
@@ -915,9 +1123,7 @@ async function geocodeAddress(address) {
     const city = document.getElementById('prop-city')?.value.trim() || '';
     const state = document.getElementById('prop-state')?.value.trim() || '';
 
-    // Try multiple query strategies in order of specificity
     const strategies = [
-        // Strategy 1: Structured query (most reliable for Nominatim)
         {
             label: 'Structured',
             params: {
@@ -930,7 +1136,6 @@ async function geocodeAddress(address) {
                 addressdetails: '1'
             }
         },
-        // Strategy 2: Free-form with just street + city
         {
             label: 'Street + City',
             params: {
@@ -939,7 +1144,6 @@ async function geocodeAddress(address) {
                 limit: '1'
             }
         },
-        // Strategy 3: City + State only (last resort — broad but always returns something)
         {
             label: 'City + State',
             params: {
@@ -948,7 +1152,6 @@ async function geocodeAddress(address) {
                 limit: '1'
             }
         },
-        // Strategy 4: Just the state/city (guaranteed hit in major cities)
         {
             label: 'Fallback City',
             params: {
@@ -964,7 +1167,7 @@ async function geocodeAddress(address) {
             const params = new URLSearchParams(strategy.params).toString();
             const url = `https://nominatim.openstreetmap.org/search?${params}`;
 
-            console.log(`🔍 [Geocode] Trying "${strategy.label}": ${url}`);
+            console.log(`🔍 [Geocode] Trying "${strategy.label}"...`);
 
             const res = await fetch(url, {
                 headers: { 'Accept-Language': 'en', 'User-Agent': 'MySTRA-App' }
@@ -973,8 +1176,7 @@ async function geocodeAddress(address) {
             const results = await res.json();
 
             if (results && results.length > 0) {
-                console.log(`✅ [Geocode] Success with "${strategy.label}":`, results[0]);
-
+                console.log(`✅ [Geocode] Success with "${strategy.label}"`);
                 return {
                     success: true,
                     lat: parseFloat(results[0].lat),
@@ -985,8 +1187,6 @@ async function geocodeAddress(address) {
                 };
             }
 
-            console.log(`❌ [Geocode] "${strategy.label}" returned 0 results`);
-
             // Nominatim rate limit: 1 request per second
             await new Promise(r => setTimeout(r, 1100));
 
@@ -995,68 +1195,197 @@ async function geocodeAddress(address) {
         }
     }
 
-    return { 
-        success: false, 
-        error: 'Could not find this address. Try a simpler format like "Jalan Ampang, Kuala Lumpur" or "53300 Kuala Lumpur".' 
+    return {
+        success: false,
+        error: 'Could not find this address. Try including the city or postcode.\ne.g., "Jalan Bukit Bintang, 55100 Kuala Lumpur"'
     };
 }
 
-function renderPropertyStatus(property) {
-    const banner = document.getElementById('property-status-banner');
-    if (!banner) return;
+// ==============================================================================
+// 📋 LOAD USER'S PROPERTIES FROM DB
+// ==============================================================================
 
-    if (property) {
-        const verifiedBadge = property.is_verified
-            ? '<span style="color:#15803D;font-weight:600;">✅ Admin Verified</span>'
-            : '<span style="color:#92400E;font-weight:600;">⏳ Pending Admin Verification</span>';
+async function loadUserProperties() {
+    if (!CURRENT_USER) return [];
 
-        banner.innerHTML = `
-            <div style="background:#DCFCE7;color:#15803D;padding:12px;border-radius:8px;font-size:13px;">
-                ✅ <strong>Property registered:</strong> ${property.title}<br>
-                <span style="font-size:12px;">${property.address || ''}${property.city ? ', ' + property.city : ''}${property.state ? ', ' + property.state : ''}</span><br>
-                <span style="font-size:12px;margin-top:6px;display:inline-block;">${verifiedBadge}</span>
-            </div>`;
-    } else {
-        banner.innerHTML = `
-            <div style="background:#FEF3C7;color:#92400E;padding:12px;border-radius:8px;font-size:13px;">
-                ⚠️ <strong>No property registered.</strong> Please register your property below to enable document upload.
-            </div>`;
+    const { data, error } = await MySTRA_API.getPropertiesByOwner(CURRENT_USER.id);
+    if (error) {
+        console.warn('Could not load properties:', error);
+        DOC_STATE.myProperties = [];
+        return [];
     }
+    DOC_STATE.myProperties = data || [];
+    return DOC_STATE.myProperties;
 }
 
-async function loadPropertyIntoForm() {
+
+
+
+
+// ==============================================================================
+// 📋 RENDER PROPERTIES LIST
+// ==============================================================================
+
+function renderPropertiesList() {
+    const container = document.getElementById('properties-list');
+    if (!container) return;
+
+    const props = DOC_STATE.myProperties || [];
+
+    if (props.length === 0) {
+        container.innerHTML = `
+            <div style="background:#F8FAFC;color:#6B7280;padding:16px;border-radius:8px;font-size:13px;text-align:center;border:1px dashed #D1D5DB;">
+                No properties registered yet. Click <strong>"+ Add New Property"</strong> to start.
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = props.map(p => {
+        const isActive = DOC_STATE.selectedPropertyId === p.id;
+        const verifiedBadge = p.is_verified
+            ? '<span class="badge-approved" style="font-size:11px;">✅ Verified</span>'
+            : '<span class="badge-pending" style="font-size:11px;">⏳ Pending</span>';
+
+        return `
+            <div style="border:2px solid ${isActive ? '#2563EB' : '#E5E7EB'};background:${isActive ? '#EFF6FF' : 'white'};padding:12px;border-radius:8px;margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:14px;color:#1E293B;margin-bottom:2px;">
+                            ${isActive ? '⭐ ' : ''}${p.title || 'Untitled'}
+                        </div>
+                        <div style="font-size:12px;color:#6B7280;margin-bottom:4px;">
+                            📍 ${p.address || 'No address'}${p.city ? ', ' + p.city : ''}${p.state ? ', ' + p.state : ''}
+                        </div>
+                        <div style="font-size:11px;color:#9CA3AF;font-family:monospace;margin-bottom:6px;">
+                            Lat: ${p.latitude?.toFixed(4) || 'N/A'}, Lng: ${p.longitude?.toFixed(4) || 'N/A'}
+                        </div>
+                        ${verifiedBadge}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;min-width:110px;">
+                        ${!isActive ? `
+                            <button onclick="setActiveProperty('${p.id}')" class="btn-secondary"
+                                style="font-size:11px;padding:6px 12px;background:#DBEAFE;color:#1E40AF;cursor:pointer;white-space:nowrap;">
+                                ⭐ Set Active
+                            </button>` : `
+                            <span style="font-size:11px;padding:6px 12px;background:#DCFCE7;color:#15803D;border-radius:6px;font-weight:600;text-align:center;white-space:nowrap;">
+                                ✓ Active
+                            </span>`}
+                        <button onclick="editProperty('${p.id}')" class="btn-secondary"
+                            style="font-size:11px;padding:6px 12px;cursor:pointer;">
+                            ✏️ Edit
+                        </button>
+                        <button onclick="deletePropertyById('${p.id}')" class="btn-secondary"
+                            style="font-size:11px;padding:6px 10px;background:#FEE2E2;color:#991B1B;cursor:pointer;">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+// ==============================================================================
+// ➕ ADD NEW / EDIT / DELETE
+// ==============================================================================
+
+function resetPropertyForm() {
+    document.getElementById('property-form').reset();
+    document.getElementById('prop-id').value = '';
+    document.getElementById('prop-address').value = '';
+    document.getElementById('prop-city').value = '';
+    document.getElementById('prop-state').value = '';
+    document.getElementById('prop-location-preview').style.display = 'none';
+
+    const btn = document.getElementById('prop-submit-btn');
+    if (btn) btn.textContent = '💾 Save New Property';
+
+    document.getElementById('property-form-wrapper').style.display = 'block';
+    document.getElementById('property-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editProperty(propertyId) {
+    const p = DOC_STATE.myProperties.find(x => x.id === propertyId);
+    if (!p) return;
+
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('prop-id', p.id);
+    set('prop-title', p.title);
+    set('prop-address', p.address);
+    set('prop-city', p.city);
+    set('prop-state', p.state);
+    set('prop-description', p.description);
+    set('prop-contact', p.contact_info);
+    set('prop-license', p.license_number);
+
+    // Show existing coords
+    const preview = document.getElementById('prop-location-preview');
+    const coords = document.getElementById('prop-coords-preview');
+    if (preview && p.latitude && p.longitude) {
+        preview.style.display = 'block';
+        if (coords) coords.textContent = `Lat: ${p.latitude.toFixed(6)}, Lng: ${p.longitude.toFixed(6)}`;
+    }
+
+    const btn = document.getElementById('prop-submit-btn');
+    if (btn) btn.textContent = '💾 Update Property';
+
+    document.getElementById('property-form-wrapper').style.display = 'block';
+    document.getElementById('property-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deletePropertyById(propertyId) {
+    const p = DOC_STATE.myProperties.find(x => x.id === propertyId);
+    if (!p) return;
+
+    if (!confirm(`Delete "${p.title}"?\n\nThis cannot be undone.`)) return;
+
+    const { error } = await MySTRA_API.deleteProperty(propertyId);
+    if (error) return alert('Delete failed: ' + error.message);
+
+    alert('✅ Property deleted.');
+
+    if (DOC_STATE.selectedPropertyId === propertyId) {
+        DOC_STATE.selectedPropertyId = null;
+    }
+
+    await loadUserProperties();
+    renderPropertiesList();
+    await updatePropertyInfo(CURRENT_USER);
+}
+
+// ==============================================================================
+// ⭐ SET ACTIVE PROPERTY
+// ==============================================================================
+
+async function setActiveProperty(propertyId) {
     if (!CURRENT_USER) return;
+    if (!propertyId) return;
 
-    const { data: property } = await MySTRA_API.getPropertyByOwner(CURRENT_USER.id);
-    renderPropertyStatus(property);
-
-    if (property) {
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-        set('prop-title', property.title);
-        set('prop-address', property.address);
-        set('prop-city', property.city);
-        set('prop-state', property.state);
-        set('prop-description', property.description);
-        set('prop-contact', property.contact_info);
-        set('prop-license', property.license_number);
-
-        const hiddenId = document.getElementById('prop-id');
-        if (hiddenId) hiddenId.value = property.id;
-
-        const btn = document.getElementById('prop-submit-btn');
-        if (btn) btn.textContent = '💾 Update Property';
-
-        // Show existing coordinates preview
-        if (property.latitude && property.longitude) {
-            const preview = document.getElementById('prop-location-preview');
-            const coordPreview = document.getElementById('prop-coords-preview');
-            if (preview) preview.style.display = 'block';
-            if (coordPreview) {
-                coordPreview.textContent = `Lat: ${property.latitude.toFixed(6)}, Lng: ${property.longitude.toFixed(6)}`;
-            }
-        }
+    // Verify property belongs to user
+    const exists = (DOC_STATE.myProperties || []).some(p => p.id === propertyId);
+    if (!exists) {
+        console.warn('Property not in your list:', propertyId);
+        return;
     }
+
+    // Update state
+    DOC_STATE.selectedPropertyId = propertyId;
+    DOC_STATE.propertyId = propertyId;
+
+    // Persist
+    localStorage.setItem(`mystra_active_property_${CURRENT_USER.id}`, propertyId);
+
+    // Refresh UI
+    renderPropertiesList();
+    await updatePropertyInfo(CURRENT_USER);
+
+    console.log(`✅ Active property set to: ${propertyId}`);
 }
+
+window.setActiveProperty = setActiveProperty;
+
+// ==============================================================================
+// 💾 SAVE (Insert or Update)
+// ==============================================================================
 
 async function handleSaveProperty(e) {
     e.preventDefault();
@@ -1083,6 +1412,7 @@ async function handleSaveProperty(e) {
         submitBtn.disabled = true;
     }
 
+    // ✅ Geocode the address
     const geo = await geocodeAddress(address);
 
     if (submitBtn) {
@@ -1091,14 +1421,15 @@ async function handleSaveProperty(e) {
     }
 
     if (!geo.success) {
-        return alert('❌ ' + geo.error + '\n\nTip: Try including the city or postcode.\ne.g., "Jalan Bukit Bintang, 55100 Kuala Lumpur"');
+        return alert('❌ ' + geo.error);
     }
 
+    // Show location preview
     const preview = document.getElementById('prop-location-preview');
-    const coordPreview = document.getElementById('prop-coords-preview');
+    const coords = document.getElementById('prop-coords-preview');
     if (preview) preview.style.display = 'block';
-    if (coordPreview) {
-        coordPreview.textContent = `Lat: ${geo.lat.toFixed(6)}, Lng: ${geo.lng.toFixed(6)}`;
+    if (coords) {
+        coords.textContent = `Lat: ${geo.lat.toFixed(6)}, Lng: ${geo.lng.toFixed(6)}`;
     }
 
     const propertyData = {
@@ -1116,33 +1447,90 @@ async function handleSaveProperty(e) {
         is_verified: false
     };
 
+    if (submitBtn) {
+        submitBtn.textContent = '💾 Saving...';
+        submitBtn.disabled = true;
+    }
+
     let result;
     if (existingId) {
         result = await MySTRA_API.updateProperty(existingId, propertyData);
     } else {
-        const { data: existing } = await MySTRA_API.getPropertyByOwner(CURRENT_USER.id);
-        if (existing) {
-            result = await MySTRA_API.updateProperty(existing.id, propertyData);
-        } else {
-            result = await MySTRA_API.createProperty(propertyData);
-        }
+        result = await MySTRA_API.createProperty(propertyData);
     }
 
-    if (result.error) return alert('Failed to save property: ' + result.error.message);
+    if (submitBtn) {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+
+    if (result.error) {
+        console.error('Save error:', result.error);
+        return alert('Failed to save: ' + result.error.message);
+    }
+
+    const approxNote = geo.isApproximate
+        ? `\n\n⚠️ Approximate location (strategy: "${geo.strategy}"). Exact street not in OpenStreetMap.`
+        : '';
 
     alert(
-        `✅ Property saved successfully!\n\n` +
-        `📍 Location: ${geo.lat.toFixed(6)}, ${geo.lng.toFixed(6)}\n` +
-        `📌 Approx: ${geo.displayName.substring(0, 100)}\n\n` +
-        `Next: Upload your SSM Certificate in the Documents tab.`
+        (existingId ? '✅ Property updated!' : '✅ Property added!') +
+        `\n\n📍 ${address}\n📌 ${geo.lat.toFixed(6)}, ${geo.lng.toFixed(6)}` +
+        approxNote
     );
 
-    DOC_STATE.propertyId = result.data.id;
-    DOC_STATE.propertyGPS = { lat: geo.lat, lng: geo.lng };
+    if (!DOC_STATE.selectedPropertyId) {
+        DOC_STATE.selectedPropertyId = result.data.id;
+    }
 
-    await loadPropertyIntoForm();
+    // Hide the form
+    document.getElementById('property-form-wrapper').style.display = 'none';
+    await loadUserProperties();
+    renderPropertiesList();
     await updatePropertyInfo(CURRENT_USER);
 }
+
+// ==============================================================================
+// 📋 INITIAL LOAD
+// ==============================================================================
+
+async function loadPropertyIntoForm() {
+    if (!CURRENT_USER) return;
+
+    await loadUserProperties();
+
+    // Hide the form initially
+    const wrapper = document.getElementById('property-form-wrapper');
+    if (wrapper) wrapper.style.display = 'none';
+
+    const props = DOC_STATE.myProperties || [];
+
+    // Try to restore the active property from localStorage
+    const storedActive = localStorage.getItem(`mystra_active_property_${CURRENT_USER.id}`);
+
+    if (storedActive && props.some(p => p.id === storedActive)) {
+        // Stored property still exists → use it
+        DOC_STATE.selectedPropertyId = storedActive;
+    } else if (props.length > 0) {
+        // No stored / stale → pick the first one
+        DOC_STATE.selectedPropertyId = props[0].id;
+        localStorage.setItem(`mystra_active_property_${CURRENT_USER.id}`, DOC_STATE.selectedPropertyId);
+    } else {
+        // No properties at all
+        DOC_STATE.selectedPropertyId = null;
+        localStorage.removeItem(`mystra_active_property_${CURRENT_USER.id}`);
+    }
+
+    DOC_STATE.propertyId = DOC_STATE.selectedPropertyId;
+
+    renderPropertiesList();
+    await updatePropertyInfo(CURRENT_USER);
+}
+
+// Expose to inline HTML onclick
+window.resetPropertyForm = resetPropertyForm;
+window.editProperty = editProperty;
+window.deletePropertyById = deletePropertyById;
 
 
 window.addEventListener('beforeunload', () => {
