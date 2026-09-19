@@ -72,7 +72,32 @@ document.addEventListener("DOMContentLoaded", () => {
   let tempUserData = { email: "", password: "", fullName: "", phone: "" };
   let tempLegacyData = { email: "", licenseNo: "", ssm: "", fullName: "", businessName: "", phone: "", documentUrl: "" };
   let recoveryEmail = "";
-  let currentGeneratedOTP = null;
+
+  // Independent OTP state across all three flows
+  let currentGeneratedOTP = null; // Standard Registration
+  let currentForgotOTP = null;    // Password Reset
+  let currentLegacyOTP = null;    // Legacy Migration
+
+  // Helper function to handle button loading states
+  function setButtonLoading(buttonEl, isLoading, loadingText = "Processing...") {
+    if (!buttonEl) return;
+    if (isLoading) {
+      buttonEl.dataset.originalText = buttonEl.innerText || buttonEl.value;
+      buttonEl.disabled = true;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = loadingText;
+      } else {
+        buttonEl.innerText = loadingText;
+      }
+    } else {
+      buttonEl.disabled = false;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = buttonEl.dataset.originalText || "Submit";
+      } else {
+        buttonEl.innerText = buttonEl.dataset.originalText || "Submit";
+      }
+    }
+  }
 
   // Eye Toggle Helper
   function setupEyeToggle(inputId, toggleBtnId) {
@@ -130,11 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function isPasswordSecure(pass) {
-    const passLength = pass.length >= 8;
-    const passUpper = /[A-Z]/.test(pass);
-    const passNumber = /[0-9]/.test(pass);
-    const passSpecial = /[@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?!]/.test(pass);
-    return passLength && passUpper && passNumber && passSpecial;
+    return checkPasswordStrength(pass);
   }
 
   async function sendOtpEmail(targetEmail, otpCode) {
@@ -208,32 +229,102 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /// ==============================================================================
-  // RESET PASSWORD FLOW
   // ==============================================================================
+  // 1. STANDARD REGISTRATION FLOW (RESTORED)
+  // ==============================================================================
+  if (registerForm) {
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = registerForm.querySelector("button[type='submit'], input[type='submit']");
 
-  // Helper function to handle button loading states
-  function setButtonLoading(buttonEl, isLoading, loadingText = "Processing...") {
-    if (!buttonEl) return;
-    if (isLoading) {
-      buttonEl.dataset.originalText = buttonEl.innerText || buttonEl.value;
-      buttonEl.disabled = true;
-      if (buttonEl.tagName === "INPUT") {
-        buttonEl.value = loadingText;
-      } else {
-        buttonEl.innerText = loadingText;
+      const email = document.getElementById("reg-email")?.value.trim().toLowerCase();
+      const password = document.getElementById("reg-password")?.value;
+      const confirmPassword = document.getElementById("reg-confirm-password")?.value;
+      const fullName = document.getElementById("reg-fullname")?.value.trim();
+      const phone = document.getElementById("reg-phone")?.value.trim();
+
+      if (!email || !password || !fullName) {
+        alert("❌ Please fill in all required fields.");
+        return;
       }
-    } else {
-      buttonEl.disabled = false;
-      if (buttonEl.tagName === "INPUT") {
-        buttonEl.value = buttonEl.dataset.originalText || "Submit";
-      } else {
-        buttonEl.innerText = buttonEl.dataset.originalText || "Submit";
+
+      if (password !== confirmPassword) {
+        alert("❌ Passwords do not match.");
+        return;
       }
-    }
+
+      if (!checkPasswordStrength(password)) {
+        alert("❌ Password does not meet security criteria.");
+        return;
+      }
+
+      tempUserData = { email, password, fullName, phone };
+      setButtonLoading(submitBtn, true, "Sending Code...");
+
+      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+      try {
+        await sendOtpEmail(email, currentGeneratedOTP);
+        if (stepRegister) stepRegister.classList.add("hidden");
+        if (stepOtp) stepOtp.classList.remove("hidden");
+        setupOtpInputs("otp-container");
+      } catch (err) {
+        alert("❌ Failed to send verification OTP: " + (err.text || err.message));
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
   }
 
-  // 1. STEP 1: Request Password Reset Code
+  if (otpForm) {
+    otpForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = otpForm.querySelector("button[type='submit'], input[type='submit']");
+      const enteredOtp = getEnteredOtp("otp-container");
+
+      if (enteredOtp !== currentGeneratedOTP) {
+        alert("❌ Invalid verification code. Please try again.");
+        return;
+      }
+
+      const client = getSupabaseClient();
+      if (!client) {
+        alert("❌ Supabase client unavailable.");
+        return;
+      }
+
+      setButtonLoading(submitBtn, true, "Creating Account...");
+
+      try {
+        const { data, error } = await client.auth.signUp({
+          email: tempUserData.email,
+          password: tempUserData.password,
+          options: {
+            data: {
+              full_name: tempUserData.fullName,
+              phone_no: tempUserData.phone
+            }
+          }
+        });
+
+        if (error) {
+          alert("❌ Registration Error: " + error.message);
+          setButtonLoading(submitBtn, false);
+          return;
+        }
+
+        alert("✅ Account registered successfully! Redirecting to login...");
+        window.location.href = "login.html";
+      } catch (err) {
+        alert("❌ Unexpected Error: " + err.message);
+        setButtonLoading(submitBtn, false);
+      }
+    });
+  }
+
+  // ==============================================================================
+  // 2. RESET PASSWORD FLOW
+  // ==============================================================================
   if (forgotReqForm) {
     forgotReqForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -252,15 +343,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : window.supabaseClient;
+      const client = getSupabaseClient();
       if (!client) {
         alert("❌ Supabase client unavailable.");
         return;
       }
 
-      // Disable button to prevent double triggering
       setButtonLoading(submitBtn, true, "Sending Code...");
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+      currentForgotOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -268,7 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const { error: dbError } = await client
           .from("password_resets")
           .upsert(
-            { email: recoveryEmail, otp_code: currentGeneratedOTP, expires_at: expiresAt },
+            { email: recoveryEmail, otp_code: currentForgotOTP, expires_at: expiresAt },
             { onConflict: "email" }
           );
 
@@ -278,10 +368,8 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        // Send EmailJS Asynchronously
-        await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
+        await sendOtpEmail(recoveryEmail, currentForgotOTP);
 
-        // Immediate view transition without blocking alert collisions
         if (stepForgotReq) stepForgotReq.classList.add("hidden");
         if (stepForgotOtp) stepForgotOtp.classList.remove("hidden");
         setupOtpInputs("forgot-otp-container");
@@ -294,24 +382,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 2. STEP 2: Verify OTP
   if (forgotOtpForm) {
     forgotOtpForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const enteredOtp = getEnteredOtp("forgot-otp-container");
 
-      if (enteredOtp !== currentGeneratedOTP) {
+      if (enteredOtp !== currentForgotOTP) {
         alert("❌ Invalid verification code. Please try again.");
         return;
       }
 
-      // Smooth step advancement
       if (stepForgotOtp) stepForgotOtp.classList.add("hidden");
       if (stepForgotPass) stepForgotPass.classList.remove("hidden");
     });
   }
 
-  // 3. STEP 3: Live Password Validation
   if (resetPassInput && resetConfirmInput) {
     const resetRules = {
       length: document.getElementById("reset-rule-length"),
@@ -359,7 +444,6 @@ document.addEventListener("DOMContentLoaded", () => {
     resetConfirmInput.addEventListener("input", validateResetPassword);
   }
 
-  // 4. STEP 3 SUBMIT: Update Password via RPC
   if (resetForm) {
     resetForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -374,7 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : window.supabaseClient;
+      const client = getSupabaseClient();
       if (!client) {
         alert("❌ Supabase client unavailable.");
         return;
@@ -403,7 +487,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 5. RESEND OTP CODE WITH COOLDOWN
   let isResendCooldown = false;
   if (resendForgotBtn) {
     resendForgotBtn.addEventListener("click", async (e) => {
@@ -415,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : window.supabaseClient;
+      const client = getSupabaseClient();
       if (!client) {
         alert("❌ Supabase client unavailable.");
         return;
@@ -425,14 +508,14 @@ document.addEventListener("DOMContentLoaded", () => {
       resendForgotBtn.style.pointerEvents = "none";
       resendForgotBtn.innerText = "Resending...";
 
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+      currentForgotOTP = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
       try {
         const { error: dbError } = await client
           .from("password_resets")
           .upsert(
-            { email: recoveryEmail, otp_code: currentGeneratedOTP, expires_at: expiresAt },
+            { email: recoveryEmail, otp_code: currentForgotOTP, expires_at: expiresAt },
             { onConflict: "email" }
           );
 
@@ -444,10 +527,9 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
+        await sendOtpEmail(recoveryEmail, currentForgotOTP);
         alert("✅ A fresh 6-digit code has been sent to " + recoveryEmail);
 
-        // 30-Second Cooldown Timer
         let countdown = 30;
         const interval = setInterval(() => {
           countdown--;
@@ -471,8 +553,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==============================================================================
-  // LEGACY ACCOUNT MIGRATION FLOW
+  // 3. LEGACY ACCOUNT MIGRATION FLOW
   // ==============================================================================
+  let isLegacyResendCooldown = false;
   const migPassInput = document.getElementById("mig-password");
   const migConfirmInput = document.getElementById("mig-confirm-password");
 
@@ -523,7 +606,6 @@ document.addEventListener("DOMContentLoaded", () => {
     migConfirmInput.addEventListener("input", validateMigPassword);
   }
 
-  // 1. STEP 1: VALIDATE LEGACY CREDENTIALS & FETCH DETAILS
   if (legacyMigrateForm) {
     legacyMigrateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -592,8 +674,8 @@ document.addEventListener("DOMContentLoaded", () => {
           district: extRecord?.legacy_district || "Central Business District"
         };
 
-        currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-        await sendOtpEmail(email, currentGeneratedOTP);
+        currentLegacyOTP = Math.floor(100000 + Math.random() * 900000).toString();
+        await sendOtpEmail(email, currentLegacyOTP);
 
         if (stepMigrateCreds) stepMigrateCreds.classList.add("hidden");
         if (stepMigrateOtp) stepMigrateOtp.classList.remove("hidden");
@@ -606,13 +688,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 2. STEP 2: VERIFY LEGACY OTP
   if (legacyOtpForm) {
     legacyOtpForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const enteredOtp = getEnteredOtp("legacy-otp-container");
 
-      if (enteredOtp !== currentGeneratedOTP) {
+      if (enteredOtp !== currentLegacyOTP) {
         alert("❌ Invalid or expired verification code. Please try again.");
         return;
       }
@@ -622,7 +703,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 3. STEP 2: RESEND LEGACY OTP WITH COOLDOWN
   if (resendLegacyBtn) {
     resendLegacyBtn.addEventListener("click", async (e) => {
       e.preventDefault();
@@ -637,10 +717,10 @@ document.addEventListener("DOMContentLoaded", () => {
       resendLegacyBtn.style.pointerEvents = "none";
       resendLegacyBtn.innerText = "Resending...";
 
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+      currentLegacyOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
-        await sendOtpEmail(tempLegacyData.email, currentGeneratedOTP);
+        await sendOtpEmail(tempLegacyData.email, currentLegacyOTP);
         alert("✅ A fresh OTP code has been sent to " + tempLegacyData.email);
 
         let countdown = 30;
@@ -665,7 +745,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 4. STEP 3 SUBMIT: COMPLETE LEGACY MIGRATION
   if (legacyPasswordForm) {
     legacyPasswordForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -694,7 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : window.supabaseClient;
+        const client = getSupabaseClient();
         if (!client) {
           alert("❌ Supabase client initialization failed.");
           return;
