@@ -59,7 +59,32 @@
 
             <!-- 📥 VIEWPORT SWITCH BOX -->
             <div class="workspace-viewport">
-
+                
+            <!-- 🔒 VERIFICATION LOCK OVERLAY (Visible when user is NOT verified) -->
+            <div id="verification-lock-overlay" class="verification-lock-overlay" style="display: none;">
+                <div class="verification-lock-card">
+                    <div class="lock-icon-badge">🔒</div>
+                    <h2 class="lock-title">Verification Required</h2>
+                    <div class="lock-alert-pill">
+                        ⚠️ You must be verified to access this page
+                    </div>
+                    <p class="lock-description">
+                        Under municipal short-term rental regulations (MySTRA 2026), operators must complete
+                        document intake and identity verification before generating registration tokens and
+                        deploying accommodation listings.
+                    </p>
+                    <div class="lock-action-buttons">
+                        <a href="mystra-document-portal.html" class="btn-primary"
+                            style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px;">
+                            📄 Submit Verification Documents →
+                        </a>
+                        <a href="mystra-map-view.html" class="btn-secondary"
+                            style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px;">
+                            🗺️ Back to Map View
+                        </a>
+                    </div>
+                </div>
+            </div>
                 <!-- 🏠 SIDEBAR VIEW 1: HOME PAGE WORKSPACE PANEL -->
                 <div id="view-home" class="tab-panel hidden">
                     <div class="widget-card">
