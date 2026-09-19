@@ -208,14 +208,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ==============================================================================
+  /// ==============================================================================
   // RESET PASSWORD FLOW
   // ==============================================================================
+
+  // Helper function to handle button loading states
+  function setButtonLoading(buttonEl, isLoading, loadingText = "Processing...") {
+    if (!buttonEl) return;
+    if (isLoading) {
+      buttonEl.dataset.originalText = buttonEl.innerText || buttonEl.value;
+      buttonEl.disabled = true;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = loadingText;
+      } else {
+        buttonEl.innerText = loadingText;
+      }
+    } else {
+      buttonEl.disabled = false;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = buttonEl.dataset.originalText || "Submit";
+      } else {
+        buttonEl.innerText = buttonEl.dataset.originalText || "Submit";
+      }
+    }
+  }
 
   // 1. STEP 1: Request Password Reset Code
   if (forgotReqForm) {
     forgotReqForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const submitBtn = forgotReqForm.querySelector("button[type='submit'], input[type='submit']");
 
       const emailInput = document.getElementById("forgot-email");
       if (!emailInput) {
@@ -236,6 +258,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Disable button to prevent double triggering
+      setButtonLoading(submitBtn, true, "Sending Code...");
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
       try {
@@ -250,17 +274,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (dbError) {
           alert("❌ Failed to register reset request: " + dbError.message);
+          setButtonLoading(submitBtn, false);
           return;
         }
 
+        // Send EmailJS Asynchronously
         await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
 
+        // Immediate view transition without blocking alert collisions
         if (stepForgotReq) stepForgotReq.classList.add("hidden");
         if (stepForgotOtp) stepForgotOtp.classList.remove("hidden");
         setupOtpInputs("forgot-otp-container");
-        alert("✅ A 6-digit verification code has been sent to " + recoveryEmail);
+
       } catch (err) {
         alert("❌ Error sending OTP email: " + (err.text || err.message));
+      } finally {
+        setButtonLoading(submitBtn, false);
       }
     });
   }
@@ -276,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      alert("✅ Code verified successfully!");
+      // Smooth step advancement
       if (stepForgotOtp) stepForgotOtp.classList.add("hidden");
       if (stepForgotPass) stepForgotPass.classList.remove("hidden");
     });
@@ -334,6 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (resetForm) {
     resetForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const submitBtn = resetForm.querySelector("button[type='submit'], input[type='submit']");
 
       const newPassword = resetPassInput.value;
       const confirmPassword = resetConfirmInput.value;
@@ -350,6 +380,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      setButtonLoading(submitBtn, true, "Updating Password...");
+
       try {
         const { error } = await client.rpc("reset_user_password", {
           target_email: recoveryEmail,
@@ -359,20 +391,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (error) {
           alert("❌ Password Reset Failed: " + error.message);
+          setButtonLoading(submitBtn, false);
         } else {
           alert("✅ Password updated successfully! Please log in with your new password.");
           window.location.href = "login.html";
         }
       } catch (err) {
         alert("❌ Error: " + err.message);
+        setButtonLoading(submitBtn, false);
       }
     });
   }
 
-  // 5. RESEND OTP CODE
+  // 5. RESEND OTP CODE WITH COOLDOWN
+  let isResendCooldown = false;
   if (resendForgotBtn) {
     resendForgotBtn.addEventListener("click", async (e) => {
       e.preventDefault();
+      if (isResendCooldown) return;
+
       if (!recoveryEmail) {
         alert("❌ Email address missing. Please request a new code.");
         return;
@@ -383,6 +420,10 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("❌ Supabase client unavailable.");
         return;
       }
+
+      isResendCooldown = true;
+      resendForgotBtn.style.pointerEvents = "none";
+      resendForgotBtn.innerText = "Resending...";
 
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -397,19 +438,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (dbError) {
           alert("❌ Failed to refresh code: " + dbError.message);
+          isResendCooldown = false;
+          resendForgotBtn.style.pointerEvents = "auto";
+          resendForgotBtn.innerText = "Resend Code";
           return;
         }
 
         await sendOtpEmail(recoveryEmail, currentGeneratedOTP);
         alert("✅ A fresh 6-digit code has been sent to " + recoveryEmail);
+
+        // 30-Second Cooldown Timer
+        let countdown = 30;
+        const interval = setInterval(() => {
+          countdown--;
+          if (countdown > 0) {
+            resendForgotBtn.innerText = `Resend in ${countdown}s`;
+          } else {
+            clearInterval(interval);
+            isResendCooldown = false;
+            resendForgotBtn.style.pointerEvents = "auto";
+            resendForgotBtn.innerText = "Resend Code";
+          }
+        }, 1000);
+
       } catch (err) {
         alert("❌ Error resending OTP email: " + (err.text || err.message));
+        isResendCooldown = false;
+        resendForgotBtn.style.pointerEvents = "auto";
+        resendForgotBtn.innerText = "Resend Code";
       }
     });
   }
 
   // ==============================================================================
-  // 1. MIGRATE LEGACY ACCOUNT HANDLERS (MOCK DB -> PROFILES & COMPLIANCE)
+  // LEGACY ACCOUNT MIGRATION FLOW
   // ==============================================================================
   const migPassInput = document.getElementById("mig-password");
   const migConfirmInput = document.getElementById("mig-confirm-password");
@@ -461,78 +523,90 @@ document.addEventListener("DOMContentLoaded", () => {
     migConfirmInput.addEventListener("input", validateMigPassword);
   }
 
+  // 1. STEP 1: VALIDATE LEGACY CREDENTIALS & FETCH DETAILS
   if (legacyMigrateForm) {
     legacyMigrateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const submitBtn = legacyMigrateForm.querySelector("button[type='submit'], input[type='submit']");
 
-      // Clean and sanitize user input
       const email = document.getElementById("legacy-email")?.value.trim().toLowerCase() || "";
       const licenseNo = document.getElementById("legacy-license")?.value.trim() || "";
       const ssm = document.getElementById("legacy-ssm")?.value.trim() || "";
 
+      if (!email || !licenseNo || !ssm) {
+        alert("❌ Please fill in all legacy account fields.");
+        return;
+      }
+
       const client = getSupabaseClient();
-      if (!client) return;
-
-      // 1. Fetch internal legacy account details with case-insensitive matching (.ilike)
-      // and .maybeSingle() to prevent unhandled 0-record exceptions
-      const { data: legacyRecord, error: legacyErr } = await client
-        .from("legacy_accounts")
-        .select("*")
-        .ilike("legacy_email", email)
-        .ilike("license_no", licenseNo)
-        .ilike("business_ssm", ssm)
-        .maybeSingle();
-
-      if (legacyErr) {
-        console.error("Supabase Query Error:", legacyErr);
-        alert("❌ Database query error: " + legacyErr.message);
+      if (!client) {
+        alert("❌ Supabase client unavailable.");
         return;
       }
 
-      if (!legacyRecord) {
-        alert("❌ No legacy account found matching these details. Please double-check your Email, License No, and SSM.");
-        return;
-      }
-
-      if (legacyRecord.is_migrated) {
-        alert("❌ This legacy account has already been migrated. Please log in.");
-        return;
-      }
-
-      // 2. Extract full Legacy Property record from External DB (ETL Extract)
-      const { data: extRecord } = await client
-        .from("mock_legacy_external_db")
-        .select("*")
-        .ilike("operator_email", email)
-        .maybeSingle();
-
-      // 3. Store extracted property & user data into temporary memory
-      tempLegacyData = {
-        email: legacyRecord.legacy_email,
-        licenseNo: legacyRecord.license_no || extRecord?.licence_no_code || "",
-        ssm: legacyRecord.business_ssm || extRecord?.ssm_reg_number || "",
-        fullName: legacyRecord.operator_name || extRecord?.operator_name || "Legacy Operator",
-        businessName: legacyRecord.business_name || extRecord?.operator_business_name || "Legacy Property",
-        phone: legacyRecord.phone_number || extRecord?.phone_number || "",
-        documentUrl: legacyRecord.document_url || extRecord?.document_url || "",
-        // Physical legacy property location data:
-        state: extRecord?.legacy_state || "Kuala Lumpur",
-        district: extRecord?.legacy_district || "Central Business District"
-      };
-
-      currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+      setButtonLoading(submitBtn, true, "Verifying Account...");
 
       try {
+        const { data: legacyRecord, error: legacyErr } = await client
+          .from("legacy_accounts")
+          .select("*")
+          .ilike("legacy_email", email)
+          .ilike("license_no", licenseNo)
+          .ilike("business_ssm", ssm)
+          .maybeSingle();
+
+        if (legacyErr) {
+          console.error("Supabase Query Error:", legacyErr);
+          alert("❌ Database query error: " + legacyErr.message);
+          setButtonLoading(submitBtn, false);
+          return;
+        }
+
+        if (!legacyRecord) {
+          alert("❌ No legacy account found matching these details. Please check your Email, License No, and SSM.");
+          setButtonLoading(submitBtn, false);
+          return;
+        }
+
+        if (legacyRecord.is_migrated) {
+          alert("❌ This legacy account has already been migrated. Please log in.");
+          setButtonLoading(submitBtn, false);
+          return;
+        }
+
+        const { data: extRecord } = await client
+          .from("mock_legacy_external_db")
+          .select("*")
+          .ilike("operator_email", email)
+          .maybeSingle();
+
+        tempLegacyData = {
+          email: legacyRecord.legacy_email,
+          licenseNo: legacyRecord.license_no || extRecord?.licence_no_code || "",
+          ssm: legacyRecord.business_ssm || extRecord?.ssm_reg_number || "",
+          fullName: legacyRecord.operator_name || extRecord?.operator_name || "Legacy Operator",
+          businessName: legacyRecord.business_name || extRecord?.operator_business_name || "Legacy Property",
+          phone: legacyRecord.phone_number || extRecord?.phone_number || "",
+          documentUrl: legacyRecord.document_url || extRecord?.document_url || "",
+          state: extRecord?.legacy_state || "Kuala Lumpur",
+          district: extRecord?.legacy_district || "Central Business District"
+        };
+
+        currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
         await sendOtpEmail(email, currentGeneratedOTP);
+
         if (stepMigrateCreds) stepMigrateCreds.classList.add("hidden");
         if (stepMigrateOtp) stepMigrateOtp.classList.remove("hidden");
-        alert("✅ Verification OTP code sent to " + email);
+
       } catch (err) {
-        alert("❌ Error sending OTP: " + (err.text || JSON.stringify(err)));
+        alert("❌ Error verifying legacy record: " + (err.text || err.message));
+      } finally {
+        setButtonLoading(submitBtn, false);
       }
     });
   }
 
+  // 2. STEP 2: VERIFY LEGACY OTP
   if (legacyOtpForm) {
     legacyOtpForm.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -548,31 +622,59 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // 3. STEP 2: RESEND LEGACY OTP WITH COOLDOWN
   if (resendLegacyBtn) {
     resendLegacyBtn.addEventListener("click", async (e) => {
       e.preventDefault();
-      if (!tempLegacyData.email) return;
+      if (isLegacyResendCooldown) return;
+
+      if (!tempLegacyData.email) {
+        alert("❌ Email missing. Please restart the migration lookup.");
+        return;
+      }
+
+      isLegacyResendCooldown = true;
+      resendLegacyBtn.style.pointerEvents = "none";
+      resendLegacyBtn.innerText = "Resending...";
 
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
       try {
         await sendOtpEmail(tempLegacyData.email, currentGeneratedOTP);
         alert("✅ A fresh OTP code has been sent to " + tempLegacyData.email);
+
+        let countdown = 30;
+        const interval = setInterval(() => {
+          countdown--;
+          if (countdown > 0) {
+            resendLegacyBtn.innerText = `Resend in ${countdown}s`;
+          } else {
+            clearInterval(interval);
+            isLegacyResendCooldown = false;
+            resendLegacyBtn.style.pointerEvents = "auto";
+            resendLegacyBtn.innerText = "Resend OTP";
+          }
+        }, 1000);
+
       } catch (err) {
-        alert("❌ Error resending code: " + (err.text || JSON.stringify(err)));
+        alert("❌ Error resending code: " + (err.text || err.message));
+        isLegacyResendCooldown = false;
+        resendLegacyBtn.style.pointerEvents = "auto";
+        resendLegacyBtn.innerText = "Resend OTP";
       }
     });
   }
 
+  // 4. STEP 3 SUBMIT: COMPLETE LEGACY MIGRATION
   if (legacyPasswordForm) {
     legacyPasswordForm.addEventListener("submit", async (e) => {
-      // 1. Prevent instant form reload / clearing inputs
       e.preventDefault();
+      const submitBtn = legacyPasswordForm.querySelector("button[type='submit'], input[type='submit']");
 
       try {
         const newPassword = document.getElementById("mig-password")?.value || "";
         const confirmPassword = document.getElementById("mig-confirm-password")?.value || "";
 
-        // Fallback checks for legacyData scope
         const legacyData = tempLegacyData?.email 
           ? tempLegacyData 
           : (window.tempLegacyData || JSON.parse(sessionStorage.getItem("tempLegacyData") || "{}"));
@@ -587,20 +689,19 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        if (typeof checkPasswordStrength === "function" && !checkPasswordStrength(newPassword)) {
-          alert("❌ Password does not meet security criteria (at least 8 chars, numbers, & symbols).");
+        if (!checkPasswordStrength(newPassword)) {
+          alert("❌ Password does not meet security criteria.");
           return;
         }
 
         const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : window.supabaseClient;
         if (!client) {
-          alert("❌ Supabase client initialization failed. Check your console.");
+          alert("❌ Supabase client initialization failed.");
           return;
         }
 
-        console.log("Starting migration process for:", legacyData.email);
+        setButtonLoading(submitBtn, true, "Migrating Account...");
 
-        // 2. Auth Sign Up
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: legacyData.email,
           password: newPassword,
@@ -617,16 +718,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (signUpError) {
           alert("❌ Sign-Up Error: " + signUpError.message);
+          setButtonLoading(submitBtn, false);
           return;
         }
 
         const userId = authData?.user?.id;
         if (!userId) {
           alert("❌ Failed to create user account ID.");
+          setButtonLoading(submitBtn, false);
           return;
         }
 
-        // 3. Upsert Profile
         const { error: profileErr } = await client
           .from("profiles")
           .upsert([
@@ -642,7 +744,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (profileErr) console.warn("Profile Insert Notice:", profileErr.message);
 
-        // 4. Insert Property
         const migratedPropertyId = crypto.randomUUID();
         const { error: propErr } = await client
           .from("properties")
@@ -664,10 +765,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (propErr) {
           alert("❌ Property Creation Error: " + propErr.message);
+          setButtonLoading(submitBtn, false);
           return;
         }
 
-        // 5. Ingest Compliance Document
         const rawFileName = legacyData.documentUrl
           ? legacyData.documentUrl.split('/').pop().split('?')[0]
           : `SSM_Certificate_${legacyData.ssm || 'default'}.pdf`;
@@ -694,7 +795,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (complianceErr) console.warn("Compliance Insert Notice:", complianceErr.message);
 
-        // 6. Update Legacy Tracking Records
         await client
           .from("legacy_accounts")
           .update({ is_migrated: true })
@@ -711,6 +811,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (err) {
         console.error("Migration Exception:", err);
         alert("❌ Unexpected Error: " + (err.message || "Execution failed. Check browser console."));
+        setButtonLoading(submitBtn, false);
       }
     });
   }

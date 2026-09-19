@@ -46,6 +46,28 @@ document.addEventListener("DOMContentLoaded", () => {
     phone: ""
   };
   let currentGeneratedOTP = null;
+  let isResendCooldown = false;
+
+  // Helper function to manage loading UI on submit buttons
+  function setButtonLoading(buttonEl, isLoading, loadingText = "Processing...") {
+    if (!buttonEl) return;
+    if (isLoading) {
+      buttonEl.dataset.originalText = buttonEl.innerText || buttonEl.value;
+      buttonEl.disabled = true;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = loadingText;
+      } else {
+        buttonEl.innerText = loadingText;
+      }
+    } else {
+      buttonEl.disabled = false;
+      if (buttonEl.tagName === "INPUT") {
+        buttonEl.value = buttonEl.dataset.originalText || "Submit";
+      } else {
+        buttonEl.innerText = buttonEl.dataset.originalText || "Submit";
+      }
+    }
+  }
 
   // ----------------------------------------------------------------------------
   // A. EYE TOGGLES FOR PASSWORDS
@@ -75,14 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     inputs.forEach((input, index) => {
       input.addEventListener("input", (e) => {
-        // Automatically jump to the next input field upon typing a digit
         if (e.target.value.length === 1 && index < inputs.length - 1) {
           inputs[index + 1].focus();
         }
       });
 
       input.addEventListener("keydown", (e) => {
-        // Go back to the previous input field on Backspace
         if (e.key === "Backspace" && !e.target.value && index > 0) {
           inputs[index - 1].focus();
         }
@@ -155,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Confirm password matching check
     if (confirmInput && confirmInput.value.length > 0) {
       if (confirmInput.value !== passwordInput.value) {
         if (confirmError) confirmError.classList.remove("hidden");
@@ -180,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Helper function to transmit EmailJS OTPs
   async function sendOtpEmail(targetEmail, otpCode) {
     return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: targetEmail,
@@ -194,6 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (registerForm) {
     registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const submitBtn = registerForm.querySelector("button[type='submit'], input[type='submit']");
 
       const email = document.getElementById("reg-email")?.value.trim().toLowerCase() || "";
       const password = document.getElementById("reg-password")?.value || "";
@@ -202,7 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const businessName = document.getElementById("reg-business-name")?.value.trim() || "";
       const phone = document.getElementById("reg-phone")?.value.trim() || "";
 
-      // Security & Password Match Checks
       if (password !== confirmPassword) {
         alert("❌ Passwords do not match.");
         return;
@@ -213,43 +231,67 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Store form data temporarily until OTP verification succeeds
       tempUserData = { email, password, fullName, businessName, phone };
-
-      // Generate 6-digit OTP
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+      setButtonLoading(submitBtn, true, "Sending Code...");
 
       try {
         await sendOtpEmail(email, currentGeneratedOTP);
 
-        // Hide Step 1, Show Step 2
+        // Immediate UI transition without blocking alert
         if (stepRegister) stepRegister.classList.add("hidden");
         if (stepOtp) stepOtp.classList.remove("hidden");
 
-        alert("✅ Verification code sent to " + email);
       } catch (err) {
         alert("❌ Failed to send OTP email: " + (err.text || err.message));
+      } finally {
+        setButtonLoading(submitBtn, false);
       }
     });
   }
 
   // ----------------------------------------------------------------------------
-  // E. RESEND OTP BUTTON
+  // E. RESEND OTP BUTTON WITH COOLDOWN
   // ----------------------------------------------------------------------------
   if (resendBtn) {
     resendBtn.addEventListener("click", async (e) => {
       e.preventDefault();
+      if (isResendCooldown) return;
+
       if (!tempUserData.email) {
         alert("❌ Email missing. Please try registering again.");
         return;
       }
 
+      isResendCooldown = true;
+      resendBtn.style.pointerEvents = "none";
+      resendBtn.innerText = "Resending...";
+
       currentGeneratedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
       try {
         await sendOtpEmail(tempUserData.email, currentGeneratedOTP);
         alert("✅ A new verification code has been sent to " + tempUserData.email);
+
+        let countdown = 30;
+        const interval = setInterval(() => {
+          countdown--;
+          if (countdown > 0) {
+            resendBtn.innerText = `Resend in ${countdown}s`;
+          } else {
+            clearInterval(interval);
+            isResendCooldown = false;
+            resendBtn.style.pointerEvents = "auto";
+            resendBtn.innerText = "Resend Code";
+          }
+        }, 1000);
+
       } catch (err) {
         alert("❌ Failed to resend OTP: " + (err.text || err.message));
+        isResendCooldown = false;
+        resendBtn.style.pointerEvents = "auto";
+        resendBtn.innerText = "Resend Code";
       }
     });
   }
@@ -260,7 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (otpForm) {
     otpForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-
+      const submitBtn = otpForm.querySelector("button[type='submit'], input[type='submit']");
       const enteredOtp = getEnteredOtp("otp-container");
 
       if (enteredOtp !== currentGeneratedOTP) {
@@ -274,8 +316,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      setButtonLoading(submitBtn, true, "Verifying...");
+
       try {
-        // 1. Sign up user in Supabase Auth
         const { data: authData, error: signUpError } = await client.auth.signUp({
           email: tempUserData.email,
           password: tempUserData.password,
@@ -291,16 +334,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (signUpError) {
           alert("❌ Registration Error: " + signUpError.message);
+          setButtonLoading(submitBtn, false);
           return;
         }
 
         const userId = authData?.user?.id;
         if (!userId) {
           alert("❌ Unable to retrieve registered user ID.");
+          setButtonLoading(submitBtn, false);
           return;
         }
 
-        // Establish session if not automatically returned
         if (!authData.session) {
           await client.auth.signInWithPassword({
             email: tempUserData.email,
@@ -308,7 +352,6 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
 
-        // 2. Insert record into `profiles` table
         const { error: profileErr } = await client
           .from("profiles")
           .upsert([
@@ -331,6 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       } catch (err) {
         alert("❌ Registration process failed: " + err.message);
+        setButtonLoading(submitBtn, false);
       }
     });
   }
