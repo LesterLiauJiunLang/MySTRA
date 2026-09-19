@@ -25,6 +25,7 @@ const codeField = document.getElementById('generated-code-field');
 const btnCopy = document.getElementById('btn-copy-code');
 const tokenStatusHint = document.getElementById('token-status-hint');
 
+
 // Global cache
 let state = {
     profile: null,
@@ -32,7 +33,10 @@ let state = {
     codes: [],
     logs: [],
     documents: [],
-    pendingCode: null
+    pendingCode: null,
+    isVerified: false,   // 🔒 Verification flag
+    user: null,
+    userId: null
 };
 
 // Reset function to switch panels cleanly
@@ -61,6 +65,7 @@ sidebarButtons.forEach(button => {
                 document.getElementById('tab-listings').classList.remove('active');
                 document.getElementById('tab-logs').classList.remove('active');
                 selection.panel.classList.remove('hidden');
+                applyVerificationGate(state.isVerified);   // 🔒 re-apply gate
             } else {
                 managerTabsContainer.style.display = 'none';
                 selection.panel.classList.remove('hidden');
@@ -396,6 +401,50 @@ function checkPendingCodeLock(codes) {
 }
 
 // ==============================================================================
+// 🔒 OPERATOR VERIFICATION GATEWAY
+// ==============================================================================
+
+function applyVerificationGate(isVerified) {
+    const lockOverlay = document.getElementById('verification-lock-overlay');
+    const viewport = document.querySelector('.workspace-viewport');
+    const btnTestCode = document.getElementById('btn-test-code');
+
+    if (isVerified) {
+        // UNLOCKED
+        if (lockOverlay) lockOverlay.style.display = 'none';
+        if (viewport) viewport.classList.remove('blurred-content');
+        if (btnGenerate && !state.pendingCode) {
+            btnGenerate.disabled = false;
+            btnGenerate.textContent = "Generate New Unique Code";
+        }
+        if (btnTestCode) {
+            btnTestCode.disabled = false;
+            btnTestCode.style.opacity = '1';
+            btnTestCode.style.cursor = 'pointer';
+        }
+        if (tokenStatusHint && !state.pendingCode) {
+            tokenStatusHint.innerHTML = `🟢 Ready to generate a new municipal tracking token.`;
+        }
+    } else {
+        // LOCKED
+        if (lockOverlay) lockOverlay.style.display = 'flex';
+        if (viewport) viewport.classList.add('blurred-content');
+        if (btnGenerate) {
+            btnGenerate.disabled = true;
+            btnGenerate.textContent = "🔒 Verification Required";
+        }
+        if (btnTestCode) {
+            btnTestCode.disabled = true;
+            btnTestCode.style.opacity = '0.5';
+            btnTestCode.style.cursor = 'not-allowed';
+        }
+        if (tokenStatusHint) {
+            tokenStatusHint.innerHTML = `<span style="color: #DC2626; font-weight: 600;">🔒 Access restricted:</span> You must be verified to access this page.`;
+        }
+    }
+}
+
+// ==============================================================================
 // 🔄 SUPABASE DATA SYNCHRONIZATION ENGINE
 // ==============================================================================
 
@@ -448,6 +497,15 @@ async function loadSupabaseData() {
             dbStatusBadge.style.color = "#15803D";
         }
 
+        // 7. Determine verification status (profile OR user metadata)
+        const isVerified = Boolean(
+            (profile && (profile.is_verified === true || profile.verified === true)) ||
+            (user && user.user_metadata && user.user_metadata.is_verified === true)
+        );
+        state.isVerified = isVerified;
+        applyVerificationGate(isVerified);
+
+
         renderSimplifiedListings(state.codes, state.properties);
         renderFullListings(state.properties, state.codes);
         renderAuditLogs(state.logs);
@@ -456,6 +514,7 @@ async function loadSupabaseData() {
         renderProfile(state.profile);
         updatePortfolioMetrics(state.properties, state.codes);
         checkPendingCodeLock(state.codes);
+        applyVerificationGate(state.isVerified);
 
     } catch (err) {
         console.warn("⚠️ Supabase Fetch Alert:", err);
@@ -473,6 +532,12 @@ async function loadSupabaseData() {
 
 if (btnGenerate) {
     btnGenerate.addEventListener('click', async () => {
+        if (!state.isVerified) {
+            alert("⚠️ Verification Required:\nTo generate registration codes, you must first submit your verification documents (NRIC, Proof of Ownership, Rental Agreement).");
+            return;
+        }
+
+        // Check for existing pending code
         if (state.pendingCode) {
             alert(`⚠️ Action Blocked:\nYou already have an active unused token: ${state.pendingCode}.\n\nPlease bind this token on the Mock Agoda page before creating a new one.`);
             return;
@@ -558,11 +623,14 @@ if (settingsForm) {
 
 // Link out hook to take user from control panel over to Agoda layout
 const btnTestCode = document.getElementById('btn-test-code');
-if (btnTestCode) {
-    btnTestCode.addEventListener('click', () => {
-        window.location.href = 'mock-agoda.html';
-    });
-}
+
+btnTestCode.addEventListener('click', () => {
+    if (!state.isVerified) {
+        alert("⚠️ Access Blocked:\nYou must be verified to access this page and launch live mock listings.");
+        return;
+    }
+    window.location.href = 'mock-agoda.html';
+});
 
 // Run initial load & event listener bindings on page start
 document.addEventListener('DOMContentLoaded', () => {
